@@ -1,0 +1,30 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+A personal tool that generates a tailored, one-page CV (PDF) for a specific job application. It is not a generic resume builder — it's built around one person's career history and produces a *Tailored CV* per *Job Description* via a Claude Code skill, not a build script.
+
+Read `CONTEXT.md` first for the domain vocabulary (Master Data, Entry, Client Engagement, Selection, Rewrite, Tailored CV, etc.) — the rest of this file assumes it. Check `docs/adr/` for why the architecture looks like this before proposing to change it.
+
+## Running it
+
+The actual "build" is the `tailor-cv` skill (`.claude/skills/tailor-cv/SKILL.md`) — invoke it with a job description (pasted text or URL) or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required).
+
+Rendering requires the `typst` CLI on `PATH`. There is no Node.js/JS toolchain in this repo — a prior version of this project used one; it was deliberately dropped (see `docs/adr/0001-typst-no-node.md`).
+
+To render manually once a tailored data file exists:
+```
+typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
+```
+
+## Architecture
+
+- `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
+- `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/…) + Markdown bullets. A single employer can have multiple Entries (one per Client Engagement, e.g. `data/experience/quantyca-*.md`) so Selection can surface one client's work independently of another's.
+- `template/cv.typ` — pure presentation. Reads one assembled JSON file (path passed via `--input data=...`) and renders it; contains no relevance/selection logic. The Tech Stack section it renders is expected to already be derived (deduplicated `tags` of the selected Entries) by whoever assembled the JSON — the template just prints it.
+- `output/` — gitignored. Rendered PDFs and the per-Generation assembled JSON are derived artifacts, not Master Data.
+- `.claude/skills/tailor-cv/` — the skill that drives the whole pipeline described above.
+
+Adding a new job or project means adding a new Markdown file under `data/experience/` or `data/projects/` following the existing frontmatter shape — not writing code.

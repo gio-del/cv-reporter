@@ -1,0 +1,3 @@
+# Tailoring includes Rewrite, mitigated by two-stage Human-in-the-Loop review
+
+Tailoring could have been limited to Selection (picking/reordering pre-written bullets from Master Data), which guarantees every generated CV only ever shows text the user already vetted. Instead, Tailoring also includes Rewrite — adjusting bullet phrasing to match a Job Description's language — because pure selection was judged too limited to meaningfully tailor a CV. This introduces real risk (subtly overselling or drifting from fact), so it's mitigated with two mandatory Human-in-the-Loop checkpoints: Text Review of the rewritten content before Render, then Visual Review of the rendered PDF. Rewrite must not introduce facts absent from Master Data.

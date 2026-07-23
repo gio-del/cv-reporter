@@ -1,0 +1,63 @@
+# Static, always-included content: contact info, education, and the Static
+# Sections (publications, awards, activities, languages). Never subject to
+# Selection or Rewrite — see CONTEXT.md.
+
+name: Giovanni De Lucia
+location: Milan, Italy
+email: giovanni.delucia17@gmail.com
+phone: "+39 333 788 3099"
+linkedin: giovannidelucia
+github: gio-del
+
+education:
+  - degree: MSc
+    institution: Politecnico di Milano
+    program: Computer Science and Engineering
+    start: "2022"
+    end: "2024-04"
+    grade: "110/110 cum laude"
+    courses:
+      - Distributed Systems
+      - Advanced Algorithms and Parallel Programming
+      - Machine Learning
+      - Offensive and Defensive Cybersecurity
+      - Computer Security
+      - Software Engineering 2
+      - Databases 2
+      - IoT
+  - degree: BSc
+    institution: Politecnico di Milano
+    program: Ingegneria Informatica (Computer Science)
+    start: "2019"
+    end: "2022"
+    grade: "110/110"
+    courses:
+      - Computer Architectures
+      - Operating Systems
+      - Databases
+      - Data Structures and Algorithms
+      - Software Engineering
+
+publications:
+  - title: "TimberStrike: Dataset Reconstruction Attack Revealing Privacy Leakage in Federated Tree-Based Systems"
+    authors: "Marco Di Gennaro, Giovanni De Lucia, Stefano Longari, Stefano Zanero, Michele Carminati"
+    venue: "Proceedings on Privacy Enhancing Technologies (PoPETs) 2025(4)"
+    link: "https://arxiv.org/abs/2506.07605"
+    note: >
+      Grew out of the MSc thesis: attacks and countermeasures on privacy of
+      Federated Learning systems based on tree-structured models (Decision
+      Trees, XGBoost).
+
+awards:
+  - title: "Best Freshman Award (PoliMi, 2020)"
+    description: "Awarded among the best freshmen of the year based on academic performance."
+
+activities:
+  - title: "School and University Tutor (2019-2023)"
+    description: "Tutoring activities for high school and university students in scientific subjects."
+
+languages:
+  - name: Italian
+    level: Native
+  - name: English
+    level: "Professional working proficiency (C1, TOEIC 945/990)"
