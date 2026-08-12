@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0004 (no-Node/JS-runtime stance only — the Typst rendering choice below still stands)
+---
+
 # Render with Typst; no Node.js runtime
 
 The original version of this project (2 years ago) was a Node.js script driving a JS resume-templating library. For the rebuild we're rendering with [Typst](https://typst.app) instead, invoked directly via its CLI from the Claude Code skill that drives Generation — there is no Node.js/JS layer in the toolchain at all. Typst is purpose-built for data-driven typesetting, produces print-quality output fast, and the skill already does the orchestration conversationally, so a JS glue layer between YAML data and the renderer would add a runtime and dependency surface with no payoff.

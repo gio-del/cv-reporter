@@ -29,11 +29,43 @@ Content (Awards, Activities, spoken Languages, Publications) that is always incl
 _Avoid_: extras, misc
 
 **Job Description**:
-The pasted text or fetched-URL content describing a role, supplied as input to a Generation to guide Tailoring. Its absence triggers Default Mode.
+The pasted text or fetched-URL content describing a role, held by a Job Listing, supplied as input to a Generation to guide Tailoring. Its absence triggers Default Mode.
 _Avoid_: posting, job ad
 
+**Job Listing**:
+A persisted, tracked record of a role the user is considering: source (pasted, browser-extension capture, or ATS feed), company, URL, saved date, its Job Description, and RAL Range. Distinct from Job Description itself, which is just the text/content field it holds.
+_Avoid_: posting, job ad, listing
+
+**RAL Range**:
+The gross annual salary (Reddito Annuo Lordo) range for a Job Listing, with a source: Stated (found in the Job Description), Estimated (Claude web-researched it for that role/company/location — a guess, not a fact), or N/A (couldn't find anything). Always shown in the FE, source labeled.
+_Avoid_: salary, salary range, pay
+
+**Application**:
+The tracked record of one attempt to apply to a Job Listing (exactly one Application per Job Listing), created the moment it's saved: its Status, Application Method, Contact (if applicable), and a history of every Generation run for it — the most recent Tailored CV and Cover Letter being what you'd actually send.
+_Avoid_: submission
+
+**Status** (of an Application):
+Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer.
+_Avoid_: state, stage
+
+**Application Method**:
+How a Job Listing says to apply, inferred by Claude from its Job Description (portal link, email, LinkedIn Easy Apply, other) and correctable by the user. Determines which guidance the FE surfaces — e.g. a Contact/email draft only for the email method.
+_Avoid_: apply type
+
+**Contact**:
+The recruiter/hiring-manager name and email for an email-method Application. Entered manually by the user or suggested by Claude via web search and confirmed by the user — never trusted unconfirmed.
+_Avoid_: recruiter
+
+**Cover Letter**:
+A Generation output alongside the Tailored CV. Selected/adapted from a user-authored library of Cover Letter Snippets in Master Data when one exists; otherwise freshly generated prose grounded in Master Data and the Job Description, under the same no-invented-facts constraint as Rewrite. Reviewed at Text Review like the CV.
+_Avoid_: motivation letter
+
+**Cover Letter Snippet**:
+Optional Master Data: one reusable cover-letter paragraph (e.g. an opening, a why-this-company, a closing), stored one-per-file like an Entry (YAML frontmatter with a kind and Tags, Markdown body). Selected/lightly rewritten during Cover Letter generation the same way Entries are selected for a CV; if none exist, Cover Letter generation falls back to fresh prose.
+_Avoid_: template, boilerplate
+
 **Generation**:
-The end-to-end pipeline that turns Master Data plus an optional Job Description into a Tailored CV: Selection, Rewrite, Text Review, Render, Visual Review.
+The end-to-end pipeline that turns Master Data plus an optional Job Description into a Tailored CV and Cover Letter: Selection, Rewrite, Text Review, Render, Visual Review.
 _Avoid_: pipeline, build, run
 
 **Tailoring**:

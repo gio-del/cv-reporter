@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      DATA_DIR: /data
+      PORT: "8080"
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - backend

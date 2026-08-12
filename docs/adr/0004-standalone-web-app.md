@@ -1,0 +1,3 @@
+# Standalone local web app, superseding the no-runtime stance
+
+Adding a FE for browsing/tracking Job Listings and Applications, plus a browser extension to feed it, requires a real running app — not something a Claude Code conversation can drive. We're building a standalone local web app (backend + FE, run via docker-compose, localhost-only, no auth) that owns Job Listings, Applications, and Master Data. This directly reverses ADR-0001's "no Node.js/JS runtime" stance: that decision was correct for a conversational, skill-only tool, but a FE and browser extension need one. ADR-0001 is superseded by this decision.
