@@ -67,6 +67,16 @@ type GenerationRecord struct {
 	CoverLetterPath string `json:"coverLetterPath,omitempty"`
 }
 
+// Contact is the recruiter/hiring-manager name and email for an
+// email-method Application, per CONTEXT.md's Contact entry — entered
+// manually or Claude-suggested via web search, but never persisted without
+// explicit user confirmation (story 7): SuggestContact never writes to
+// disk, only UpdateApplicationContact does.
+type Contact struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 // Application is the tracked record of one attempt to apply to a Job
 // Listing — exactly one per Job Listing, created at Status Saved the
 // moment it's saved (CONTEXT.md's Application entry, story 2). It shares
@@ -77,6 +87,7 @@ type Application struct {
 	JobListingID string             `json:"jobListingId"`
 	Status       Status             `json:"status"`
 	Method       ApplicationMethod  `json:"method"`
+	Contact      *Contact           `json:"contact,omitempty"`
 	Generations  []GenerationRecord `json:"generations,omitempty"`
 }
 

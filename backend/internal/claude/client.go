@@ -331,3 +331,82 @@ func (c *Client) InferApplicationMethod(ctx context.Context, jobDescription stri
 	}
 	return tracking.ApplicationMethod{}, fmt.Errorf("Claude response had no %s tool call", inferApplicationMethodToolName)
 }
+
+const extractContactToolName = "extract_contact"
+
+func extractContactTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"found": map[string]any{"type": "boolean", "description": "Whether a plausible recruiter/hiring-manager contact was found."},
+			"name":  map[string]any{"type": "string", "description": "The contact's name. Required if found is true."},
+			"email": map[string]any{"type": "string", "description": "The contact's email address. Required if found is true."},
+		},
+		Required: []string{"found"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, extractContactToolName)
+}
+
+type extractedContact struct {
+	Found bool   `json:"found"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// SuggestContact researches a plausible recruiter/hiring-manager Contact
+// for company via Claude's web search tool, then extracts a structured
+// result from the research notes with a second, forced-tool-call request
+// (server-executed tools like web search can't be combined with a forced
+// custom tool choice in the same request — the same two-call pattern as
+// EstimateRAL). Story 7: this never persists anything, only researches.
+func (c *Client) SuggestContact(ctx context.Context, company, jobDescription string) (tracking.Contact, error) {
+	researchPrompt := fmt.Sprintf(
+		"Research a plausible recruiter or hiring-manager contact (name and email) for applying to a role at %s, using web search. Ground this in the Job Description below if it names anyone directly. Summarize what you found, including a name and email if you found a credible one, or say plainly that you couldn't find a specific contact.\n\nJob Description:\n%s",
+		company, jobDescription,
+	)
+
+	research, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     c.model,
+		MaxTokens: 2048,
+		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(researchPrompt))},
+		Tools: []anthropic.ToolUnionParam{
+			{OfWebSearchTool20260209: &anthropic.WebSearchTool20260209Param{MaxUses: param.NewOpt(int64(5))}},
+		},
+	})
+	if err != nil {
+		return tracking.Contact{}, fmt.Errorf("researching contact: %w", err)
+	}
+
+	var notes strings.Builder
+	for _, block := range research.Content {
+		if block.Type == "text" {
+			notes.WriteString(block.Text)
+		}
+	}
+
+	extraction, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  512,
+		System:     []anthropic.TextBlockParam{{Text: "Extract a structured contact from these research notes by calling the extract_contact tool."}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(notes.String()))},
+		Tools:      []anthropic.ToolUnionParam{extractContactTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(extractContactToolName),
+	})
+	if err != nil {
+		return tracking.Contact{}, fmt.Errorf("extracting contact: %w", err)
+	}
+
+	for _, block := range extraction.Content {
+		if block.Type != "tool_use" || block.Name != extractContactToolName {
+			continue
+		}
+		var result extractedContact
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return tracking.Contact{}, fmt.Errorf("decoding %s tool input: %w", extractContactToolName, err)
+		}
+		if !result.Found {
+			return tracking.Contact{}, nil
+		}
+		return tracking.Contact{Name: result.Name, Email: result.Email}, nil
+	}
+	return tracking.Contact{}, fmt.Errorf("Claude response had no %s tool call", extractContactToolName)
+}

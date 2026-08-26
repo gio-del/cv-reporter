@@ -10,13 +10,15 @@ import (
 )
 
 // Client is the seam tracking needs an LLM for: generation.Client's RAL
-// Range lookup (a Job Listing's RAL Range, reused from Generation) plus
-// Application Method inference from a Job Description (story 5). The real
+// Range lookup (a Job Listing's RAL Range, reused from Generation),
+// Application Method inference from a Job Description (story 5), and
+// researching a Contact suggestion via web search (story 7). The real
 // implementation is claude.Client, which already satisfies
 // generation.Client.
 type Client interface {
 	generation.Client
 	InferApplicationMethod(ctx context.Context, jobDescription string) (ApplicationMethod, error)
+	SuggestContact(ctx context.Context, company, jobDescription string) (Contact, error)
 }
 
 // knownMethodKinds validates a user correction (story 6) without

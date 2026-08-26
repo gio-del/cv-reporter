@@ -343,6 +343,57 @@ func TestGetJobListing_UnknownID_Returns404(t *testing.T) {
 	}
 }
 
+func TestSuggestContact_ResearchesAndDoesNotPersist(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		suggestContact: func(ctx context.Context, company, jobDescription string) (tracking.Contact, error) {
+			if company != "Acme Corp" {
+				t.Errorf("expected company Acme Corp to reach the client, got %q", company)
+			}
+			return tracking.Contact{Name: "Jane Recruiter", Email: "jane@acme.example"}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/job-listings/"+id+"/suggest-contact", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var contact map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&contact); err != nil {
+		t.Fatal(err)
+	}
+	if contact["name"] != "Jane Recruiter" || contact["email"] != "jane@acme.example" {
+		t.Errorf("expected suggested contact, got %v", contact)
+	}
+
+	applicationContent, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(applicationContent, []byte("jane@acme.example")) {
+		t.Errorf("expected suggestion NOT to be persisted without confirmation, got:\n%s", applicationContent)
+	}
+}
+
+func TestSuggestContact_UnknownJobListing_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings/does-not-exist/suggest-contact", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
 func assertNoFilesIn(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

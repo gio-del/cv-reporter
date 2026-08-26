@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
+import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
-import { generationFileUrl, listJobListings, updateApplicationMethod, updateApplicationStatus } from '@/api/client'
-import type { ApplicationMethod, ApplicationStatus, JobListingWithApplication } from '@/api/types'
+import {
+  generationFileUrl,
+  listJobListings,
+  updateApplicationContact,
+  updateApplicationMethod,
+  updateApplicationStatus,
+} from '@/api/client'
+import type { ApplicationMethod, ApplicationStatus, Contact, JobListingWithApplication } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -58,6 +65,13 @@ export default function JobListingsListPage() {
 
   async function handleMethodChange(jobListingId: string, method: ApplicationMethod) {
     const application = await updateApplicationMethod(jobListingId, method)
+    setListings((prev) =>
+      prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
+    )
+  }
+
+  async function handleContactChange(jobListingId: string, contact: Contact) {
+    const application = await updateApplicationContact(jobListingId, contact)
     setListings((prev) =>
       prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
     )
@@ -132,6 +146,13 @@ export default function JobListingsListPage() {
                 <ApplicationMethodEditor
                   method={application.method}
                   onSave={(method) => handleMethodChange(jobListing.id, method)}
+                />
+              </div>
+              <div className="mt-2">
+                <ApplyGuidance
+                  jobListing={jobListing}
+                  application={application}
+                  onSaveContact={(contact) => handleContactChange(jobListing.id, contact)}
                 />
               </div>
               <div className="mt-2">

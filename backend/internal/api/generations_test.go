@@ -23,6 +23,7 @@ type fakeGenerationClient struct {
 	draftCoverLetter       func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error)
 	estimateRAL            func(ctx context.Context, jobDescription string) (generation.RALRange, error)
 	inferApplicationMethod func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error)
+	suggestContact         func(ctx context.Context, company, jobDescription string) (tracking.Contact, error)
 }
 
 func (f *fakeGenerationClient) SelectAndRewrite(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
@@ -48,6 +49,13 @@ func (f *fakeGenerationClient) InferApplicationMethod(ctx context.Context, jobDe
 		return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
 	}
 	return f.inferApplicationMethod(ctx, jobDescription)
+}
+
+func (f *fakeGenerationClient) SuggestContact(ctx context.Context, company, jobDescription string) (tracking.Contact, error) {
+	if f.suggestContact == nil {
+		return tracking.Contact{}, nil
+	}
+	return f.suggestContact(ctx, company, jobDescription)
 }
 
 func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing.T) {

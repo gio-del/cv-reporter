@@ -260,3 +260,69 @@ func TestRecordApplicationGeneration_UnknownApplication_Returns404(t *testing.T)
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+func TestUpdateApplicationContact_ValidPayload_WritesFileAndReturns200(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/contact", map[string]any{
+		"name":  "Jane Recruiter",
+		"email": "jane@acme.example",
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	contact := application["contact"].(map[string]any)
+	if contact["name"] != "Jane Recruiter" || contact["email"] != "jane@acme.example" {
+		t.Errorf("expected saved contact, got %v", contact)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("jane@acme.example")) {
+		t.Errorf("expected application file to record the contact, got:\n%s", content)
+	}
+}
+
+func TestUpdateApplicationContact_MissingEmail_Returns400(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/contact", map[string]any{"name": "Jane Recruiter"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateApplicationContact_UnknownApplication_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := patchJSON(t, server.URL+"/api/applications/does-not-exist/contact", map[string]any{
+		"name":  "Jane Recruiter",
+		"email": "jane@acme.example",
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}

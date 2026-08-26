@@ -46,6 +46,7 @@ type rawApplication struct {
 	JobListingID string             `yaml:"jobListingId"`
 	Status       Status             `yaml:"status"`
 	Method       ApplicationMethod  `yaml:"method"`
+	Contact      *Contact           `yaml:"contact,omitempty"`
 	Generations  []GenerationRecord `yaml:"generations,omitempty"`
 }
 
@@ -191,6 +192,7 @@ func getApplication(dataDir, slug string) (Application, error) {
 		JobListingID: raw.JobListingID,
 		Status:       raw.Status,
 		Method:       raw.Method,
+		Contact:      raw.Contact,
 		Generations:  raw.Generations,
 	}, nil
 }
@@ -241,7 +243,13 @@ func renderJobListing(l JobListing) []byte {
 }
 
 func renderApplication(a Application) []byte {
-	raw := rawApplication{JobListingID: a.JobListingID, Status: a.Status, Method: a.Method, Generations: a.Generations}
+	raw := rawApplication{
+		JobListingID: a.JobListingID,
+		Status:       a.Status,
+		Method:       a.Method,
+		Contact:      a.Contact,
+		Generations:  a.Generations,
+	}
 	out, _ := yaml.Marshal(raw)
 	return out
 }

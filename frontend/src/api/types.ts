@@ -160,11 +160,17 @@ export interface GenerationRecord {
   coverLetterPath?: string
 }
 
+export interface Contact {
+  name: string
+  email: string
+}
+
 export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
   method: ApplicationMethod
+  contact?: Contact
   generations?: GenerationRecord[]
 }
 

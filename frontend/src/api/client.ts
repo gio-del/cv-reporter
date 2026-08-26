@@ -2,6 +2,7 @@ import type {
   Application,
   ApplicationMethod,
   ApplicationStatus,
+  Contact,
   Entry,
   EntryInput,
   GenerateRequest,
@@ -139,6 +140,10 @@ export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListi
   })
 }
 
+export function suggestContact(jobListingId: string): Promise<Contact> {
+  return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/suggest-contact`, { method: 'POST' })
+}
+
 export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
@@ -152,6 +157,14 @@ export function updateApplicationMethod(id: string, method: ApplicationMethod): 
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(method),
+  })
+}
+
+export function updateApplicationContact(id: string, contact: Contact): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/contact`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(contact),
   })
 }
 

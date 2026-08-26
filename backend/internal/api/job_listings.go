@@ -48,6 +48,25 @@ func getJobListingHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
+// suggestContactHandler researches a Contact suggestion for the Job
+// Listing identified by id (story 7). It never persists — the FE must
+// PATCH /api/applications/{id}/contact to save it once the user confirms.
+func suggestContactHandler(dataDir string, client tracking.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		contact, err := tracking.SuggestContact(r.Context(), dataDir, client, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, contact)
+	}
+}
+
 func createJobListingHandler(dataDir string, client tracking.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveJobListingRequest
