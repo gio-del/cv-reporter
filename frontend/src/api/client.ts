@@ -1,4 +1,12 @@
-import type { Entry, EntryInput, GenerateRequest, GenerateResult, Profile } from './types'
+import type {
+  Entry,
+  EntryInput,
+  GenerateRequest,
+  GenerateResult,
+  Profile,
+  RenderRequest,
+  RenderResult,
+} from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init)
@@ -59,4 +67,16 @@ export function createGeneration(req: GenerateRequest): Promise<GenerateResult> 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   })
+}
+
+export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
+  return request('/api/generations/render', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
+export function generationFileUrl(slug: string, file: string): string {
+  return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }

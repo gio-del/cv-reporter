@@ -59,6 +59,7 @@ docker-compose up
 | DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
 | POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
 | POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
+| GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 

@@ -143,6 +143,13 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 			return RenderResult{}, err
 		}
 		result.CoverLetterPath = clRelPath
+
+		// A plain-text copy alongside the PDF, so it can be downloaded as
+		// either (story 11) without re-deriving it from the PDF.
+		txtPath := filepath.Join(outputDir, "cover-letter.txt")
+		if err := os.WriteFile(txtPath, []byte(req.CoverLetter.Body), 0o644); err != nil {
+			return RenderResult{}, fmt.Errorf("writing cover letter text: %w", err)
+		}
 	}
 
 	return result, nil

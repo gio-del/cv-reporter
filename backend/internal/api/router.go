@@ -44,6 +44,7 @@ func NewRouterFull(dataDir, projectRoot string, generationClient generation.Clie
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
+	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))
 	return mux
 }
 

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import BulletDiff from '../components/BulletDiff'
 import RALBadge from '../components/RALBadge'
-import { createGeneration, listEntries } from '../api/client'
-import type { Entry, RALRange, SelectedBullet, SelectedEntry } from '../api/types'
+import { createGeneration, generationFileUrl, listEntries, renderGeneration } from '../api/client'
+import type { Entry, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '../api/types'
+
+const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 interface EditableBullet extends SelectedBullet {
   included: boolean
@@ -42,7 +44,10 @@ export default function GenerationPage() {
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
-  const [approved, setApproved] = useState(false)
+  const [slug, setSlug] = useState('default')
+  const [rendering, setRendering] = useState(false)
+  const [renderError, setRenderError] = useState<string | null>(null)
+  const [render, setRender] = useState<RenderResult | null>(null)
 
   useEffect(() => {
     listEntries()
@@ -55,7 +60,8 @@ export default function GenerationPage() {
   async function handleStart() {
     setError(null)
     setLoading(true)
-    setApproved(false)
+    setRender(null)
+    setRenderError(null)
     try {
       const result = await createGeneration({
         jobDescription: jobDescription.trim() || undefined,
@@ -107,8 +113,38 @@ export default function GenerationPage() {
     )
   }
 
-  function handleApprove() {
-    setApproved(true)
+  async function handleRender() {
+    if (!editable) return
+    if (!SLUG_RE.test(slug)) {
+      setRenderError('Name must be lowercase kebab-case, e.g. "acme-corp".')
+      return
+    }
+
+    const selection: SelectedEntry[] = editable
+      .filter((e) => e.included)
+      .map((e) => ({
+        entryId: e.entryId,
+        reason: e.reason,
+        bullets: e.bullets
+          .filter((b) => b.included)
+          .map((b) => ({ sourceIndex: b.sourceIndex, source: b.source, rewritten: b.rewritten })),
+      }))
+      .filter((e) => e.bullets.length > 0)
+
+    setRenderError(null)
+    setRendering(true)
+    try {
+      const result = await renderGeneration({
+        slug,
+        selection: { entries: selection },
+        coverLetter: coverLetter !== null ? { body: coverLetter } : undefined,
+      })
+      setRender(result)
+    } catch (err) {
+      setRenderError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRendering(false)
+    }
   }
 
   return (
@@ -198,9 +234,51 @@ export default function GenerationPage() {
             </div>
           )}
 
-          <button onClick={handleApprove} disabled={approved}>
-            {approved ? 'Approved' : 'Approve Text Review'}
+          <label>
+            Save as (used for the output filename)
+            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="acme-corp" />
+          </label>
+
+          {renderError && <p role="alert">{renderError}</p>}
+
+          <button onClick={handleRender} disabled={rendering}>
+            {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
           </button>
+        </section>
+      )}
+
+      {render && (
+        <section>
+          <h2>Visual Review</h2>
+          {render.cvPageCount !== 1 && (
+            <p role="alert">
+              The CV rendered to {render.cvPageCount} pages — it should be one. Trim a bullet or Entry above and
+              re-render.
+            </p>
+          )}
+          <iframe
+            title="Tailored CV preview"
+            src={generationFileUrl(render.slug, 'cv.pdf')}
+            width="100%"
+            height={800}
+          />
+          <p>
+            <a href={generationFileUrl(render.slug, 'cv.pdf')} download={`${render.slug}-cv.pdf`}>
+              Download CV (PDF)
+            </a>
+            {render.coverLetterPath && (
+              <>
+                {' · '}
+                <a href={generationFileUrl(render.slug, 'cover-letter.pdf')} download={`${render.slug}-cover-letter.pdf`}>
+                  Download Cover Letter (PDF)
+                </a>
+                {' · '}
+                <a href={generationFileUrl(render.slug, 'cover-letter.txt')} download={`${render.slug}-cover-letter.txt`}>
+                  Download Cover Letter (Text)
+                </a>
+              </>
+            )}
+          </p>
         </section>
       )}
     </>

@@ -116,6 +116,14 @@ func TestRenderGeneration_WithCoverLetter_AlsoProducesCoverLetterPDF(t *testing.
 	if _, err := os.Stat(filepath.Join(projectRoot, result.CoverLetterPath)); err != nil {
 		t.Fatalf("expected rendered cover letter PDF to exist: %v", err)
 	}
+
+	txt, err := os.ReadFile(filepath.Join(projectRoot, "output", "acme-corp", "cover-letter.txt"))
+	if err != nil {
+		t.Fatalf("expected a cover-letter.txt for story 11's text download: %v", err)
+	}
+	if string(txt) != "Dear Hiring Manager,\n\nI'm excited to apply.\n\nBest,\nCandidate" {
+		t.Errorf("expected cover-letter.txt to match the approved body, got %q", txt)
+	}
 }
 
 func TestRenderGeneration_InvalidSlug_Returns400(t *testing.T) {

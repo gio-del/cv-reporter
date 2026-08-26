@@ -110,3 +110,16 @@ export interface GenerateRequest {
   jobDescriptionUrl?: string
 }
 
+export interface RenderRequest {
+  slug: string
+  selection: SelectionResult
+  coverLetter?: { body: string }
+}
+
+export interface RenderResult {
+  slug: string
+  cvPath: string
+  coverLetterPath?: string
+  cvPageCount: number
+}
+
