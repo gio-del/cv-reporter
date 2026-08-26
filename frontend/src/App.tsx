@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import AppNav from './components/AppNav'
 import EntriesListPage from './pages/EntriesListPage'
 import EntryCreatePage from './pages/EntryCreatePage'
 import EntryDetailPage from './pages/EntryDetailPage'
@@ -11,6 +12,7 @@ import SnippetsListPage from './pages/SnippetsListPage'
 function App() {
   return (
     <BrowserRouter>
+      <AppNav />
       <main>
         <Routes>
           <Route path="/" element={<EntriesListPage />} />

@@ -67,7 +67,7 @@ export default function SnippetEditForm({
         <textarea rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
       </label>
 
-      <div>
+      <div className="form-actions">
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>

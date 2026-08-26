@@ -41,7 +41,7 @@ export default function SnippetDetailPage() {
   if (editing) {
     return (
       <>
-        <p>
+        <p className="breadcrumb">
           <Link to="/snippets">← Back to Cover Letter Snippets</Link>
         </p>
         <h1>Edit {snippet.kind}</h1>
@@ -59,7 +59,7 @@ export default function SnippetDetailPage() {
 
   return (
     <>
-      <p>
+      <p className="breadcrumb">
         <Link to="/snippets">← Back to Cover Letter Snippets</Link>
       </p>
       <h1>{snippet.kind}</h1>
@@ -71,23 +71,26 @@ export default function SnippetDetailPage() {
         ))}
       </div>
       <p style={{ whiteSpace: 'pre-wrap' }}>{snippet.body}</p>
-      <button type="button" onClick={() => setEditing(true)}>
-        Edit
-      </button>{' '}
-      {confirmingDelete ? (
-        <>
-          <span>Delete this snippet?</span>{' '}
-          <button type="button" onClick={handleDelete} disabled={deleting}>
+      <div className="form-actions">
+        <button type="button" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+        {!confirmingDelete && (
+          <button type="button" onClick={() => setConfirmingDelete(true)}>
+            Delete
+          </button>
+        )}
+      </div>
+      {confirmingDelete && (
+        <div className="danger-zone" role="alert">
+          <span>Delete this snippet?</span>
+          <button type="button" data-variant="danger" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Yes, delete'}
-          </button>{' '}
+          </button>
           <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
             Cancel
           </button>
-        </>
-      ) : (
-        <button type="button" onClick={() => setConfirmingDelete(true)}>
-          Delete
-        </button>
+        </div>
       )}
     </>
   )
