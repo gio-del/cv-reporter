@@ -83,10 +83,16 @@ export interface SelectionResult {
 
 export type GenerateMode = 'default' | 'tailored'
 
+export interface CoverLetterResult {
+  body: string
+  sourceSnippetIds?: string[]
+}
+
 export interface GenerateResult {
   mode: GenerateMode
   jobDescription?: string
   selection: SelectionResult
+  coverLetter?: CoverLetterResult
 }
 
 export interface GenerateRequest {

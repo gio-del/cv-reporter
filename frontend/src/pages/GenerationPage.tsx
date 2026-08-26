@@ -39,6 +39,7 @@ export default function GenerationPage() {
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<'default' | 'tailored' | null>(null)
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
+  const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [approved, setApproved] = useState(false)
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function GenerationPage() {
       })
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
+      setCoverLetter(result.coverLetter?.body ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -179,6 +181,17 @@ export default function GenerationPage() {
               </div>
             )
           })}
+
+          {coverLetter !== null && (
+            <div className="review-entry">
+              <h3>Cover Letter</h3>
+              <textarea
+                rows={12}
+                value={coverLetter}
+                onChange={(e) => setCoverLetter(e.target.value)}
+              />
+            </div>
+          )}
 
           <button onClick={handleApprove} disabled={approved}>
             {approved ? 'Approved' : 'Approve Text Review'}

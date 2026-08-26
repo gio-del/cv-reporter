@@ -9,4 +9,5 @@ import "context"
 // per the PRD's Testing Decisions.
 type Client interface {
 	SelectAndRewrite(ctx context.Context, req SelectionRequest) (SelectionResult, error)
+	DraftCoverLetter(ctx context.Context, req CoverLetterRequest) (CoverLetterResult, error)
 }

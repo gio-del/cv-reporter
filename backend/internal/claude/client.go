@@ -113,3 +113,70 @@ func (c *Client) SelectAndRewrite(ctx context.Context, req generation.SelectionR
 	}
 	return generation.SelectionResult{}, fmt.Errorf("Claude response had no %s tool call", selectAndRewriteToolName)
 }
+
+const draftCoverLetterSystemPrompt = `You draft a Cover Letter for one specific Job Description.
+
+If any Cover Letter Snippets are given, select and lightly adapt among them for this Job Description; list every Snippet id you drew from in "sourceSnippetIds". If none are given, or none fit, write fresh prose grounded only in the candidate Entries and the Job Description — leave "sourceSnippetIds" empty in that case.
+
+Same constraint as Rewrite: do not invent facts, tools, employers, or claims absent from the candidate Entries or the Snippets you cite.
+
+Call the draft_cover_letter tool with your result.`
+
+const draftCoverLetterToolName = "draft_cover_letter"
+
+func draftCoverLetterTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"body": map[string]any{"type": "string", "description": "The full Cover Letter prose."},
+			"sourceSnippetIds": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "Ids of any Cover Letter Snippets selected/adapted from. Empty if freshly generated.",
+			},
+		},
+		Required: []string{"body"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, draftCoverLetterToolName)
+}
+
+// DraftCoverLetter asks Claude to draft a Cover Letter for req, via a
+// forced call to the draft_cover_letter tool.
+func (c *Client) DraftCoverLetter(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+	candidates, err := json.Marshal(req.Candidates)
+	if err != nil {
+		return generation.CoverLetterResult{}, fmt.Errorf("marshaling candidates: %w", err)
+	}
+	snippets, err := json.Marshal(req.Snippets)
+	if err != nil {
+		return generation.CoverLetterResult{}, fmt.Errorf("marshaling snippets: %w", err)
+	}
+
+	userPrompt := fmt.Sprintf(
+		"Job Description:\n%s\n\nCandidate Entries (JSON):\n%s\n\nCover Letter Snippets (JSON):\n%s",
+		req.JobDescription, candidates, snippets,
+	)
+
+	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  4096,
+		System:     []anthropic.TextBlockParam{{Text: draftCoverLetterSystemPrompt}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt))},
+		Tools:      []anthropic.ToolUnionParam{draftCoverLetterTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(draftCoverLetterToolName),
+	})
+	if err != nil {
+		return generation.CoverLetterResult{}, fmt.Errorf("calling Claude API: %w", err)
+	}
+
+	for _, block := range message.Content {
+		if block.Type != "tool_use" || block.Name != draftCoverLetterToolName {
+			continue
+		}
+		var result generation.CoverLetterResult
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return generation.CoverLetterResult{}, fmt.Errorf("decoding %s tool input: %w", draftCoverLetterToolName, err)
+		}
+		return result, nil
+	}
+	return generation.CoverLetterResult{}, fmt.Errorf("Claude response had no %s tool call", draftCoverLetterToolName)
+}

@@ -51,6 +51,33 @@ type SelectionResult struct {
 	Entries []SelectedEntry `json:"entries"`
 }
 
+// CandidateSnippet is a Cover Letter Snippet made available to the Client
+// for drafting a Cover Letter, per CONTEXT.md's Cover Letter Snippet entry.
+type CandidateSnippet struct {
+	ID   string   `json:"id"`
+	Kind string   `json:"kind"`
+	Tags []string `json:"tags"`
+	Body string   `json:"body"`
+}
+
+// CoverLetterRequest is what the generation service asks a Client to draft
+// a Cover Letter from: the Job Description plus grounding material (Master
+// Data Entries and any Cover Letter Snippets).
+type CoverLetterRequest struct {
+	JobDescription string
+	Candidates     []CandidateEntry
+	Snippets       []CandidateSnippet
+}
+
+// CoverLetterResult is a Client's Cover Letter draft. SourceSnippetIDs
+// names which Cover Letter Snippets (if any) it selected/adapted from — nil
+// or empty means it was freshly generated prose, per CONTEXT.md's Cover
+// Letter entry.
+type CoverLetterResult struct {
+	Body             string   `json:"body"`
+	SourceSnippetIDs []string `json:"sourceSnippetIds,omitempty"`
+}
+
 // GenerateRequest is the input to Generate: a pasted Job Description, a URL
 // to fetch one from, or neither (Default Mode).
 type GenerateRequest struct {
@@ -68,9 +95,13 @@ const (
 )
 
 // GenerateResult is the Text-Review-ready output of a Generation's
-// Selection+Rewrite step.
+// Selection+Rewrite (and, in Tailored Mode, Cover Letter drafting) step.
+// CoverLetter is nil in Default Mode: there's no Job Description to ground
+// fresh prose in, mirroring Rewrite being skipped (see CONTEXT.md's Default
+// Mode entry).
 type GenerateResult struct {
-	Mode           GenerateMode    `json:"mode"`
-	JobDescription string          `json:"jobDescription,omitempty"`
-	Selection      SelectionResult `json:"selection"`
+	Mode           GenerateMode       `json:"mode"`
+	JobDescription string             `json:"jobDescription,omitempty"`
+	Selection      SelectionResult    `json:"selection"`
+	CoverLetter    *CoverLetterResult `json:"coverLetter,omitempty"`
 }

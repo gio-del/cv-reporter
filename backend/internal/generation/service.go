@@ -39,19 +39,42 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries)}, nil
 	}
 
+	candidates := toCandidates(entries)
+
 	selection, err := client.SelectAndRewrite(ctx, SelectionRequest{
 		JobDescription: jobDescription,
-		Candidates:     toCandidates(entries),
+		Candidates:     candidates,
 	})
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("selecting and rewriting: %w", err)
 	}
-
 	if err := validateSelection(selection, entries); err != nil {
 		return GenerateResult{}, err
 	}
 
-	return GenerateResult{Mode: ModeTailored, JobDescription: jobDescription, Selection: selection}, nil
+	snippets, err := masterdata.ListSnippets(dataDir)
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("loading cover letter snippets: %w", err)
+	}
+
+	coverLetter, err := client.DraftCoverLetter(ctx, CoverLetterRequest{
+		JobDescription: jobDescription,
+		Candidates:     candidates,
+		Snippets:       toCandidateSnippets(snippets),
+	})
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("drafting cover letter: %w", err)
+	}
+	if err := validateCoverLetter(coverLetter, snippets); err != nil {
+		return GenerateResult{}, err
+	}
+
+	return GenerateResult{
+		Mode:           ModeTailored,
+		JobDescription: jobDescription,
+		Selection:      selection,
+		CoverLetter:    &coverLetter,
+	}, nil
 }
 
 // resolveJobDescription returns the Job Description text to Tailor against:
@@ -128,6 +151,30 @@ func toCandidates(entries []masterdata.Entry) []CandidateEntry {
 		}
 	}
 	return candidates
+}
+
+func toCandidateSnippets(snippets []masterdata.Snippet) []CandidateSnippet {
+	candidates := make([]CandidateSnippet, len(snippets))
+	for i, s := range snippets {
+		candidates[i] = CandidateSnippet{ID: s.ID, Kind: s.Kind, Tags: s.Tags, Body: s.Body}
+	}
+	return candidates
+}
+
+// validateCoverLetter rejects a Client response that cites a Cover Letter
+// Snippet not present in Master Data, the same traceability backstop
+// validateSelection applies to Selection (see ADR-0010).
+func validateCoverLetter(result CoverLetterResult, snippets []masterdata.Snippet) error {
+	known := make(map[string]bool, len(snippets))
+	for _, s := range snippets {
+		known[s.ID] = true
+	}
+	for _, id := range result.SourceSnippetIDs {
+		if !known[id] {
+			return fmt.Errorf("%w: unknown cover letter snippet id %q", ErrInvalidSelection, id)
+		}
+	}
+	return nil
 }
 
 // defaultModeSelection includes every Entry, unmodified (Rewrite is

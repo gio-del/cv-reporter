@@ -18,10 +18,18 @@ import (
 // Testing Decisions.
 type fakeGenerationClient struct {
 	selectAndRewrite func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error)
+	draftCoverLetter func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error)
 }
 
 func (f *fakeGenerationClient) SelectAndRewrite(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
 	return f.selectAndRewrite(ctx, req)
+}
+
+func (f *fakeGenerationClient) DraftCoverLetter(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+	if f.draftCoverLetter == nil {
+		return generation.CoverLetterResult{Body: "Dear Hiring Manager,\n\nThank you for your consideration."}, nil
+	}
+	return f.draftCoverLetter(ctx, req)
 }
 
 func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing.T) {
@@ -84,8 +92,12 @@ func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClien
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{
 		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
-			t.Fatal("expected Default Mode not to call the Client")
+			t.Fatal("expected Default Mode not to call the Client for Selection")
 			return generation.SelectionResult{}, nil
+		},
+		draftCoverLetter: func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+			t.Fatal("expected Default Mode not to call the Client for a Cover Letter")
+			return generation.CoverLetterResult{}, nil
 		},
 	}
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
@@ -104,6 +116,9 @@ func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClien
 	}
 	if result["mode"] != "default" {
 		t.Errorf("expected mode default, got %v", result["mode"])
+	}
+	if _, ok := result["coverLetter"]; ok {
+		t.Errorf("expected no coverLetter in Default Mode, got %v", result["coverLetter"])
 	}
 	selection := result["selection"].(map[string]any)
 	entries, ok := selection["entries"].([]any)
@@ -198,5 +213,75 @@ func TestCreateGeneration_JobDescriptionURL_FetchesAndPassesTextToClient(t *test
 	}
 	if strings.Contains(gotJD, "<html>") || strings.Contains(gotJD, "<p>") {
 		t.Errorf("expected HTML tags to be stripped, got %q", gotJD)
+	}
+}
+
+func TestCreateGeneration_WithJobDescription_DraftsCoverLetterFromSnippets(t *testing.T) {
+	dataDir := seedSnippetsDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{}, nil
+		},
+		draftCoverLetter: func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+			if req.JobDescription != "Looking for a Go backend engineer." {
+				t.Errorf("expected job description to reach the cover letter client, got %q", req.JobDescription)
+			}
+			if len(req.Snippets) != 2 {
+				t.Errorf("expected the 2 seeded snippets to reach the client, got %v", req.Snippets)
+			}
+			return generation.CoverLetterResult{
+				Body:             "I'm excited to apply... Thank you for your consideration.",
+				SourceSnippetIDs: []string{"opening-ai-platforms", "closing-standard"},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Looking for a Go backend engineer."})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	coverLetter, ok := result["coverLetter"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a coverLetter object, got %v", result["coverLetter"])
+	}
+	if coverLetter["body"] != "I'm excited to apply... Thank you for your consideration." {
+		t.Errorf("expected cover letter body to round-trip, got %v", coverLetter["body"])
+	}
+	sourceIDs, ok := coverLetter["sourceSnippetIds"].([]any)
+	if !ok || len(sourceIDs) != 2 {
+		t.Fatalf("expected 2 source snippet ids, got %v", coverLetter["sourceSnippetIds"])
+	}
+}
+
+func TestCreateGeneration_CoverLetterReferencesUnknownSnippet_Returns502(t *testing.T) {
+	dataDir := seedSnippetsDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{}, nil
+		},
+		draftCoverLetter: func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+			return generation.CoverLetterResult{
+				Body:             "Some prose.",
+				SourceSnippetIDs: []string{"does-not-exist"},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("expected 502 when the Client cites an unknown snippet id, got %d", resp.StatusCode)
 	}
 }
