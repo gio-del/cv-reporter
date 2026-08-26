@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import BulletDiff from '../components/BulletDiff'
+import RALBadge from '../components/RALBadge'
 import { createGeneration, listEntries } from '../api/client'
-import type { Entry, SelectedBullet, SelectedEntry } from '../api/types'
+import type { Entry, RALRange, SelectedBullet, SelectedEntry } from '../api/types'
 
 interface EditableBullet extends SelectedBullet {
   included: boolean
@@ -40,6 +41,7 @@ export default function GenerationPage() {
   const [mode, setMode] = useState<'default' | 'tailored' | null>(null)
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [ral, setRal] = useState<RALRange | null>(null)
   const [approved, setApproved] = useState(false)
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function GenerationPage() {
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
+      setRal(result.ral ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -143,6 +146,8 @@ export default function GenerationPage() {
         <section>
           <h2>Text Review {mode === 'default' && '(Default Mode)'}</h2>
           <p>Review Selection and Rewrite before anything is rendered. Edit any bullet, or exclude one entirely.</p>
+
+          {ral && <RALBadge ral={ral} />}
 
           {editable.map((entry) => {
             const label = entryLabel(entriesById.get(entry.entryId), entry.entryId)

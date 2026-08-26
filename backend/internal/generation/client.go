@@ -10,4 +10,10 @@ import "context"
 type Client interface {
 	SelectAndRewrite(ctx context.Context, req SelectionRequest) (SelectionResult, error)
 	DraftCoverLetter(ctx context.Context, req CoverLetterRequest) (CoverLetterResult, error)
+
+	// EstimateRAL researches a RAL Range for jobDescription when
+	// ParseStatedRAL couldn't find one stated directly. It should report
+	// RALSourceEstimated with a range if research found one, or
+	// RALSourceNA if it couldn't (see CONTEXT.md's RAL Range entry).
+	EstimateRAL(ctx context.Context, jobDescription string) (RALRange, error)
 }

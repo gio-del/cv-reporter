@@ -47,3 +47,24 @@ main {
 .diff-removed {
   background: color-mix(in srgb, #cf222e 30%, transparent);
 }
+
+.ral-badge {
+  display: inline-block;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.ral-badge-stated {
+  border-color: color-mix(in srgb, #2da44e 60%, transparent);
+}
+
+.ral-badge-estimated {
+  border-color: color-mix(in srgb, #bf8700 60%, transparent);
+}
+
+.ral-badge-source {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}

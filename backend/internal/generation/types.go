@@ -104,4 +104,5 @@ type GenerateResult struct {
 	JobDescription string             `json:"jobDescription,omitempty"`
 	Selection      SelectionResult    `json:"selection"`
 	CoverLetter    *CoverLetterResult `json:"coverLetter,omitempty"`
+	RAL            *RALRange          `json:"ral,omitempty"`
 }

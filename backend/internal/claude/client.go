@@ -8,9 +8,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -179,4 +181,85 @@ func (c *Client) DraftCoverLetter(ctx context.Context, req generation.CoverLette
 		return result, nil
 	}
 	return generation.CoverLetterResult{}, fmt.Errorf("Claude response had no %s tool call", draftCoverLetterToolName)
+}
+
+const extractRALToolName = "extract_ral_range"
+
+func extractRALTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"found":    map[string]any{"type": "boolean", "description": "Whether a confident RAL figure was found in the research notes."},
+			"min":      map[string]any{"type": "integer", "description": "Minimum of the range, in whole currency units. Required if found is true."},
+			"max":      map[string]any{"type": "integer", "description": "Maximum of the range, in whole currency units. Required if found is true."},
+			"currency": map[string]any{"type": "string", "description": "ISO currency code (e.g. EUR, USD). Required if found is true."},
+		},
+		Required: []string{"found"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, extractRALToolName)
+}
+
+type extractedRAL struct {
+	Found    bool   `json:"found"`
+	Min      int    `json:"min"`
+	Max      int    `json:"max"`
+	Currency string `json:"currency"`
+}
+
+// EstimateRAL researches a RAL Range via Claude's web search tool, then
+// extracts a structured result from the research notes with a second,
+// forced-tool-call request (server-executed tools like web search can't be
+// combined with a forced custom tool choice in the same request).
+func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (generation.RALRange, error) {
+	researchPrompt := "Research the likely gross annual salary range for the role, company, and location described in this Job Description, using web search. Summarize what you found, including a minimum and maximum figure and currency if you found a credible source, or say plainly that you couldn't find one.\n\nJob Description:\n" + jobDescription
+
+	research, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     c.model,
+		MaxTokens: 2048,
+		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(researchPrompt))},
+		Tools: []anthropic.ToolUnionParam{
+			{OfWebSearchTool20260209: &anthropic.WebSearchTool20260209Param{MaxUses: param.NewOpt(int64(5))}},
+		},
+	})
+	if err != nil {
+		return generation.RALRange{}, fmt.Errorf("researching RAL range: %w", err)
+	}
+
+	var notes strings.Builder
+	for _, block := range research.Content {
+		if block.Type == "text" {
+			notes.WriteString(block.Text)
+		}
+	}
+
+	extraction, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  1024,
+		System:     []anthropic.TextBlockParam{{Text: "Extract a structured RAL range from these research notes by calling the extract_ral_range tool."}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(notes.String()))},
+		Tools:      []anthropic.ToolUnionParam{extractRALTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(extractRALToolName),
+	})
+	if err != nil {
+		return generation.RALRange{}, fmt.Errorf("extracting RAL range: %w", err)
+	}
+
+	for _, block := range extraction.Content {
+		if block.Type != "tool_use" || block.Name != extractRALToolName {
+			continue
+		}
+		var result extractedRAL
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return generation.RALRange{}, fmt.Errorf("decoding %s tool input: %w", extractRALToolName, err)
+		}
+		if !result.Found {
+			return generation.RALRange{Source: generation.RALSourceNA}, nil
+		}
+		return generation.RALRange{
+			Min:      &result.Min,
+			Max:      &result.Max,
+			Currency: result.Currency,
+			Source:   generation.RALSourceEstimated,
+		}, nil
+	}
+	return generation.RALRange{}, fmt.Errorf("Claude response had no %s tool call", extractRALToolName)
 }

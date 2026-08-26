@@ -69,12 +69,37 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, err
 	}
 
+	ral, err := resolveRAL(ctx, jobDescription, client)
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
+	}
+
 	return GenerateResult{
 		Mode:           ModeTailored,
 		JobDescription: jobDescription,
 		Selection:      selection,
 		CoverLetter:    &coverLetter,
+		RAL:            &ral,
 	}, nil
+}
+
+// resolveRAL implements the PRD's RAL Range lookup: parse the Job
+// Description text first, and only ask the Client to research one (via web
+// search) if nothing is stated directly.
+func resolveRAL(ctx context.Context, jobDescription string, client Client) (RALRange, error) {
+	if ral, ok := ParseStatedRAL(jobDescription); ok {
+		return ral, nil
+	}
+
+	ral, err := client.EstimateRAL(ctx, jobDescription)
+	if err != nil {
+		return RALRange{}, err
+	}
+	if ral.Source != RALSourceEstimated && ral.Source != RALSourceNA {
+		// Defensive: only ParseStatedRAL may report RALSourceStated.
+		ral.Source = RALSourceEstimated
+	}
+	return ral, nil
 }
 
 // resolveJobDescription returns the Job Description text to Tailor against:

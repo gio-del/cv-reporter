@@ -88,11 +88,21 @@ export interface CoverLetterResult {
   sourceSnippetIds?: string[]
 }
 
+export type RALSource = 'stated' | 'estimated' | 'n/a'
+
+export interface RALRange {
+  min?: number
+  max?: number
+  currency?: string
+  source: RALSource
+}
+
 export interface GenerateResult {
   mode: GenerateMode
   jobDescription?: string
   selection: SelectionResult
   coverLetter?: CoverLetterResult
+  ral?: RALRange
 }
 
 export interface GenerateRequest {
