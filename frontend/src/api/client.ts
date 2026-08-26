@@ -1,4 +1,6 @@
 import type {
+  Application,
+  ApplicationStatus,
   Entry,
   EntryInput,
   GenerateRequest,
@@ -127,5 +129,13 @@ export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListi
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
+  })
+}
+
+export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
   })
 }
