@@ -25,6 +25,7 @@ Note: ADR-0001 ("no Node.js/JS toolchain") only ever applied to the tailoring pi
 
 - `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
 - `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/…) + Markdown bullets. A single employer can have multiple Entries (one per Client Engagement, e.g. `data/experience/quantyca-*.md`) so Selection can surface one client's work independently of another's.
+- `data/cover-letter-snippets/*.md` — optional Master Data. One file per Cover Letter Snippet: YAML frontmatter (`kind`, optional `tags`) + a Markdown paragraph body.
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file (path passed via `--input data=...`) and renders it; contains no relevance/selection logic. The Tech Stack section it renders is expected to already be derived (deduplicated `tags` of the selected Entries) by whoever assembled the JSON — the template just prints it.
 - `output/` — gitignored. Rendered PDFs and the per-Generation assembled JSON are derived artifacts, not Master Data.
 - `.claude/skills/tailor-cv/` — the skill that drives the whole tailoring pipeline described above.

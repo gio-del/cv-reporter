@@ -52,6 +52,11 @@ docker-compose up
 | DELETE | `/api/master-data/entries/{id}` | delete an Entry |
 | GET | `/api/master-data/profile` | get profile + Static Sections |
 | PUT | `/api/master-data/profile` | update profile + Static Sections |
+| GET | `/api/master-data/cover-letter-snippets` | list Cover Letter Snippets |
+| POST | `/api/master-data/cover-letter-snippets` | create a Cover Letter Snippet |
+| GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
+| PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
+| DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
