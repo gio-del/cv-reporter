@@ -1,6 +1,10 @@
 import { useState } from 'react'
-import { updateSnippet } from '../api/client'
-import type { Snippet, SnippetInput } from '../api/types'
+import { updateSnippet } from '@/api/client'
+import type { Snippet, SnippetInput } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 function toFormState(snippet: Snippet) {
   return { kind: snippet.kind, tags: snippet.tags.join(', '), body: snippet.body }
@@ -52,28 +56,34 @@ export default function SnippetEditForm({
 
   return (
     <form onSubmit={handleSubmit}>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {error}
+        </p>
+      )}
 
-      <label>
-        Kind
-        <input value={form.kind} onChange={(e) => set('kind', e.target.value)} />
-      </label>
-      <label>
-        Tags (comma-separated)
-        <input value={form.tags} onChange={(e) => set('tags', e.target.value)} />
-      </label>
-      <label>
-        Body
-        <textarea rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
-      </label>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="kind">Kind</FieldLabel>
+          <Input id="kind" value={form.kind} onChange={(e) => set('kind', e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="tags">Tags (comma-separated)</FieldLabel>
+          <Input id="tags" value={form.tags} onChange={(e) => set('tags', e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="body">Body</FieldLabel>
+          <Textarea id="body" rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
+        </Field>
+      </FieldGroup>
 
-      <div className="form-actions">
-        <button type="submit" disabled={saving}>
+      <div className="mt-6 flex gap-3">
+        <Button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
-        </button>
-        <button type="button" onClick={onCancel} disabled={saving}>
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   )

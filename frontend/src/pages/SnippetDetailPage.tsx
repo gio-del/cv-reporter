@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { deleteSnippet, getSnippet } from '../api/client'
-import type { Snippet } from '../api/types'
+import { deleteSnippet, getSnippet } from '@/api/client'
+import type { Snippet } from '@/api/types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import SnippetEditForm from './SnippetEditForm'
 
 export default function SnippetDetailPage() {
@@ -10,14 +23,14 @@ export default function SnippetDetailPage() {
   const [snippet, setSnippet] = useState<Snippet | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     setSnippet(null)
     setError(null)
     setEditing(false)
-    setConfirmingDelete(false)
+    setDeleteOpen(false)
     getSnippet(id)
       .then(setSnippet)
       .catch((e) => setError(e.message))
@@ -31,18 +44,25 @@ export default function SnippetDetailPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setDeleting(false)
-      setConfirmingDelete(false)
+      setDeleteOpen(false)
     }
   }
 
-  if (error) return <p role="alert">{error}</p>
+  if (error)
+    return (
+      <p role="alert" className="font-medium text-destructive">
+        {error}
+      </p>
+    )
   if (!snippet) return <p>Loading…</p>
 
   if (editing) {
     return (
       <>
-        <p className="breadcrumb">
-          <Link to="/snippets">← Back to Cover Letter Snippets</Link>
+        <p className="mb-4 inline-block text-sm">
+          <Link to="/snippets" className="no-underline hover:underline">
+            ← Back to Cover Letter Snippets
+          </Link>
         </p>
         <h1>Edit {snippet.kind}</h1>
         <SnippetEditForm
@@ -59,39 +79,51 @@ export default function SnippetDetailPage() {
 
   return (
     <>
-      <p className="breadcrumb">
-        <Link to="/snippets">← Back to Cover Letter Snippets</Link>
+      <p className="mb-4 inline-block text-sm">
+        <Link to="/snippets" className="no-underline hover:underline">
+          ← Back to Cover Letter Snippets
+        </Link>
       </p>
       <h1>{snippet.kind}</h1>
-      <div>
+      <div className="flex flex-wrap gap-1">
         {snippet.tags.map((tag) => (
-          <span className="tag" key={tag}>
+          <Badge variant="secondary" key={tag}>
             {tag}
-          </span>
+          </Badge>
         ))}
       </div>
-      <p style={{ whiteSpace: 'pre-wrap' }}>{snippet.body}</p>
-      <div className="form-actions">
-        <button type="button" onClick={() => setEditing(true)}>
+      <p className="whitespace-pre-wrap">{snippet.body}</p>
+      <div className="mt-6 flex items-center gap-3">
+        <Button type="button" onClick={() => setEditing(true)}>
           Edit
-        </button>
-        {!confirmingDelete && (
-          <button type="button" onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </button>
-        )}
+        </Button>
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="outline">
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this snippet?</AlertDialogTitle>
+              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDelete()
+                }}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      {confirmingDelete && (
-        <div className="danger-zone" role="alert">
-          <span>Delete this snippet?</span>
-          <button type="button" data-variant="danger" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Yes, delete'}
-          </button>
-          <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
-            Cancel
-          </button>
-        </div>
-      )}
     </>
   )
 }

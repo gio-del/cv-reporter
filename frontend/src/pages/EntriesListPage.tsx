@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listEntries } from '../api/client'
-import type { Entry } from '../api/types'
+import { listEntries } from '@/api/client'
+import type { Entry } from '@/api/types'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 export default function EntriesListPage() {
   const [entries, setEntries] = useState<Entry[] | null>(null)
@@ -13,7 +15,12 @@ export default function EntriesListPage() {
       .catch((e) => setError(e.message))
   }, [])
 
-  if (error) return <p role="alert">{error}</p>
+  if (error)
+    return (
+      <p role="alert" className="font-medium text-destructive">
+        {error}
+      </p>
+    )
   if (!entries) return <p>Loading…</p>
 
   const experience = entries.filter((e) => e.type === 'experience')
@@ -28,17 +35,19 @@ export default function EntriesListPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>Master Data</h1>
-        <Link to="/entries/new">+ New Entry</Link>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="mb-0">Master Data</h1>
+        <Button asChild>
+          <Link to="/entries/new">+ New Entry</Link>
+        </Button>
       </div>
 
       <section>
         <h2>Experience</h2>
         {[...byEmployer.entries()].map(([employer, employerEntries]) => (
-          <div className="entry-group" key={employer}>
+          <div className="mb-6" key={employer}>
             <h3>{employer}</h3>
-            <ul className="entry-list">
+            <ul className="flex flex-col gap-2">
               {employerEntries.map((entry) => (
                 <EntryListItem key={entry.id} entry={entry} label={entry.client ?? entry.role ?? entry.id} />
               ))}
@@ -49,7 +58,7 @@ export default function EntriesListPage() {
 
       <section>
         <h2>Projects</h2>
-        <ul className="entry-list">
+        <ul className="flex flex-col gap-2">
           {projects.map((entry) => (
             <EntryListItem key={entry.id} entry={entry} label={entry.name ?? entry.id} />
           ))}
@@ -61,18 +70,20 @@ export default function EntriesListPage() {
 
 function EntryListItem({ entry, label }: { entry: Entry; label: string }) {
   return (
-    <li>
-      <div className="entry-list-row">
-        <Link to={`/entries/${entry.id}`}>{label}</Link>
-        <span className="entry-list-dates">
+    <li className="rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <Link to={`/entries/${entry.id}`} className="font-medium no-underline hover:underline">
+          {label}
+        </Link>
+        <span className="text-sm whitespace-nowrap text-muted-foreground">
           {entry.start} – {entry.end ?? 'present'}
         </span>
       </div>
-      <div>
+      <div className="mt-1 flex flex-wrap gap-1">
         {entry.tags.map((tag) => (
-          <span className="tag" key={tag}>
+          <Badge variant="secondary" key={tag}>
             {tag}
-          </span>
+          </Badge>
         ))}
       </div>
     </li>
