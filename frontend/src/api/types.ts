@@ -65,3 +65,70 @@ export interface Profile {
   languages: Language[]
 }
 
+export interface Snippet {
+  id: string
+  kind: string
+  tags: string[]
+  body: string
+}
+
+export type SnippetInput = Omit<Snippet, 'id'>
+
+export interface SelectedBullet {
+  sourceIndex: number
+  source: string
+  rewritten: string
+}
+
+export interface SelectedEntry {
+  entryId: string
+  reason: string
+  bullets: SelectedBullet[]
+}
+
+export interface SelectionResult {
+  entries: SelectedEntry[]
+}
+
+export type GenerateMode = 'default' | 'tailored'
+
+export interface CoverLetterResult {
+  body: string
+  sourceSnippetIds?: string[]
+}
+
+export type RALSource = 'stated' | 'estimated' | 'n/a'
+
+export interface RALRange {
+  min?: number
+  max?: number
+  currency?: string
+  source: RALSource
+}
+
+export interface GenerateResult {
+  mode: GenerateMode
+  jobDescription?: string
+  selection: SelectionResult
+  coverLetter?: CoverLetterResult
+  ral?: RALRange
+}
+
+export interface GenerateRequest {
+  jobDescription?: string
+  jobDescriptionUrl?: string
+}
+
+export interface RenderRequest {
+  slug: string
+  selection: SelectionResult
+  coverLetter?: { body: string }
+}
+
+export interface RenderResult {
+  slug: string
+  cvPath: string
+  coverLetterPath?: string
+  cvPageCount: number
+}
+

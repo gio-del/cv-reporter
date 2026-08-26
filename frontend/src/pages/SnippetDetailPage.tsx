@@ -1,34 +1,33 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { deleteEntry, getEntry } from '../api/client'
-import type { Entry } from '../api/types'
-import EntryEditForm from './EntryEditForm'
+import { deleteSnippet, getSnippet } from '../api/client'
+import type { Snippet } from '../api/types'
+import SnippetEditForm from './SnippetEditForm'
 
-export default function EntryDetailPage() {
-  const params = useParams()
+export default function SnippetDetailPage() {
+  const { id = '' } = useParams()
   const navigate = useNavigate()
-  const id = params['*'] ?? ''
-  const [entry, setEntry] = useState<Entry | null>(null)
+  const [snippet, setSnippet] = useState<Snippet | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    setEntry(null)
+    setSnippet(null)
     setError(null)
     setEditing(false)
     setConfirmingDelete(false)
-    getEntry(id)
-      .then(setEntry)
+    getSnippet(id)
+      .then(setSnippet)
       .catch((e) => setError(e.message))
   }, [id])
 
   async function handleDelete() {
     setDeleting(true)
     try {
-      await deleteEntry(id)
-      navigate('/')
+      await deleteSnippet(id)
+      navigate('/snippets')
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setDeleting(false)
@@ -37,21 +36,19 @@ export default function EntryDetailPage() {
   }
 
   if (error) return <p role="alert">{error}</p>
-  if (!entry) return <p>Loading…</p>
-
-  const title = entry.type === 'experience' ? `${entry.client ?? entry.employer} — ${entry.role}` : entry.name
+  if (!snippet) return <p>Loading…</p>
 
   if (editing) {
     return (
       <>
         <p className="breadcrumb">
-          <Link to="/">← Back to Master Data</Link>
+          <Link to="/snippets">← Back to Cover Letter Snippets</Link>
         </p>
-        <h1>Edit {title}</h1>
-        <EntryEditForm
-          entry={entry}
+        <h1>Edit {snippet.kind}</h1>
+        <SnippetEditForm
+          snippet={snippet}
           onSaved={(saved) => {
-            setEntry(saved)
+            setSnippet(saved)
             setEditing(false)
           }}
           onCancel={() => setEditing(false)}
@@ -62,39 +59,18 @@ export default function EntryDetailPage() {
 
   return (
     <>
-      <p>
-        <Link to="/">← Back to Master Data</Link>
+      <p className="breadcrumb">
+        <Link to="/snippets">← Back to Cover Letter Snippets</Link>
       </p>
-      <h1>{title}</h1>
-      {entry.type === 'experience' && (
-        <dl>
-          <dt>Employer</dt>
-          <dd>{entry.employer}</dd>
-          {entry.client && (
-            <>
-              <dt>Client</dt>
-              <dd>{entry.client}</dd>
-            </>
-          )}
-          <dt>Location</dt>
-          <dd>{entry.location}</dd>
-        </dl>
-      )}
-      <p>
-        {entry.start} – {entry.end ?? 'present'}
-      </p>
+      <h1>{snippet.kind}</h1>
       <div>
-        {entry.tags.map((tag) => (
+        {snippet.tags.map((tag) => (
           <span className="tag" key={tag}>
             {tag}
           </span>
         ))}
       </div>
-      <ul>
-        {entry.bullets?.map((bullet, i) => (
-          <li key={i}>{bullet}</li>
-        ))}
-      </ul>
+      <p style={{ whiteSpace: 'pre-wrap' }}>{snippet.body}</p>
       <div className="form-actions">
         <button type="button" onClick={() => setEditing(true)}>
           Edit
@@ -107,7 +83,7 @@ export default function EntryDetailPage() {
       </div>
       {confirmingDelete && (
         <div className="danger-zone" role="alert">
-          <span>Delete this entry?</span>
+          <span>Delete this snippet?</span>
           <button type="button" data-variant="danger" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Yes, delete'}
           </button>

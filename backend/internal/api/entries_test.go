@@ -23,7 +23,15 @@ func writeFile(t *testing.T, path, content string) {
 
 func seedDataDir(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	return seedDataDirAt(t, t.TempDir())
+}
+
+// seedDataDirAt seeds the same Master Data fixtures as seedDataDir, but
+// under a caller-chosen dir instead of a fresh t.TempDir() — for tests
+// (e.g. Render's) that need that dir nested inside a larger project root
+// fixture.
+func seedDataDirAt(t *testing.T, dir string) string {
+	t.Helper()
 
 	writeFile(t, filepath.Join(dir, "experience", "quantyca-amplifon.md"), `---
 employer: Quantyca S.p.A.

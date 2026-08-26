@@ -2,6 +2,7 @@ output/
 .agents/
 .claude/
 skills-lock.json
+.env
 
 # frontend
 frontend/node_modules/

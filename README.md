@@ -33,11 +33,13 @@ Adding a new job or project means adding a new Markdown file under `data/experie
 
 ## Running the web app
 
+Generation calls the Claude API directly (ADR-0005), so copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY` first — `docker-compose.yml` loads `.env` automatically and forwards it into the backend container. Without it the app still runs (Master Data browsing works); only Generation requests fail.
+
 ```
 docker-compose up
 ```
 
-- Backend: `http://127.0.0.1:8080` (reads/writes `./data`, mounted into the container)
+- Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012).
 - Frontend: `http://127.0.0.1:5173`
 
 ### Backend API
@@ -52,6 +54,14 @@ docker-compose up
 | DELETE | `/api/master-data/entries/{id}` | delete an Entry |
 | GET | `/api/master-data/profile` | get profile + Static Sections |
 | PUT | `/api/master-data/profile` | update profile + Static Sections |
+| GET | `/api/master-data/cover-letter-snippets` | list Cover Letter Snippets |
+| POST | `/api/master-data/cover-letter-snippets` | create a Cover Letter Snippet |
+| GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
+| PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
+| DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
+| POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
+| POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
+| GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
