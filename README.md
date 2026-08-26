@@ -37,7 +37,7 @@ Adding a new job or project means adding a new Markdown file under `data/experie
 docker-compose up
 ```
 
-- Backend: `http://127.0.0.1:8080` (reads/writes `./data`, mounted into the container)
+- Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012). Calls the Claude API directly for Generation (ADR-0005) — set `ANTHROPIC_API_KEY` in the backend's environment.
 - Frontend: `http://127.0.0.1:5173`
 
 ### Backend API
@@ -57,6 +57,8 @@ docker-compose up
 | GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
 | PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
 | DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
+| POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
+| POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 

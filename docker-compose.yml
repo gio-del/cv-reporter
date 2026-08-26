@@ -2,10 +2,14 @@ services:
   backend:
     build: ./backend
     environment:
-      DATA_DIR: /data
+      DATA_DIR: /workspace/data
+      PROJECT_ROOT: /workspace
       PORT: "8080"
     volumes:
-      - ./data:/data
+      # Render's typst invocation needs template/ and output/ alongside
+      # data/, all under one --root (see ADR-0012), so the whole project
+      # root is mounted rather than just data/ as before.
+      - .:/workspace
     ports:
       - "127.0.0.1:8080:8080"
 
