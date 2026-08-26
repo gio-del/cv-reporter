@@ -1,11 +1,24 @@
 package api
 
-import "net/http"
+import (
+	"net/http"
 
-// NewRouter builds the HTTP handler for the Master Data API. dataDir is the
-// root directory containing profile.yaml, experience/, and projects/ — the
-// same files the tailor-cv skill reads and writes.
+	"github.com/gio-del/cv-reporter/backend/internal/claude"
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
+)
+
+// NewRouter builds the HTTP handler for the app's API. dataDir is the root
+// directory containing profile.yaml, experience/, and projects/ — the same
+// files the tailor-cv skill reads and writes. Generation calls the real
+// Claude API (ADR-0005), reading ANTHROPIC_API_KEY from the environment.
 func NewRouter(dataDir string) http.Handler {
+	return NewRouterWithGenerationClient(dataDir, claude.New())
+}
+
+// NewRouterWithGenerationClient builds the HTTP handler with an explicit
+// generation.Client, so tests can inject a fake instead of calling the real
+// Claude API (see the PRD's Testing Decisions).
+func NewRouterWithGenerationClient(dataDir string, generationClient generation.Client) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir))
@@ -20,6 +33,7 @@ func NewRouter(dataDir string) http.Handler {
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets/{id...}", getSnippetHandler(dataDir))
 	mux.HandleFunc("PUT /api/master-data/cover-letter-snippets/{id...}", putSnippetHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
+	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	return mux
 }
 
