@@ -30,7 +30,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, fmt.Errorf("loading master data: %w", err)
 	}
 
-	jobDescription, err := resolveJobDescription(ctx, req)
+	jobDescription, err := ResolveJobDescription(ctx, req.JobDescription, req.JobDescriptionURL)
 	if err != nil {
 		return GenerateResult{}, err
 	}
@@ -69,7 +69,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, err
 	}
 
-	ral, err := resolveRAL(ctx, jobDescription, client)
+	ral, err := ResolveRAL(ctx, jobDescription, client)
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
 	}
@@ -83,10 +83,12 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	}, nil
 }
 
-// resolveRAL implements the PRD's RAL Range lookup: parse the Job
+// ResolveRAL implements the PRD's RAL Range lookup: parse the Job
 // Description text first, and only ask the Client to research one (via web
-// search) if nothing is stated directly.
-func resolveRAL(ctx context.Context, jobDescription string, client Client) (RALRange, error) {
+// search) if nothing is stated directly. Exported so the tracking package
+// (Job Listing's RAL Range, see CONTEXT.md) can reuse the same lookup
+// Generate uses, rather than duplicating it.
+func ResolveRAL(ctx context.Context, jobDescription string, client Client) (RALRange, error) {
 	if ral, ok := ParseStatedRAL(jobDescription); ok {
 		return ral, nil
 	}
@@ -102,19 +104,20 @@ func resolveRAL(ctx context.Context, jobDescription string, client Client) (RALR
 	return ral, nil
 }
 
-// resolveJobDescription returns the Job Description text to Tailor against:
-// req.JobDescription verbatim if set, the text extracted from
-// req.JobDescriptionURL if that's set instead, or "" (Default Mode) if
-// neither is.
-func resolveJobDescription(ctx context.Context, req GenerateRequest) (string, error) {
-	if req.JobDescription != "" {
-		return req.JobDescription, nil
+// ResolveJobDescription returns the Job Description text to use: text
+// verbatim if set, the text extracted from url if that's set instead, or ""
+// (Default Mode, for a Generation) if neither is. Exported so the tracking
+// package (saving a Job Listing from pasted text or a URL, story 1) can
+// reuse the same resolution Generate uses.
+func ResolveJobDescription(ctx context.Context, text, url string) (string, error) {
+	if text != "" {
+		return text, nil
 	}
-	if req.JobDescriptionURL == "" {
+	if url == "" {
 		return "", nil
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, req.JobDescriptionURL, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", fmt.Errorf("building request for job description URL: %w", err)
 	}

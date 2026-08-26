@@ -132,3 +132,35 @@ export interface RenderResult {
   cvPageCount: number
 }
 
+export type JobListingSource = 'manual'
+
+export interface JobListing {
+  id: string
+  company: string
+  url?: string
+  source: JobListingSource
+  savedAt: string
+  jobDescription: string
+  ral: RALRange
+}
+
+export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
+
+export interface Application {
+  id: string
+  jobListingId: string
+  status: ApplicationStatus
+}
+
+export interface SaveJobListingRequest {
+  company: string
+  url?: string
+  jobDescription?: string
+  jobDescriptionUrl?: string
+}
+
+export interface SaveJobListingResult {
+  jobListing: JobListing
+  application: Application
+}
+

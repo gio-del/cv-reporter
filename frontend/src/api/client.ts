@@ -6,6 +6,8 @@ import type {
   Profile,
   RenderRequest,
   RenderResult,
+  SaveJobListingRequest,
+  SaveJobListingResult,
   Snippet,
   SnippetInput,
 } from './types'
@@ -113,4 +115,12 @@ export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
 
 export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
+}
+
+export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListingResult> {
+  return request('/api/job-listings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
 }
