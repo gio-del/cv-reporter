@@ -65,6 +65,15 @@ export interface Profile {
   languages: Language[]
 }
 
+export interface Snippet {
+  id: string
+  kind: string
+  tags: string[]
+  body: string
+}
+
+export type SnippetInput = Omit<Snippet, 'id'>
+
 export interface SelectedBullet {
   sourceIndex: number
   source: string

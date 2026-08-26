@@ -6,6 +6,8 @@ import type {
   Profile,
   RenderRequest,
   RenderResult,
+  Snippet,
+  SnippetInput,
 } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -59,6 +61,38 @@ export function updateProfile(profile: Profile): Promise<Profile> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
   })
+}
+
+export function listSnippets(): Promise<Snippet[]> {
+  return request('/api/master-data/cover-letter-snippets')
+}
+
+export function getSnippet(id: string): Promise<Snippet> {
+  return request(`/api/master-data/cover-letter-snippets/${id}`)
+}
+
+export function createSnippet(input: SnippetInput): Promise<Snippet> {
+  return request('/api/master-data/cover-letter-snippets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export function updateSnippet(id: string, input: SnippetInput): Promise<Snippet> {
+  return request(`/api/master-data/cover-letter-snippets/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteSnippet(id: string): Promise<void> {
+  const res = await fetch(`/api/master-data/cover-letter-snippets/${id}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body || `Delete failed (${res.status})`)
+  }
 }
 
 export function createGeneration(req: GenerateRequest): Promise<GenerateResult> {

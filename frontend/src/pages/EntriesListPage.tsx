@@ -32,7 +32,7 @@ export default function EntriesListPage() {
 
       <p>
         <Link to="/entries/new">+ New Entry</Link> · <Link to="/profile">Profile</Link> ·{' '}
-        <Link to="/generate">Generate a Tailored CV</Link>
+        <Link to="/snippets">Cover Letter Snippets</Link> · <Link to="/generate">Generate a Tailored CV</Link>
       </p>
 
       <section>
