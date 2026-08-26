@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -32,7 +31,7 @@ func listJobListingsHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
-func createJobListingHandler(dataDir string, client generation.Client) http.HandlerFunc {
+func createJobListingHandler(dataDir string, client tracking.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveJobListingRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

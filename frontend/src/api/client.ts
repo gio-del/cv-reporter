@@ -1,5 +1,6 @@
 import type {
   Application,
+  ApplicationMethod,
   ApplicationStatus,
   Entry,
   EntryInput,
@@ -137,5 +138,13 @@ export function updateApplicationStatus(id: string, status: ApplicationStatus): 
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
+  })
+}
+
+export function updateApplicationMethod(id: string, method: ApplicationMethod): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/method`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(method),
   })
 }

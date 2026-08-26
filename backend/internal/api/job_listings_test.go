@@ -12,6 +12,7 @@ import (
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 func TestCreateJobListing_StatedRAL_WritesFilesAndCreatesSavedApplication(t *testing.T) {
@@ -93,6 +94,41 @@ func TestCreateJobListing_StatedRAL_WritesFilesAndCreatesSavedApplication(t *tes
 	}
 	if !bytes.Contains(applicationFile, []byte("saved")) {
 		t.Errorf("expected application file to record status saved, got:\n%s", applicationFile)
+	}
+}
+
+func TestCreateJobListing_InfersApplicationMethodFromJobDescription(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		inferApplicationMethod: func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+			if jobDescription != "Email your CV to jobs@acme.example." {
+				t.Errorf("expected job description to reach the client, got %q", jobDescription)
+			}
+			return tracking.ApplicationMethod{Kind: tracking.MethodEmail, Value: "jobs@acme.example"}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Email your CV to jobs@acme.example."}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	application := result["application"].(map[string]any)
+	method, ok := application["method"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected an application method object, got %v", application["method"])
+	}
+	if method["kind"] != "email" || method["value"] != "jobs@acme.example" {
+		t.Errorf("expected inferred email method, got %v", method)
 	}
 }
 

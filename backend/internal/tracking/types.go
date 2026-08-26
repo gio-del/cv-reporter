@@ -35,15 +35,36 @@ const (
 	StatusOffer        Status = "offer"
 )
 
+// ApplicationMethodKind is how a Job Listing says to apply, per CONTEXT.md's
+// Application Method entry.
+type ApplicationMethodKind string
+
+const (
+	MethodPortal    ApplicationMethodKind = "portal"
+	MethodEmail     ApplicationMethodKind = "email"
+	MethodEasyApply ApplicationMethodKind = "easy_apply"
+	MethodOther     ApplicationMethodKind = "other"
+)
+
+// ApplicationMethod is inferred by Claude from a Job Listing's Job
+// Description at save time (story 5) and user-editable afterward (story
+// 6). Value is the detected application URL or email address, where
+// applicable (empty for Kind other, or when nothing was detected).
+type ApplicationMethod struct {
+	Kind  ApplicationMethodKind `json:"kind"`
+	Value string                `json:"value,omitempty"`
+}
+
 // Application is the tracked record of one attempt to apply to a Job
 // Listing — exactly one per Job Listing, created at Status Saved the
 // moment it's saved (CONTEXT.md's Application entry, story 2). It shares
 // its id with the Job Listing it belongs to, since the relationship is
 // strictly 1:1 for this PRD.
 type Application struct {
-	ID           string `json:"id"`
-	JobListingID string `json:"jobListingId"`
-	Status       Status `json:"status"`
+	ID           string            `json:"id"`
+	JobListingID string            `json:"jobListingId"`
+	Status       Status            `json:"status"`
+	Method       ApplicationMethod `json:"method"`
 }
 
 // ListingWithApplication pairs a Job Listing with its 1:1 Application, the

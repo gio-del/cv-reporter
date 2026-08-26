@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
 import RALBadge from '@/components/RALBadge'
-import { listJobListings, updateApplicationStatus } from '@/api/client'
-import type { ApplicationStatus, JobListingWithApplication } from '@/api/types'
+import { listJobListings, updateApplicationMethod, updateApplicationStatus } from '@/api/client'
+import type { ApplicationMethod, ApplicationStatus, JobListingWithApplication } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -53,6 +54,13 @@ export default function JobListingsListPage() {
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  async function handleMethodChange(jobListingId: string, method: ApplicationMethod) {
+    const application = await updateApplicationMethod(jobListingId, method)
+    setListings((prev) =>
+      prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
+    )
   }
 
   if (error)
@@ -120,6 +128,12 @@ export default function JobListingsListPage() {
                   </>
                 )}
               </p>
+              <div className="mt-2">
+                <ApplicationMethodEditor
+                  method={application.method}
+                  onSave={(method) => handleMethodChange(jobListing.id, method)}
+                />
+              </div>
               <div className="mt-2">
                 <RALBadge ral={jobListing.ral} />
               </div>

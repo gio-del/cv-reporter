@@ -43,14 +43,16 @@ type rawJobListingFrontmatter struct {
 }
 
 type rawApplication struct {
-	JobListingID string `yaml:"jobListingId"`
-	Status       Status `yaml:"status"`
+	JobListingID string            `yaml:"jobListingId"`
+	Status       Status            `yaml:"status"`
+	Method       ApplicationMethod `yaml:"method"`
 }
 
-// Save resolves req's Job Description and RAL Range, then writes a new Job
-// Listing and its linked Application (Status Saved) to dataDir — "saving a
-// Job Listing immediately creates its Application" (story 2).
-func Save(ctx context.Context, dataDir string, client generation.Client, req SaveRequest) (JobListing, Application, error) {
+// Save resolves req's Job Description, RAL Range, and Application Method
+// (story 5), then writes a new Job Listing and its linked Application
+// (Status Saved) to dataDir — "saving a Job Listing immediately creates its
+// Application" (story 2).
+func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (JobListing, Application, error) {
 	if strings.TrimSpace(req.Company) == "" {
 		return JobListing{}, Application{}, fmt.Errorf("%w: company is required", ErrValidation)
 	}
@@ -66,6 +68,11 @@ func Save(ctx context.Context, dataDir string, client generation.Client, req Sav
 	ral, err := generation.ResolveRAL(ctx, jobDescription, client)
 	if err != nil {
 		return JobListing{}, Application{}, fmt.Errorf("resolving RAL range: %w", err)
+	}
+
+	method, err := client.InferApplicationMethod(ctx, jobDescription)
+	if err != nil {
+		return JobListing{}, Application{}, fmt.Errorf("inferring application method: %w", err)
 	}
 
 	jobsFullDir := filepath.Join(dataDir, jobsDir)
@@ -91,7 +98,7 @@ func Save(ctx context.Context, dataDir string, client generation.Client, req Sav
 	if err := os.MkdirAll(applicationsFullDir, 0o755); err != nil {
 		return JobListing{}, Application{}, err
 	}
-	application := Application{ID: slug, JobListingID: slug, Status: StatusSaved}
+	application := Application{ID: slug, JobListingID: slug, Status: StatusSaved, Method: method}
 	if err := os.WriteFile(filepath.Join(applicationsFullDir, slug+".md"), renderApplication(application), 0o644); err != nil {
 		return JobListing{}, Application{}, err
 	}
@@ -172,7 +179,7 @@ func getApplication(dataDir, slug string) (Application, error) {
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return Application{}, err
 	}
-	return Application{ID: slug, JobListingID: raw.JobListingID, Status: raw.Status}, nil
+	return Application{ID: slug, JobListingID: raw.JobListingID, Status: raw.Status, Method: raw.Method}, nil
 }
 
 // splitFrontmatter splits a Job Listing file's content into its YAML
@@ -221,7 +228,7 @@ func renderJobListing(l JobListing) []byte {
 }
 
 func renderApplication(a Application) []byte {
-	raw := rawApplication{JobListingID: a.JobListingID, Status: a.Status}
+	raw := rawApplication{JobListingID: a.JobListingID, Status: a.Status, Method: a.Method}
 	out, _ := yaml.Marshal(raw)
 	return out
 }

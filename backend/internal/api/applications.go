@@ -39,3 +39,30 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, application)
 	}
 }
+
+func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		var req tracking.ApplicationMethod
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		application, err := tracking.UpdateApplicationMethod(dataDir, id, req)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "application not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, tracking.ErrValidation) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, application)
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 // Client wraps the Anthropic SDK client with the prompts and tool schemas
@@ -38,6 +39,7 @@ func NewWithOptions(opts ...option.RequestOption) *Client {
 }
 
 var _ generation.Client = (*Client)(nil)
+var _ tracking.Client = (*Client)(nil)
 
 const selectAndRewriteSystemPrompt = `You are Tailoring a CV for one specific Job Description, following the "Tailor CV" process described below.
 
@@ -262,4 +264,70 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 		}, nil
 	}
 	return generation.RALRange{}, fmt.Errorf("Claude response had no %s tool call", extractRALToolName)
+}
+
+const inferApplicationMethodSystemPrompt = `Classify how a candidate is expected to apply for the role described in this Job Description.
+
+kind must be exactly one of:
+- "portal": applying through a company/ATS website (Greenhouse, Lever, Workday, a "Apply Now" link, ...).
+- "email": the Job Description asks candidates to email a CV/application to a specific address.
+- "easy_apply": explicitly a LinkedIn Easy Apply posting.
+- "other": none of the above, or genuinely unclear.
+
+value is the detected application URL (for portal) or email address (for email), copied verbatim from the Job Description if present. Leave value empty for easy_apply and other, or when no concrete URL/address is stated.
+
+Call the infer_application_method tool with your result.`
+
+const inferApplicationMethodToolName = "infer_application_method"
+
+func inferApplicationMethodTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"kind": map[string]any{
+				"type":        "string",
+				"enum":        []string{"portal", "email", "easy_apply", "other"},
+				"description": "How the candidate is expected to apply.",
+			},
+			"value": map[string]any{
+				"type":        "string",
+				"description": "The detected application URL or email address, verbatim from the Job Description. Empty if none, or kind is easy_apply/other.",
+			},
+		},
+		Required: []string{"kind"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, inferApplicationMethodToolName)
+}
+
+type inferredApplicationMethod struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+}
+
+// InferApplicationMethod asks Claude to classify how a candidate should
+// apply for jobDescription's role, via a forced call to the
+// infer_application_method tool (story 5).
+func (c *Client) InferApplicationMethod(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  512,
+		System:     []anthropic.TextBlockParam{{Text: inferApplicationMethodSystemPrompt}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock("Job Description:\n" + jobDescription))},
+		Tools:      []anthropic.ToolUnionParam{inferApplicationMethodTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(inferApplicationMethodToolName),
+	})
+	if err != nil {
+		return tracking.ApplicationMethod{}, fmt.Errorf("calling Claude API: %w", err)
+	}
+
+	for _, block := range message.Content {
+		if block.Type != "tool_use" || block.Name != inferApplicationMethodToolName {
+			continue
+		}
+		var result inferredApplicationMethod
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return tracking.ApplicationMethod{}, fmt.Errorf("decoding %s tool input: %w", inferApplicationMethodToolName, err)
+		}
+		return tracking.ApplicationMethod{Kind: tracking.ApplicationMethodKind(result.Kind), Value: result.Value}, nil
+	}
+	return tracking.ApplicationMethod{}, fmt.Errorf("Claude response had no %s tool call", inferApplicationMethodToolName)
 }

@@ -126,3 +126,66 @@ func TestUpdateApplicationStatus_FullHappyPathToOffer(t *testing.T) {
 		resp.Body.Close()
 	}
 }
+
+func TestUpdateApplicationMethod_ValidCorrection_WritesFileAndReturns200(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/method", map[string]any{
+		"kind":  "portal",
+		"value": "https://acme.example/apply",
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	method := application["method"].(map[string]any)
+	if method["kind"] != "portal" || method["value"] != "https://acme.example/apply" {
+		t.Errorf("expected corrected method, got %v", method)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("portal")) {
+		t.Errorf("expected application file to record the corrected method, got:\n%s", content)
+	}
+}
+
+func TestUpdateApplicationMethod_UnknownKind_Returns400(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/method", map[string]any{"kind": "carrier-pigeon"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestUpdateApplicationMethod_UnknownApplication_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := patchJSON(t, server.URL+"/api/applications/does-not-exist/method", map[string]any{"kind": "portal"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}

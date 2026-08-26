@@ -11,15 +11,18 @@ import (
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
-// fakeGenerationClient is the generation.Client fake used to test the
-// /api/generations seam without calling the real Claude API, per the PRD's
-// Testing Decisions.
+// fakeGenerationClient is the tracking.Client (which embeds
+// generation.Client) fake used to test the /api/generations and
+// /api/job-listings seams without calling the real Claude API, per the
+// PRD's Testing Decisions.
 type fakeGenerationClient struct {
-	selectAndRewrite func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error)
-	draftCoverLetter func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error)
-	estimateRAL      func(ctx context.Context, jobDescription string) (generation.RALRange, error)
+	selectAndRewrite       func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error)
+	draftCoverLetter       func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error)
+	estimateRAL            func(ctx context.Context, jobDescription string) (generation.RALRange, error)
+	inferApplicationMethod func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error)
 }
 
 func (f *fakeGenerationClient) SelectAndRewrite(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
@@ -38,6 +41,13 @@ func (f *fakeGenerationClient) EstimateRAL(ctx context.Context, jobDescription s
 		return generation.RALRange{Source: generation.RALSourceNA}, nil
 	}
 	return f.estimateRAL(ctx, jobDescription)
+}
+
+func (f *fakeGenerationClient) InferApplicationMethod(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+	if f.inferApplicationMethod == nil {
+		return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
+	}
+	return f.inferApplicationMethod(ctx, jobDescription)
 }
 
 func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing.T) {

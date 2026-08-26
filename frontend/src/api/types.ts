@@ -146,10 +146,18 @@ export interface JobListing {
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
 
+export type ApplicationMethodKind = 'portal' | 'email' | 'easy_apply' | 'other'
+
+export interface ApplicationMethod {
+  kind: ApplicationMethodKind
+  value?: string
+}
+
 export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
+  method: ApplicationMethod
 }
 
 export interface SaveJobListingRequest {

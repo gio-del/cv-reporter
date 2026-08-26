@@ -101,6 +101,11 @@ export default function JobListingCreatePage() {
           <p>
             Application status: <strong>{saved.application.status}</strong>
           </p>
+          <p>
+            Inferred Application Method: <strong>{saved.application.method.kind}</strong>
+            {saved.application.method.value && <> ({saved.application.method.value})</>} — you can correct this from
+            the Job Listings list.
+          </p>
           <RALBadge ral={saved.jobListing.ral} />
           <p>
             <Link to="/jobs" className="no-underline hover:underline">
