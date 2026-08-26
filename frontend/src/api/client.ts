@@ -160,6 +160,10 @@ export function updateApplicationMethod(id: string, method: ApplicationMethod): 
   })
 }
 
+export function getApplicationMailto(id: string): Promise<{ uri: string }> {
+  return request(`/api/applications/${encodeURIComponent(id)}/mailto`)
+}
+
 export function updateApplicationContact(id: string, contact: Contact): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/contact`, {
     method: 'PATCH',

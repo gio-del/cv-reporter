@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
@@ -320,6 +321,70 @@ func TestUpdateApplicationContact_UnknownApplication_Returns404(t *testing.T) {
 		"name":  "Jane Recruiter",
 		"email": "jane@acme.example",
 	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetApplicationMailto_WithConfirmedContact_ReturnsURI(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	patchJSON(t, server.URL+"/api/applications/"+id+"/contact", map[string]any{
+		"name":  "Jane Recruiter",
+		"email": "jane@acme.example",
+	}).Body.Close()
+
+	resp, err := http.Get(server.URL + "/api/applications/" + id + "/mailto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	uri, ok := result["uri"].(string)
+	if !ok || !strings.HasPrefix(uri, "mailto:jane@acme.example?") {
+		t.Errorf("expected a mailto URI for jane@acme.example, got %v", result["uri"])
+	}
+}
+
+func TestGetApplicationMailto_NoConfirmedContact_Returns400(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/applications/" + id + "/mailto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/applications/does-not-exist/mailto")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {

@@ -115,6 +115,34 @@ func updateApplicationContactHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
+type mailtoResponse struct {
+	URI string `json:"uri"`
+}
+
+// getApplicationMailtoHandler returns the mailto: draft for the
+// Application identified by id (story 9) — the user's own email client
+// opens it ready to send; nothing is sent automatically.
+func getApplicationMailtoHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+
+		uri, err := tracking.GetMailtoURI(dataDir, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "application not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, tracking.ErrValidation) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, mailtoResponse{URI: uri})
+	}
+}
+
 func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
