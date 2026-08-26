@@ -1,11 +1,20 @@
 import type {
+  Application,
+  ApplicationMethod,
+  ApplicationStatus,
+  Contact,
   Entry,
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  JobListing,
+  JobListingWithApplication,
   Profile,
+  RecordGenerationRequest,
   RenderRequest,
   RenderResult,
+  SaveJobListingRequest,
+  SaveJobListingResult,
   Snippet,
   SnippetInput,
 } from './types'
@@ -113,4 +122,60 @@ export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
 
 export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
+}
+
+export function listJobListings(): Promise<JobListingWithApplication[]> {
+  return request('/api/job-listings')
+}
+
+export function getJobListing(id: string): Promise<JobListing> {
+  return request(`/api/job-listings/${encodeURIComponent(id)}`)
+}
+
+export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListingResult> {
+  return request('/api/job-listings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
+export function suggestContact(jobListingId: string): Promise<Contact> {
+  return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/suggest-contact`, { method: 'POST' })
+}
+
+export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+}
+
+export function updateApplicationMethod(id: string, method: ApplicationMethod): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/method`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(method),
+  })
+}
+
+export function getApplicationMailto(id: string): Promise<{ uri: string }> {
+  return request(`/api/applications/${encodeURIComponent(id)}/mailto`)
+}
+
+export function updateApplicationContact(id: string, contact: Contact): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/contact`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(contact),
+  })
+}
+
+export function recordApplicationGeneration(id: string, req: RecordGenerationRequest): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/generations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
 }

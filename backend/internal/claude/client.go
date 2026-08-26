@@ -14,6 +14,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 // Client wraps the Anthropic SDK client with the prompts and tool schemas
@@ -38,6 +39,7 @@ func NewWithOptions(opts ...option.RequestOption) *Client {
 }
 
 var _ generation.Client = (*Client)(nil)
+var _ tracking.Client = (*Client)(nil)
 
 const selectAndRewriteSystemPrompt = `You are Tailoring a CV for one specific Job Description, following the "Tailor CV" process described below.
 
@@ -262,4 +264,149 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 		}, nil
 	}
 	return generation.RALRange{}, fmt.Errorf("Claude response had no %s tool call", extractRALToolName)
+}
+
+const inferApplicationMethodSystemPrompt = `Classify how a candidate is expected to apply for the role described in this Job Description.
+
+kind must be exactly one of:
+- "portal": applying through a company/ATS website (Greenhouse, Lever, Workday, a "Apply Now" link, ...).
+- "email": the Job Description asks candidates to email a CV/application to a specific address.
+- "easy_apply": explicitly a LinkedIn Easy Apply posting.
+- "other": none of the above, or genuinely unclear.
+
+value is the detected application URL (for portal) or email address (for email), copied verbatim from the Job Description if present. Leave value empty for easy_apply and other, or when no concrete URL/address is stated.
+
+Call the infer_application_method tool with your result.`
+
+const inferApplicationMethodToolName = "infer_application_method"
+
+func inferApplicationMethodTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"kind": map[string]any{
+				"type":        "string",
+				"enum":        []string{"portal", "email", "easy_apply", "other"},
+				"description": "How the candidate is expected to apply.",
+			},
+			"value": map[string]any{
+				"type":        "string",
+				"description": "The detected application URL or email address, verbatim from the Job Description. Empty if none, or kind is easy_apply/other.",
+			},
+		},
+		Required: []string{"kind"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, inferApplicationMethodToolName)
+}
+
+type inferredApplicationMethod struct {
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+}
+
+// InferApplicationMethod asks Claude to classify how a candidate should
+// apply for jobDescription's role, via a forced call to the
+// infer_application_method tool (story 5).
+func (c *Client) InferApplicationMethod(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  512,
+		System:     []anthropic.TextBlockParam{{Text: inferApplicationMethodSystemPrompt}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock("Job Description:\n" + jobDescription))},
+		Tools:      []anthropic.ToolUnionParam{inferApplicationMethodTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(inferApplicationMethodToolName),
+	})
+	if err != nil {
+		return tracking.ApplicationMethod{}, fmt.Errorf("calling Claude API: %w", err)
+	}
+
+	for _, block := range message.Content {
+		if block.Type != "tool_use" || block.Name != inferApplicationMethodToolName {
+			continue
+		}
+		var result inferredApplicationMethod
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return tracking.ApplicationMethod{}, fmt.Errorf("decoding %s tool input: %w", inferApplicationMethodToolName, err)
+		}
+		return tracking.ApplicationMethod{Kind: tracking.ApplicationMethodKind(result.Kind), Value: result.Value}, nil
+	}
+	return tracking.ApplicationMethod{}, fmt.Errorf("Claude response had no %s tool call", inferApplicationMethodToolName)
+}
+
+const extractContactToolName = "extract_contact"
+
+func extractContactTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"found": map[string]any{"type": "boolean", "description": "Whether a plausible recruiter/hiring-manager contact was found."},
+			"name":  map[string]any{"type": "string", "description": "The contact's name. Required if found is true."},
+			"email": map[string]any{"type": "string", "description": "The contact's email address. Required if found is true."},
+		},
+		Required: []string{"found"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, extractContactToolName)
+}
+
+type extractedContact struct {
+	Found bool   `json:"found"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+// SuggestContact researches a plausible recruiter/hiring-manager Contact
+// for company via Claude's web search tool, then extracts a structured
+// result from the research notes with a second, forced-tool-call request
+// (server-executed tools like web search can't be combined with a forced
+// custom tool choice in the same request — the same two-call pattern as
+// EstimateRAL). Story 7: this never persists anything, only researches.
+func (c *Client) SuggestContact(ctx context.Context, company, jobDescription string) (tracking.Contact, error) {
+	researchPrompt := fmt.Sprintf(
+		"Research a plausible recruiter or hiring-manager contact (name and email) for applying to a role at %s, using web search. Ground this in the Job Description below if it names anyone directly. Summarize what you found, including a name and email if you found a credible one, or say plainly that you couldn't find a specific contact.\n\nJob Description:\n%s",
+		company, jobDescription,
+	)
+
+	research, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     c.model,
+		MaxTokens: 2048,
+		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(researchPrompt))},
+		Tools: []anthropic.ToolUnionParam{
+			{OfWebSearchTool20260209: &anthropic.WebSearchTool20260209Param{MaxUses: param.NewOpt(int64(5))}},
+		},
+	})
+	if err != nil {
+		return tracking.Contact{}, fmt.Errorf("researching contact: %w", err)
+	}
+
+	var notes strings.Builder
+	for _, block := range research.Content {
+		if block.Type == "text" {
+			notes.WriteString(block.Text)
+		}
+	}
+
+	extraction, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  512,
+		System:     []anthropic.TextBlockParam{{Text: "Extract a structured contact from these research notes by calling the extract_contact tool."}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(notes.String()))},
+		Tools:      []anthropic.ToolUnionParam{extractContactTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(extractContactToolName),
+	})
+	if err != nil {
+		return tracking.Contact{}, fmt.Errorf("extracting contact: %w", err)
+	}
+
+	for _, block := range extraction.Content {
+		if block.Type != "tool_use" || block.Name != extractContactToolName {
+			continue
+		}
+		var result extractedContact
+		if err := json.Unmarshal(block.Input, &result); err != nil {
+			return tracking.Contact{}, fmt.Errorf("decoding %s tool input: %w", extractContactToolName, err)
+		}
+		if !result.Found {
+			return tracking.Contact{}, nil
+		}
+		return tracking.Contact{Name: result.Name, Email: result.Email}, nil
+	}
+	return tracking.Contact{}, fmt.Errorf("Claude response had no %s tool call", extractContactToolName)
 }

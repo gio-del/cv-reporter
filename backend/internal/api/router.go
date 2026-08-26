@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gio-del/cv-reporter/backend/internal/claude"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 // NewRouter builds the HTTP handler for the app's API. dataDir is the root
@@ -18,16 +18,17 @@ func NewRouter(dataDir string) http.Handler {
 }
 
 // NewRouterWithGenerationClient builds the HTTP handler with an explicit
-// generation.Client, so tests can inject a fake instead of calling the real
-// Claude API (see the PRD's Testing Decisions).
-func NewRouterWithGenerationClient(dataDir string, generationClient generation.Client) http.Handler {
+// tracking.Client (which embeds generation.Client), so tests can inject a
+// fake instead of calling the real Claude API (see the PRD's Testing
+// Decisions).
+func NewRouterWithGenerationClient(dataDir string, generationClient tracking.Client) http.Handler {
 	return NewRouterFull(dataDir, ".", generationClient)
 }
 
 // NewRouterFull builds the HTTP handler with an explicit projectRoot: the
 // directory containing template/ and output/ that Render's typst
 // invocation needs as its --root (see CLAUDE.md and ADR-0012).
-func NewRouterFull(dataDir, projectRoot string, generationClient generation.Client) http.Handler {
+func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir))
@@ -42,6 +43,15 @@ func NewRouterFull(dataDir, projectRoot string, generationClient generation.Clie
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets/{id...}", getSnippetHandler(dataDir))
 	mux.HandleFunc("PUT /api/master-data/cover-letter-snippets/{id...}", putSnippetHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
+	mux.HandleFunc("GET /api/job-listings", listJobListingsHandler(dataDir))
+	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient))
+	mux.HandleFunc("GET /api/job-listings/{id}", getJobListingHandler(dataDir))
+	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", suggestContactHandler(dataDir, generationClient))
+	mux.HandleFunc("PATCH /api/applications/{id}/status", updateApplicationStatusHandler(dataDir))
+	mux.HandleFunc("PATCH /api/applications/{id}/method", updateApplicationMethodHandler(dataDir))
+	mux.HandleFunc("PATCH /api/applications/{id}/contact", updateApplicationContactHandler(dataDir))
+	mux.HandleFunc("GET /api/applications/{id}/mailto", getApplicationMailtoHandler(dataDir))
+	mux.HandleFunc("POST /api/applications/{id}/generations", recordApplicationGenerationHandler(dataDir))
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
 	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))

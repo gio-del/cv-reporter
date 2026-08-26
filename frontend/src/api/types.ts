@@ -132,3 +132,65 @@ export interface RenderResult {
   cvPageCount: number
 }
 
+export type JobListingSource = 'manual'
+
+export interface JobListing {
+  id: string
+  company: string
+  url?: string
+  source: JobListingSource
+  savedAt: string
+  jobDescription: string
+  ral: RALRange
+}
+
+export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
+
+export type ApplicationMethodKind = 'portal' | 'email' | 'easy_apply' | 'other'
+
+export interface ApplicationMethod {
+  kind: ApplicationMethodKind
+  value?: string
+}
+
+export interface GenerationRecord {
+  slug: string
+  createdAt: string
+  cvPath: string
+  coverLetterPath?: string
+}
+
+export interface Contact {
+  name: string
+  email: string
+}
+
+export interface Application {
+  id: string
+  jobListingId: string
+  status: ApplicationStatus
+  method: ApplicationMethod
+  contact?: Contact
+  generations?: GenerationRecord[]
+}
+
+export interface RecordGenerationRequest {
+  slug: string
+  cvPath: string
+  coverLetterPath?: string
+}
+
+export interface SaveJobListingRequest {
+  company: string
+  url?: string
+  jobDescription?: string
+  jobDescriptionUrl?: string
+}
+
+export interface JobListingWithApplication {
+  jobListing: JobListing
+  application: Application
+}
+
+export type SaveJobListingResult = JobListingWithApplication
+

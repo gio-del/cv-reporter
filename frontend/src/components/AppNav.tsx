@@ -6,6 +6,7 @@ const navItems = [
   { to: '/profile', label: 'Profile', end: false },
   { to: '/snippets', label: 'Cover Letter Snippets', end: false },
   { to: '/generate', label: 'Generate', end: false },
+  { to: '/jobs', label: 'Job Listings', end: false },
 ]
 
 export default function AppNav() {
