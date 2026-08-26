@@ -5,6 +5,13 @@ services:
       DATA_DIR: /workspace/data
       PROJECT_ROOT: /workspace
       PORT: "8080"
+      # Generation calls the Claude API directly (ADR-0005). Set this in a
+      # root .env file (see .env.example) or export it before `docker
+      # compose up` — compose does not forward host env vars into
+      # containers unless referenced here. Left unset, the app still runs
+      # (Master Data browsing works); only Generation requests fail, with
+      # a clear "no Anthropic credentials found" error.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
       # Render's typst invocation needs template/ and output/ alongside
       # data/, all under one --root (see ADR-0012), so the whole project

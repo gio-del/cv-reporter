@@ -33,11 +33,13 @@ Adding a new job or project means adding a new Markdown file under `data/experie
 
 ## Running the web app
 
+Generation calls the Claude API directly (ADR-0005), so copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY` first — `docker-compose.yml` loads `.env` automatically and forwards it into the backend container. Without it the app still runs (Master Data browsing works); only Generation requests fail.
+
 ```
 docker-compose up
 ```
 
-- Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012). Calls the Claude API directly for Generation (ADR-0005) — set `ANTHROPIC_API_KEY` in the backend's environment.
+- Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012).
 - Frontend: `http://127.0.0.1:5173`
 
 ### Backend API
