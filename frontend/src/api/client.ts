@@ -1,4 +1,4 @@
-import type { Entry, EntryInput, Profile } from './types'
+import type { Entry, EntryInput, GenerateRequest, GenerateResult, Profile } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init)
@@ -50,5 +50,13 @@ export function updateProfile(profile: Profile): Promise<Profile> {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
+  })
+}
+
+export function createGeneration(req: GenerateRequest): Promise<GenerateResult> {
+  return request('/api/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
   })
 }

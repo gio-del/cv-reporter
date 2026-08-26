@@ -31,7 +31,8 @@ export default function EntriesListPage() {
       <h1>Master Data</h1>
 
       <p>
-        <Link to="/entries/new">+ New Entry</Link> · <Link to="/profile">Profile</Link>
+        <Link to="/entries/new">+ New Entry</Link> · <Link to="/profile">Profile</Link> ·{' '}
+        <Link to="/generate">Generate a Tailored CV</Link>
       </p>
 
       <section>

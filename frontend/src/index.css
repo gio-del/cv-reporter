@@ -21,3 +21,29 @@ main {
   border-radius: 999px;
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
+
+.review-entry {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.review-reason {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.review-bullet-excluded {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.diff-added {
+  background: color-mix(in srgb, #2da44e 30%, transparent);
+  text-decoration: none;
+}
+
+.diff-removed {
+  background: color-mix(in srgb, #cf222e 30%, transparent);
+}

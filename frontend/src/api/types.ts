@@ -65,3 +65,32 @@ export interface Profile {
   languages: Language[]
 }
 
+export interface SelectedBullet {
+  sourceIndex: number
+  source: string
+  rewritten: string
+}
+
+export interface SelectedEntry {
+  entryId: string
+  reason: string
+  bullets: SelectedBullet[]
+}
+
+export interface SelectionResult {
+  entries: SelectedEntry[]
+}
+
+export type GenerateMode = 'default' | 'tailored'
+
+export interface GenerateResult {
+  mode: GenerateMode
+  jobDescription?: string
+  selection: SelectionResult
+}
+
+export interface GenerateRequest {
+  jobDescription?: string
+  jobDescriptionUrl?: string
+}
+
