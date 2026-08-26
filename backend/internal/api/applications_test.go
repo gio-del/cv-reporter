@@ -189,3 +189,74 @@ func TestUpdateApplicationMethod_UnknownApplication_Returns404(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp1 := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+	})
+	defer resp1.Body.Close()
+	if resp1.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp1.StatusCode)
+	}
+
+	resp2 := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":            "acme-corp",
+		"cvPath":          "output/acme-corp/cv.pdf",
+		"coverLetterPath": "output/acme-corp/cover-letter.pdf",
+	})
+	defer resp2.Body.Close()
+	if resp2.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp2.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp2.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations, ok := application["generations"].([]any)
+	if !ok || len(generations) != 2 {
+		t.Fatalf("expected regenerating to append rather than overwrite (2 records), got %v", application["generations"])
+	}
+	latest := generations[1].(map[string]any)
+	if latest["coverLetterPath"] != "output/acme-corp/cover-letter.pdf" {
+		t.Errorf("expected latest record's coverLetterPath, got %v", latest)
+	}
+}
+
+func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{"cvPath": "output/x/cv.pdf"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
+func TestRecordApplicationGeneration_UnknownApplication_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/applications/does-not-exist/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}

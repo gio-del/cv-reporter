@@ -24,6 +24,7 @@ function App() {
           <Route path="/generate" element={<GenerationPage />} />
           <Route path="/jobs" element={<JobListingsListPage />} />
           <Route path="/jobs/new" element={<JobListingCreatePage />} />
+          <Route path="/jobs/:id/generate" element={<GenerationPage />} />
           <Route path="/snippets" element={<SnippetsListPage />} />
           <Route path="/snippets/new" element={<SnippetCreatePage />} />
           <Route path="/snippets/:id" element={<SnippetDetailPage />} />

@@ -153,11 +153,25 @@ export interface ApplicationMethod {
   value?: string
 }
 
+export interface GenerationRecord {
+  slug: string
+  createdAt: string
+  cvPath: string
+  coverLetterPath?: string
+}
+
 export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
   method: ApplicationMethod
+  generations?: GenerationRecord[]
+}
+
+export interface RecordGenerationRequest {
+  slug: string
+  cvPath: string
+  coverLetterPath?: string
 }
 
 export interface SaveJobListingRequest {

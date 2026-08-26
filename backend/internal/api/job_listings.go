@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
@@ -28,6 +29,22 @@ func listJobListingsHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, listings)
+	}
+}
+
+func getJobListingHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, err := tracking.GetJobListing(dataDir, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, listing)
 	}
 }
 

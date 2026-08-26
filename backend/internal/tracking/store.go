@@ -43,9 +43,10 @@ type rawJobListingFrontmatter struct {
 }
 
 type rawApplication struct {
-	JobListingID string            `yaml:"jobListingId"`
-	Status       Status            `yaml:"status"`
-	Method       ApplicationMethod `yaml:"method"`
+	JobListingID string             `yaml:"jobListingId"`
+	Status       Status             `yaml:"status"`
+	Method       ApplicationMethod  `yaml:"method"`
+	Generations  []GenerationRecord `yaml:"generations,omitempty"`
 }
 
 // Save resolves req's Job Description, RAL Range, and Application Method
@@ -142,6 +143,12 @@ func List(dataDir string) ([]ListingWithApplication, error) {
 	return result, nil
 }
 
+// GetJobListing reads a single Job Listing by id, so the FE can prefill a
+// Generation from an existing Job Listing's Job Description (story 11).
+func GetJobListing(dataDir, id string) (JobListing, error) {
+	return getJobListing(dataDir, id)
+}
+
 func getJobListing(dataDir, slug string) (JobListing, error) {
 	content, err := os.ReadFile(filepath.Join(dataDir, jobsDir, slug+".md"))
 	if err != nil {
@@ -179,7 +186,13 @@ func getApplication(dataDir, slug string) (Application, error) {
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return Application{}, err
 	}
-	return Application{ID: slug, JobListingID: raw.JobListingID, Status: raw.Status, Method: raw.Method}, nil
+	return Application{
+		ID:           slug,
+		JobListingID: raw.JobListingID,
+		Status:       raw.Status,
+		Method:       raw.Method,
+		Generations:  raw.Generations,
+	}, nil
 }
 
 // splitFrontmatter splits a Job Listing file's content into its YAML
@@ -228,7 +241,7 @@ func renderJobListing(l JobListing) []byte {
 }
 
 func renderApplication(a Application) []byte {
-	raw := rawApplication{JobListingID: a.JobListingID, Status: a.Status, Method: a.Method}
+	raw := rawApplication{JobListingID: a.JobListingID, Status: a.Status, Method: a.Method, Generations: a.Generations}
 	out, _ := yaml.Marshal(raw)
 	return out
 }

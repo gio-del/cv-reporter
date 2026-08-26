@@ -55,16 +55,29 @@ type ApplicationMethod struct {
 	Value string                `json:"value,omitempty"`
 }
 
+// GenerationRecord is one Generation run recorded against an Application
+// (story 11), after the FE has rendered it via POST
+// /api/generations/render. Kept in a history rather than overwritten on
+// regenerate (stories 12, 13) — the most recent is what the user would
+// actually send.
+type GenerationRecord struct {
+	Slug            string `json:"slug"`
+	CreatedAt       string `json:"createdAt"`
+	CVPath          string `json:"cvPath"`
+	CoverLetterPath string `json:"coverLetterPath,omitempty"`
+}
+
 // Application is the tracked record of one attempt to apply to a Job
 // Listing — exactly one per Job Listing, created at Status Saved the
 // moment it's saved (CONTEXT.md's Application entry, story 2). It shares
 // its id with the Job Listing it belongs to, since the relationship is
 // strictly 1:1 for this PRD.
 type Application struct {
-	ID           string            `json:"id"`
-	JobListingID string            `json:"jobListingId"`
-	Status       Status            `json:"status"`
-	Method       ApplicationMethod `json:"method"`
+	ID           string             `json:"id"`
+	JobListingID string             `json:"jobListingId"`
+	Status       Status             `json:"status"`
+	Method       ApplicationMethod  `json:"method"`
+	Generations  []GenerationRecord `json:"generations,omitempty"`
 }
 
 // ListingWithApplication pairs a Job Listing with its 1:1 Application, the

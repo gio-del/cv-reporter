@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import BulletDiff from '@/components/BulletDiff'
 import RALBadge from '@/components/RALBadge'
-import { createGeneration, generationFileUrl, listEntries, renderGeneration } from '@/api/client'
-import type { Entry, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '@/api/types'
+import {
+  createGeneration,
+  generationFileUrl,
+  getJobListing,
+  listEntries,
+  recordApplicationGeneration,
+  renderGeneration,
+} from '@/api/client'
+import type { Entry, JobListing, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -41,6 +49,8 @@ function entryLabel(entry: Entry | undefined, entryId: string): string {
 }
 
 export default function GenerationPage() {
+  const { id: jobListingId } = useParams<{ id?: string }>()
+  const [jobListing, setJobListing] = useState<JobListing | null>(null)
   const [entriesById, setEntriesById] = useState<Map<string, Entry>>(new Map())
   const [jobDescription, setJobDescription] = useState('')
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState('')
@@ -50,10 +60,11 @@ export default function GenerationPage() {
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
-  const [slug, setSlug] = useState('default')
+  const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [render, setRender] = useState<RenderResult | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
 
   useEffect(() => {
     listEntries()
@@ -62,6 +73,16 @@ export default function GenerationPage() {
         // Labels fall back to raw entryIds if Master Data can't be loaded.
       })
   }, [])
+
+  useEffect(() => {
+    if (!jobListingId) return
+    getJobListing(jobListingId)
+      .then((listing) => {
+        setJobListing(listing)
+        setJobDescription(listing.jobDescription)
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+  }, [jobListingId])
 
   async function handleStart() {
     setError(null)
@@ -138,6 +159,7 @@ export default function GenerationPage() {
       .filter((e) => e.bullets.length > 0)
 
     setRenderError(null)
+    setLinkError(null)
     setRendering(true)
     try {
       const result = await renderGeneration({
@@ -146,6 +168,18 @@ export default function GenerationPage() {
         coverLetter: coverLetter !== null ? { body: coverLetter } : undefined,
       })
       setRender(result)
+
+      if (jobListingId) {
+        try {
+          await recordApplicationGeneration(jobListingId, {
+            slug: result.slug,
+            cvPath: result.cvPath,
+            coverLetterPath: result.coverLetterPath,
+          })
+        } catch (err) {
+          setLinkError(err instanceof Error ? err.message : String(err))
+        }
+      }
     } catch (err) {
       setRenderError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -155,7 +189,14 @@ export default function GenerationPage() {
 
   return (
     <>
-      <h1>Generate a Tailored CV</h1>
+      {jobListingId && (
+        <p className="mb-4 inline-block text-sm">
+          <Link to="/jobs" className="no-underline hover:underline">
+            ← Back to Job Listings
+          </Link>
+        </p>
+      )}
+      <h1>{jobListing ? `Generate a Tailored CV for ${jobListing.company}` : 'Generate a Tailored CV'}</h1>
 
       <section>
         <FieldGroup>
@@ -286,6 +327,16 @@ export default function GenerationPage() {
       {render && (
         <section>
           <h2>Visual Review</h2>
+          {jobListingId && !linkError && (
+            <p>
+              Linked to <strong>{jobListing?.company ?? jobListingId}</strong>'s Application.
+            </p>
+          )}
+          {linkError && (
+            <p role="alert" className="font-medium text-destructive">
+              Rendered, but failed to link this Generation to the Application: {linkError}
+            </p>
+          )}
           {render.cvPageCount !== 1 && (
             <p role="alert" className="font-medium text-destructive">
               The CV rendered to {render.cvPageCount} pages — it should be one. Trim a bullet or Entry above and

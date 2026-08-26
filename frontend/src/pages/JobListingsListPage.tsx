@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
 import RALBadge from '@/components/RALBadge'
-import { listJobListings, updateApplicationMethod, updateApplicationStatus } from '@/api/client'
+import { generationFileUrl, listJobListings, updateApplicationMethod, updateApplicationStatus } from '@/api/client'
 import type { ApplicationMethod, ApplicationStatus, JobListingWithApplication } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -136,6 +136,43 @@ export default function JobListingsListPage() {
               </div>
               <div className="mt-2">
                 <RALBadge ral={jobListing.ral} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <Button asChild size="sm" variant="outline">
+                  <Link to={`/jobs/${jobListing.id}/generate`}>
+                    {application.generations?.length ? 'Regenerate CV' : 'Generate CV'}
+                  </Link>
+                </Button>
+                {application.generations && application.generations.length > 0 && (
+                  <span className="text-muted-foreground">
+                    {application.generations.length} generation{application.generations.length > 1 ? 's' : ''} · latest:{' '}
+                    <a
+                      href={generationFileUrl(
+                        application.generations[application.generations.length - 1].slug,
+                        'cv.pdf',
+                      )}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      CV
+                    </a>
+                    {application.generations[application.generations.length - 1].coverLetterPath && (
+                      <>
+                        {' · '}
+                        <a
+                          href={generationFileUrl(
+                            application.generations[application.generations.length - 1].slug,
+                            'cover-letter.pdf',
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Cover Letter
+                        </a>
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
             </li>
           )

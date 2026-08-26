@@ -302,6 +302,47 @@ func TestListJobListings_NoneSaved_ReturnsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestGetJobListing_ReturnsSavedRecord(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/job-listings/" + id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var listing map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&listing); err != nil {
+		t.Fatal(err)
+	}
+	if listing["company"] != "Acme Corp" {
+		t.Errorf("expected company Acme Corp, got %v", listing["company"])
+	}
+}
+
+func TestGetJobListing_UnknownID_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/job-listings/does-not-exist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
 func assertNoFilesIn(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

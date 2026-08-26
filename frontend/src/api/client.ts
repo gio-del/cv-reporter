@@ -6,8 +6,10 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  JobListing,
   JobListingWithApplication,
   Profile,
+  RecordGenerationRequest,
   RenderRequest,
   RenderResult,
   SaveJobListingRequest,
@@ -125,6 +127,10 @@ export function listJobListings(): Promise<JobListingWithApplication[]> {
   return request('/api/job-listings')
 }
 
+export function getJobListing(id: string): Promise<JobListing> {
+  return request(`/api/job-listings/${encodeURIComponent(id)}`)
+}
+
 export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListingResult> {
   return request('/api/job-listings', {
     method: 'POST',
@@ -146,5 +152,13 @@ export function updateApplicationMethod(id: string, method: ApplicationMethod): 
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(method),
+  })
+}
+
+export function recordApplicationGeneration(id: string, req: RecordGenerationRequest): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/generations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
   })
 }
