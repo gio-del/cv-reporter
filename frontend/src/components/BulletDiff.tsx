@@ -14,14 +14,17 @@ export default function BulletDiff({ source, rewritten }: { source: string; rewr
       {parts.map((part, i) => {
         if (part.added) {
           return (
-            <ins key={i} className="diff-added">
+            <ins
+              key={i}
+              className="bg-diff-added underline decoration-diff-added-underline"
+            >
               {part.value}
             </ins>
           )
         }
         if (part.removed) {
           return (
-            <del key={i} className="diff-removed">
+            <del key={i} className="bg-diff-removed">
               {part.value}
             </del>
           )

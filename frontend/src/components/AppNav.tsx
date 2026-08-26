@@ -1,15 +1,35 @@
 import { NavLink } from 'react-router-dom'
+import { cn } from '@/lib/utils'
+
+const navItems = [
+  { to: '/', label: 'Master Data', end: true },
+  { to: '/profile', label: 'Profile', end: false },
+  { to: '/snippets', label: 'Cover Letter Snippets', end: false },
+  { to: '/generate', label: 'Generate', end: false },
+]
 
 export default function AppNav() {
   return (
-    <nav className="app-nav" aria-label="Primary">
-      <strong>CV Reporter</strong>
-      <NavLink to="/" end>
-        Master Data
-      </NavLink>
-      <NavLink to="/profile">Profile</NavLink>
-      <NavLink to="/snippets">Cover Letter Snippets</NavLink>
-      <NavLink to="/generate">Generate</NavLink>
+    <nav
+      className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-card px-6 py-4"
+      aria-label="Primary"
+    >
+      <strong className="mr-auto font-semibold">CV Reporter</strong>
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          className={({ isActive }) =>
+            cn(
+              'border-b-2 border-transparent py-1 font-medium text-muted-foreground no-underline hover:text-foreground',
+              isActive && 'border-primary text-primary',
+            )
+          }
+        >
+          {item.label}
+        </NavLink>
+      ))}
     </nav>
   )
 }

@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createSnippet } from '../api/client'
-import type { SnippetInput } from '../api/types'
+import { createSnippet } from '@/api/client'
+import type { SnippetInput } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 const blankForm = { kind: '', tags: '', body: '' }
 type FormState = typeof blankForm
@@ -40,30 +44,38 @@ export default function SnippetCreatePage() {
 
   return (
     <>
-      <p className="breadcrumb">
-        <Link to="/snippets">← Back to Cover Letter Snippets</Link>
+      <p className="mb-4 inline-block text-sm">
+        <Link to="/snippets" className="no-underline hover:underline">
+          ← Back to Cover Letter Snippets
+        </Link>
       </p>
       <h1>New Cover Letter Snippet</h1>
       <form onSubmit={handleSubmit}>
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" className="mb-4 font-medium text-destructive">
+            {error}
+          </p>
+        )}
 
-        <label>
-          Kind (e.g. opening, why-this-company, closing)
-          <input value={form.kind} onChange={(e) => set('kind', e.target.value)} />
-        </label>
-        <label>
-          Tags (comma-separated)
-          <input value={form.tags} onChange={(e) => set('tags', e.target.value)} />
-        </label>
-        <label>
-          Body
-          <textarea rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
-        </label>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="kind">Kind (e.g. opening, why-this-company, closing)</FieldLabel>
+            <Input id="kind" value={form.kind} onChange={(e) => set('kind', e.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="tags">Tags (comma-separated)</FieldLabel>
+            <Input id="tags" value={form.tags} onChange={(e) => set('tags', e.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="body">Body</FieldLabel>
+            <Textarea id="body" rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
+          </Field>
+        </FieldGroup>
 
-        <div className="form-actions">
-          <button type="submit" disabled={saving}>
+        <div className="mt-6 flex gap-3">
+          <Button type="submit" disabled={saving}>
             {saving ? 'Creating…' : 'Create'}
-          </button>
+          </Button>
         </div>
       </form>
     </>

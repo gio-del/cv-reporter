@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
-import BulletDiff from '../components/BulletDiff'
-import RALBadge from '../components/RALBadge'
-import { createGeneration, generationFileUrl, listEntries, renderGeneration } from '../api/client'
-import type { Entry, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '../api/types'
+import BulletDiff from '@/components/BulletDiff'
+import RALBadge from '@/components/RALBadge'
+import { createGeneration, generationFileUrl, listEntries, renderGeneration } from '@/api/client'
+import type { Entry, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '@/api/types'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
@@ -152,33 +158,41 @@ export default function GenerationPage() {
       <h1>Generate a Tailored CV</h1>
 
       <section>
-        <label>
-          Job Description (paste text)
-          <textarea
-            rows={6}
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the job description here…"
-          />
-        </label>
-        <label>
-          …or a URL to fetch it from
-          <input
-            type="url"
-            value={jobDescriptionUrl}
-            onChange={(e) => setJobDescriptionUrl(e.target.value)}
-            placeholder="https://…"
-          />
-        </label>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="job-description">Job Description (paste text)</FieldLabel>
+            <Textarea
+              id="job-description"
+              rows={6}
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              placeholder="Paste the job description here…"
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="job-description-url">…or a URL to fetch it from</FieldLabel>
+            <Input
+              id="job-description-url"
+              type="url"
+              value={jobDescriptionUrl}
+              onChange={(e) => setJobDescriptionUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </Field>
+        </FieldGroup>
         <p>Leave both blank to run Default Mode (a general-purpose CV from your most representative Entries).</p>
-        <div className="form-actions">
-          <button onClick={handleStart} disabled={loading}>
+        <div className="mt-6 flex gap-3">
+          <Button onClick={handleStart} disabled={loading}>
             {loading ? 'Generating…' : 'Start Generation'}
-          </button>
+          </Button>
         </div>
       </section>
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className="font-medium text-destructive">
+          {error}
+        </p>
+      )}
 
       {editable && (
         <section>
@@ -190,31 +204,37 @@ export default function GenerationPage() {
           {editable.map((entry) => {
             const label = entryLabel(entriesById.get(entry.entryId), entry.entryId)
             return (
-              <div key={entry.entryId} className="review-entry">
-                <h3>
-                  <label>
-                    <input type="checkbox" checked={entry.included} onChange={() => toggleEntry(entry.entryId)} />
+              <div key={entry.entryId} className="mb-4 rounded-xl border border-border bg-card p-5">
+                <h3 className="mb-0">
+                  <label className="flex items-center gap-2 font-semibold">
+                    <Checkbox checked={entry.included} onCheckedChange={() => toggleEntry(entry.entryId)} />
                     {label}
                   </label>
                 </h3>
-                <p className="review-reason">{entry.reason}</p>
+                <p className="mt-2 text-muted-foreground italic">{entry.reason}</p>
                 {entry.included && (
-                  <ul className="review-bullet-list">
+                  <ul className="mt-3 flex flex-col gap-3">
                     {entry.bullets.map((bullet) => (
                       <li
                         key={bullet.sourceIndex}
-                        className={`review-bullet${bullet.included ? '' : ' review-bullet-excluded'}`}
+                        className={cn(
+                          'border-t border-border pt-2 first:border-t-0 first:pt-0',
+                          !bullet.included && 'opacity-50',
+                        )}
                       >
-                        <label>
-                          <input
-                            type="checkbox"
+                        <label className="flex items-start gap-2">
+                          <Checkbox
+                            className="mt-0.5"
                             checked={bullet.included}
-                            onChange={() => toggleBullet(entry.entryId, bullet.sourceIndex)}
+                            onCheckedChange={() => toggleBullet(entry.entryId, bullet.sourceIndex)}
                           />
-                          <BulletDiff source={bullet.source} rewritten={bullet.rewritten} />
+                          <span className={cn(bullet.included ? '' : 'line-through')}>
+                            <BulletDiff source={bullet.source} rewritten={bullet.rewritten} />
+                          </span>
                         </label>
                         {bullet.included && (
-                          <textarea
+                          <Textarea
+                            className="mt-2"
                             rows={2}
                             value={bullet.rewritten}
                             onChange={(e) => updateBullet(entry.entryId, bullet.sourceIndex, e.target.value)}
@@ -229,36 +249,36 @@ export default function GenerationPage() {
           })}
 
           {coverLetter !== null && (
-            <div className="review-entry">
+            <div className="mb-4 rounded-xl border border-border bg-card p-5">
               <h3>Cover Letter</h3>
-              <textarea
-                rows={12}
-                value={coverLetter}
-                onChange={(e) => setCoverLetter(e.target.value)}
-              />
+              <Textarea rows={12} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
             </div>
           )}
 
-          <label htmlFor="generation-slug">
-            Save as (used for the output filename)
-            <input
+          <Field>
+            <FieldLabel htmlFor="generation-slug">Save as (used for the output filename)</FieldLabel>
+            <Input
               id="generation-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="acme-corp"
               aria-describedby="generation-slug-hint"
             />
-            <small id="generation-slug-hint" className="field-hint">
+            <FieldDescription id="generation-slug-hint">
               Lowercase kebab-case, e.g. "acme-corp".
-            </small>
-          </label>
+            </FieldDescription>
+          </Field>
 
-          {renderError && <p role="alert">{renderError}</p>}
+          {renderError && (
+            <p role="alert" className="font-medium text-destructive">
+              {renderError}
+            </p>
+          )}
 
-          <div className="form-actions">
-            <button onClick={handleRender} disabled={rendering}>
+          <div className="mt-6 flex gap-3">
+            <Button onClick={handleRender} disabled={rendering}>
               {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
-            </button>
+            </Button>
           </div>
         </section>
       )}
@@ -267,13 +287,13 @@ export default function GenerationPage() {
         <section>
           <h2>Visual Review</h2>
           {render.cvPageCount !== 1 && (
-            <p role="alert">
+            <p role="alert" className="font-medium text-destructive">
               The CV rendered to {render.cvPageCount} pages — it should be one. Trim a bullet or Entry above and
               re-render.
             </p>
           )}
           <iframe
-            className="cv-preview-frame"
+            className="block h-[min(800px,75vh)] w-full rounded-xl border border-border"
             title="Tailored CV preview"
             src={generationFileUrl(render.slug, 'cv.pdf')}
           />

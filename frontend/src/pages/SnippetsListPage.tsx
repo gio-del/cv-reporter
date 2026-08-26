@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listSnippets } from '../api/client'
-import type { Snippet } from '../api/types'
+import { listSnippets } from '@/api/client'
+import type { Snippet } from '@/api/types'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 export default function SnippetsListPage() {
   const [snippets, setSnippets] = useState<Snippet[] | null>(null)
@@ -13,38 +15,47 @@ export default function SnippetsListPage() {
       .catch((e) => setError(e.message))
   }, [])
 
-  if (error) return <p role="alert">{error}</p>
+  if (error)
+    return (
+      <p role="alert" className="font-medium text-destructive">
+        {error}
+      </p>
+    )
   if (!snippets) return <p>Loading…</p>
 
   return (
     <>
-      <p className="breadcrumb">
-        <Link to="/">← Back to Master Data</Link>
+      <p className="mb-4 inline-block text-sm">
+        <Link to="/" className="no-underline hover:underline">
+          ← Back to Master Data
+        </Link>
       </p>
-      <div className="page-header">
-        <h1>Cover Letter Snippets</h1>
-        <Link to="/snippets/new">+ New Snippet</Link>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="mb-0">Cover Letter Snippets</h1>
+        <Button asChild>
+          <Link to="/snippets/new">+ New Snippet</Link>
+        </Button>
       </div>
 
       {snippets.length === 0 && (
         <p>No snippets yet. Without any, Cover Letter drafting falls back to fresh prose.</p>
       )}
 
-      <ul className="entry-list">
+      <ul className="flex flex-col gap-2">
         {snippets.map((snippet) => (
-          <li key={snippet.id}>
-            <div className="entry-list-row">
-              <Link to={`/snippets/${snippet.id}`}>{snippet.kind}</Link>
-            </div>
-            <p>
+          <li key={snippet.id} className="rounded-xl border border-border bg-card px-4 py-3">
+            <Link to={`/snippets/${snippet.id}`} className="font-medium no-underline hover:underline">
+              {snippet.kind}
+            </Link>
+            <p className="mb-0">
               {snippet.body.slice(0, 80)}
               {snippet.body.length > 80 ? '…' : ''}
             </p>
-            <div>
+            <div className="mt-1 flex flex-wrap gap-1">
               {snippet.tags.map((tag) => (
-                <span className="tag" key={tag}>
+                <Badge variant="secondary" key={tag}>
                   {tag}
-                </span>
+                </Badge>
               ))}
             </div>
           </li>

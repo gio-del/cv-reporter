@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { deleteEntry, getEntry } from '../api/client'
-import type { Entry } from '../api/types'
+import { deleteEntry, getEntry } from '@/api/client'
+import type { Entry } from '@/api/types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import EntryEditForm from './EntryEditForm'
 
 export default function EntryDetailPage() {
@@ -11,14 +24,14 @@ export default function EntryDetailPage() {
   const [entry, setEntry] = useState<Entry | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     setEntry(null)
     setError(null)
     setEditing(false)
-    setConfirmingDelete(false)
+    setDeleteOpen(false)
     getEntry(id)
       .then(setEntry)
       .catch((e) => setError(e.message))
@@ -32,11 +45,16 @@ export default function EntryDetailPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setDeleting(false)
-      setConfirmingDelete(false)
+      setDeleteOpen(false)
     }
   }
 
-  if (error) return <p role="alert">{error}</p>
+  if (error)
+    return (
+      <p role="alert" className="font-medium text-destructive">
+        {error}
+      </p>
+    )
   if (!entry) return <p>Loading…</p>
 
   const title = entry.type === 'experience' ? `${entry.client ?? entry.employer} — ${entry.role}` : entry.name
@@ -44,8 +62,10 @@ export default function EntryDetailPage() {
   if (editing) {
     return (
       <>
-        <p className="breadcrumb">
-          <Link to="/">← Back to Master Data</Link>
+        <p className="mb-4 inline-block text-sm">
+          <Link to="/" className="no-underline hover:underline">
+            ← Back to Master Data
+          </Link>
         </p>
         <h1>Edit {title}</h1>
         <EntryEditForm
@@ -63,7 +83,9 @@ export default function EntryDetailPage() {
   return (
     <>
       <p>
-        <Link to="/">← Back to Master Data</Link>
+        <Link to="/" className="no-underline hover:underline">
+          ← Back to Master Data
+        </Link>
       </p>
       <h1>{title}</h1>
       {entry.type === 'experience' && (
@@ -83,39 +105,49 @@ export default function EntryDetailPage() {
       <p>
         {entry.start} – {entry.end ?? 'present'}
       </p>
-      <div>
+      <div className="flex flex-wrap gap-1">
         {entry.tags.map((tag) => (
-          <span className="tag" key={tag}>
+          <Badge variant="secondary" key={tag}>
             {tag}
-          </span>
+          </Badge>
         ))}
       </div>
-      <ul>
+      <ul className="list-disc pl-5">
         {entry.bullets?.map((bullet, i) => (
           <li key={i}>{bullet}</li>
         ))}
       </ul>
-      <div className="form-actions">
-        <button type="button" onClick={() => setEditing(true)}>
+      <div className="mt-6 flex items-center gap-3">
+        <Button type="button" onClick={() => setEditing(true)}>
           Edit
-        </button>
-        {!confirmingDelete && (
-          <button type="button" onClick={() => setConfirmingDelete(true)}>
-            Delete
-          </button>
-        )}
+        </Button>
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogTrigger asChild>
+            <Button type="button" variant="outline">
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
+              <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDelete()
+                }}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Yes, delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
-      {confirmingDelete && (
-        <div className="danger-zone" role="alert">
-          <span>Delete this entry?</span>
-          <button type="button" data-variant="danger" onClick={handleDelete} disabled={deleting}>
-            {deleting ? 'Deleting…' : 'Yes, delete'}
-          </button>
-          <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
-            Cancel
-          </button>
-        </div>
-      )}
     </>
   )
 }
