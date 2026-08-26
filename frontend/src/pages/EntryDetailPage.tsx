@@ -44,7 +44,7 @@ export default function EntryDetailPage() {
   if (editing) {
     return (
       <>
-        <p>
+        <p className="breadcrumb">
           <Link to="/">← Back to Master Data</Link>
         </p>
         <h1>Edit {title}</h1>
@@ -95,23 +95,26 @@ export default function EntryDetailPage() {
           <li key={i}>{bullet}</li>
         ))}
       </ul>
-      <button type="button" onClick={() => setEditing(true)}>
-        Edit
-      </button>{' '}
-      {confirmingDelete ? (
-        <>
-          <span>Delete this entry?</span>{' '}
-          <button type="button" onClick={handleDelete} disabled={deleting}>
+      <div className="form-actions">
+        <button type="button" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+        {!confirmingDelete && (
+          <button type="button" onClick={() => setConfirmingDelete(true)}>
+            Delete
+          </button>
+        )}
+      </div>
+      {confirmingDelete && (
+        <div className="danger-zone" role="alert">
+          <span>Delete this entry?</span>
+          <button type="button" data-variant="danger" onClick={handleDelete} disabled={deleting}>
             {deleting ? 'Deleting…' : 'Yes, delete'}
-          </button>{' '}
+          </button>
           <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
             Cancel
           </button>
-        </>
-      ) : (
-        <button type="button" onClick={() => setConfirmingDelete(true)}>
-          Delete
-        </button>
+        </div>
       )}
     </>
   )

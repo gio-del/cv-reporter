@@ -131,7 +131,7 @@ export default function EntryEditForm({
         <textarea rows={6} value={form.bullets} onChange={(e) => set('bullets', e.target.value)} />
       </label>
 
-      <div>
+      <div className="form-actions">
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>

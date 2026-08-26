@@ -66,7 +66,7 @@ export default function EntryCreatePage() {
 
   return (
     <>
-      <p>
+      <p className="breadcrumb">
         <Link to="/">← Back to Master Data</Link>
       </p>
       <h1>New Entry</h1>
@@ -134,7 +134,7 @@ export default function EntryCreatePage() {
           <textarea rows={6} value={form.bullets} onChange={(e) => set('bullets', e.target.value)} />
         </label>
 
-        <div>
+        <div className="form-actions">
           <button type="submit" disabled={saving}>
             {saving ? 'Creating…' : 'Create'}
           </button>

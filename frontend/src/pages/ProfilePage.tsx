@@ -248,7 +248,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
         )}
       />
 
-      <div>
+      <div className="form-actions">
         <button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
@@ -277,7 +277,7 @@ export default function ProfilePage() {
   if (editing) {
     return (
       <>
-        <p>
+        <p className="breadcrumb">
           <Link to="/">← Back to Master Data</Link>
         </p>
         <h1>Edit Profile</h1>
@@ -367,9 +367,11 @@ export default function ProfilePage() {
         </ul>
       </section>
 
-      <button type="button" onClick={() => setEditing(true)}>
-        Edit
-      </button>
+      <div className="form-actions">
+        <button type="button" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+      </div>
     </>
   )
 }

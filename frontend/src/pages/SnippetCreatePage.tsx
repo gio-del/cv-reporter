@@ -40,7 +40,7 @@ export default function SnippetCreatePage() {
 
   return (
     <>
-      <p>
+      <p className="breadcrumb">
         <Link to="/snippets">← Back to Cover Letter Snippets</Link>
       </p>
       <h1>New Cover Letter Snippet</h1>
@@ -60,7 +60,7 @@ export default function SnippetCreatePage() {
           <textarea rows={8} value={form.body} onChange={(e) => set('body', e.target.value)} />
         </label>
 
-        <div>
+        <div className="form-actions">
           <button type="submit" disabled={saving}>
             {saving ? 'Creating…' : 'Create'}
           </button>

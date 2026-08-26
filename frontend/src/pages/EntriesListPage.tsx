@@ -9,7 +9,7 @@ export default function EntriesListPage() {
 
   useEffect(() => {
     listEntries()
-      .then(setEntries)
+      .then((e) => setEntries(e ?? []))
       .catch((e) => setError(e.message))
   }, [])
 
@@ -28,19 +28,17 @@ export default function EntriesListPage() {
 
   return (
     <>
-      <h1>Master Data</h1>
-
-      <p>
-        <Link to="/entries/new">+ New Entry</Link> · <Link to="/profile">Profile</Link> ·{' '}
-        <Link to="/snippets">Cover Letter Snippets</Link> · <Link to="/generate">Generate a Tailored CV</Link>
-      </p>
+      <div className="page-header">
+        <h1>Master Data</h1>
+        <Link to="/entries/new">+ New Entry</Link>
+      </div>
 
       <section>
         <h2>Experience</h2>
         {[...byEmployer.entries()].map(([employer, employerEntries]) => (
-          <div key={employer}>
+          <div className="entry-group" key={employer}>
             <h3>{employer}</h3>
-            <ul>
+            <ul className="entry-list">
               {employerEntries.map((entry) => (
                 <EntryListItem key={entry.id} entry={entry} label={entry.client ?? entry.role ?? entry.id} />
               ))}
@@ -51,7 +49,7 @@ export default function EntriesListPage() {
 
       <section>
         <h2>Projects</h2>
-        <ul>
+        <ul className="entry-list">
           {projects.map((entry) => (
             <EntryListItem key={entry.id} entry={entry} label={entry.name ?? entry.id} />
           ))}
@@ -64,10 +62,12 @@ export default function EntriesListPage() {
 function EntryListItem({ entry, label }: { entry: Entry; label: string }) {
   return (
     <li>
-      <Link to={`/entries/${entry.id}`}>{label}</Link>{' '}
-      <span>
-        {entry.start} – {entry.end ?? 'present'}
-      </span>
+      <div className="entry-list-row">
+        <Link to={`/entries/${entry.id}`}>{label}</Link>
+        <span className="entry-list-dates">
+          {entry.start} – {entry.end ?? 'present'}
+        </span>
+      </div>
       <div>
         {entry.tags.map((tag) => (
           <span className="tag" key={tag}>

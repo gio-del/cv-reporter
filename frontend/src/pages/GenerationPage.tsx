@@ -171,9 +171,11 @@ export default function GenerationPage() {
           />
         </label>
         <p>Leave both blank to run Default Mode (a general-purpose CV from your most representative Entries).</p>
-        <button onClick={handleStart} disabled={loading}>
-          {loading ? 'Generating…' : 'Start Generation'}
-        </button>
+        <div className="form-actions">
+          <button onClick={handleStart} disabled={loading}>
+            {loading ? 'Generating…' : 'Start Generation'}
+          </button>
+        </div>
       </section>
 
       {error && <p role="alert">{error}</p>}
@@ -197,9 +199,12 @@ export default function GenerationPage() {
                 </h3>
                 <p className="review-reason">{entry.reason}</p>
                 {entry.included && (
-                  <ul>
+                  <ul className="review-bullet-list">
                     {entry.bullets.map((bullet) => (
-                      <li key={bullet.sourceIndex} className={bullet.included ? '' : 'review-bullet-excluded'}>
+                      <li
+                        key={bullet.sourceIndex}
+                        className={`review-bullet${bullet.included ? '' : ' review-bullet-excluded'}`}
+                      >
                         <label>
                           <input
                             type="checkbox"
@@ -234,16 +239,27 @@ export default function GenerationPage() {
             </div>
           )}
 
-          <label>
+          <label htmlFor="generation-slug">
             Save as (used for the output filename)
-            <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="acme-corp" />
+            <input
+              id="generation-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="acme-corp"
+              aria-describedby="generation-slug-hint"
+            />
+            <small id="generation-slug-hint" className="field-hint">
+              Lowercase kebab-case, e.g. "acme-corp".
+            </small>
           </label>
 
           {renderError && <p role="alert">{renderError}</p>}
 
-          <button onClick={handleRender} disabled={rendering}>
-            {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
-          </button>
+          <div className="form-actions">
+            <button onClick={handleRender} disabled={rendering}>
+              {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
+            </button>
+          </div>
         </section>
       )}
 
@@ -257,10 +273,9 @@ export default function GenerationPage() {
             </p>
           )}
           <iframe
+            className="cv-preview-frame"
             title="Tailored CV preview"
             src={generationFileUrl(render.slug, 'cv.pdf')}
-            width="100%"
-            height={800}
           />
           <p>
             <a href={generationFileUrl(render.slug, 'cv.pdf')} download={`${render.slug}-cv.pdf`}>
