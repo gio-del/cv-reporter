@@ -3,6 +3,7 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  JobListingWithApplication,
   Profile,
   RenderRequest,
   RenderResult,
@@ -115,6 +116,10 @@ export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
 
 export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
+}
+
+export function listJobListings(): Promise<JobListingWithApplication[]> {
+  return request('/api/job-listings')
 }
 
 export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListingResult> {

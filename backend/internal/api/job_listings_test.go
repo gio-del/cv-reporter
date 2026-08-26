@@ -190,6 +190,82 @@ func TestCreateJobListing_MissingJobDescription_Returns400AndNoFilesCreated(t *t
 	assertNoFilesIn(t, filepath.Join(dataDir, "jobs"))
 }
 
+func TestListJobListings_ReturnsEachWithItsApplicationNewestFirst(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "First Corp",
+		"jobDescription": "Role one. Salary: €40,000.",
+	}).Body.Close()
+	postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Second Corp",
+		"jobDescription": "Role two. Salary: €50,000.",
+	}).Body.Close()
+
+	resp, err := http.Get(server.URL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var results []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("expected 2 job listings, got %d", len(results))
+	}
+
+	first := results[0]["jobListing"].(map[string]any)
+	if first["company"] != "Second Corp" {
+		t.Errorf("expected the most recently saved listing (Second Corp) first, got %v", first["company"])
+	}
+
+	application := results[0]["application"].(map[string]any)
+	if application["status"] != "saved" {
+		t.Errorf("expected application status saved, got %v", application["status"])
+	}
+	if application["jobListingId"] != first["id"] {
+		t.Errorf("expected application jobListingId to match jobListing id, got %v vs %v", application["jobListingId"], first["id"])
+	}
+
+	ral := first["ral"].(map[string]any)
+	if ral["source"] != "stated" {
+		t.Errorf("expected stated RAL on the list view, got %v", ral["source"])
+	}
+}
+
+func TestListJobListings_NoneSaved_ReturnsEmptyArray(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var results []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected no job listings, got %v", results)
+	}
+}
+
 func assertNoFilesIn(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

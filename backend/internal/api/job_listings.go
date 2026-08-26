@@ -21,6 +21,17 @@ type saveJobListingResponse struct {
 	Application tracking.Application `json:"application"`
 }
 
+func listJobListingsHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		listings, err := tracking.List(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, listings)
+	}
+}
+
 func createJobListingHandler(dataDir string, client generation.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveJobListingRequest

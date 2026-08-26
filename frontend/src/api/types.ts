@@ -159,8 +159,10 @@ export interface SaveJobListingRequest {
   jobDescriptionUrl?: string
 }
 
-export interface SaveJobListingResult {
+export interface JobListingWithApplication {
   jobListing: JobListing
   application: Application
 }
+
+export type SaveJobListingResult = JobListingWithApplication
 

@@ -45,3 +45,11 @@ type Application struct {
 	JobListingID string `json:"jobListingId"`
 	Status       Status `json:"status"`
 }
+
+// ListingWithApplication pairs a Job Listing with its 1:1 Application, the
+// shape the pipeline list view needs (story 3): Status and RAL Range
+// visible without opening each record (story 14).
+type ListingWithApplication struct {
+	JobListing  JobListing  `json:"jobListing"`
+	Application Application `json:"application"`
+}

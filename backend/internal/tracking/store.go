@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -78,7 +79,7 @@ func Save(ctx context.Context, dataDir string, client generation.Client, req Sav
 		Company:        req.Company,
 		URL:            req.URL,
 		Source:         SourceManual,
-		SavedAt:        time.Now().UTC().Format(time.RFC3339),
+		SavedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 		JobDescription: jobDescription,
 		RAL:            ral,
 	}
@@ -96,6 +97,108 @@ func Save(ctx context.Context, dataDir string, client generation.Client, req Sav
 	}
 
 	return listing, application, nil
+}
+
+// List reads every Job Listing under dataDir/jobs, paired with its 1:1
+// Application, newest-saved first — the pipeline-at-a-glance view (story 3).
+func List(dataDir string) ([]ListingWithApplication, error) {
+	jobsFullDir := filepath.Join(dataDir, jobsDir)
+	files, err := os.ReadDir(jobsFullDir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var result []ListingWithApplication
+	for _, f := range files {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
+			continue
+		}
+		slug := strings.TrimSuffix(f.Name(), ".md")
+
+		listing, err := getJobListing(dataDir, slug)
+		if err != nil {
+			return nil, fmt.Errorf("reading job listing %s: %w", f.Name(), err)
+		}
+		application, err := getApplication(dataDir, slug)
+		if err != nil {
+			return nil, fmt.Errorf("reading application for job listing %s: %w", slug, err)
+		}
+		result = append(result, ListingWithApplication{JobListing: listing, Application: application})
+	}
+
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].JobListing.SavedAt > result[j].JobListing.SavedAt
+	})
+	return result, nil
+}
+
+func getJobListing(dataDir, slug string) (JobListing, error) {
+	content, err := os.ReadFile(filepath.Join(dataDir, jobsDir, slug+".md"))
+	if err != nil {
+		return JobListing{}, err
+	}
+	return parseJobListing(slug, content)
+}
+
+func parseJobListing(slug string, content []byte) (JobListing, error) {
+	fm, body, err := splitFrontmatter(content)
+	if err != nil {
+		return JobListing{}, err
+	}
+	var raw rawJobListingFrontmatter
+	if err := yaml.Unmarshal(fm, &raw); err != nil {
+		return JobListing{}, err
+	}
+	return JobListing{
+		ID:             slug,
+		Company:        raw.Company,
+		URL:            raw.URL,
+		Source:         raw.Source,
+		SavedAt:        raw.SavedAt,
+		JobDescription: strings.TrimSpace(string(body)),
+		RAL:            raw.RAL,
+	}, nil
+}
+
+func getApplication(dataDir, slug string) (Application, error) {
+	content, err := os.ReadFile(filepath.Join(dataDir, applicationsDir, slug+".md"))
+	if err != nil {
+		return Application{}, err
+	}
+	var raw rawApplication
+	if err := yaml.Unmarshal(content, &raw); err != nil {
+		return Application{}, err
+	}
+	return Application{ID: slug, JobListingID: raw.JobListingID, Status: raw.Status}, nil
+}
+
+// splitFrontmatter splits a Job Listing file's content into its YAML
+// frontmatter and Markdown body (its Job Description), mirroring
+// masterdata's Entry file shape (ADR-0003 extended to Job Listings by
+// ADR-0008).
+func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
+	trimmed := bytes.TrimLeft(content, "\n")
+	if !bytes.HasPrefix(trimmed, []byte("---")) {
+		return nil, nil, fmt.Errorf("missing frontmatter delimiter")
+	}
+	rest := trimmed[len("---"):]
+	rest = bytes.TrimPrefix(rest, []byte("\r\n"))
+	rest = bytes.TrimPrefix(rest, []byte("\n"))
+
+	idx := bytes.Index(rest, []byte("\n---"))
+	if idx == -1 {
+		return nil, nil, fmt.Errorf("missing closing frontmatter delimiter")
+	}
+	frontmatter = rest[:idx]
+
+	after := rest[idx+len("\n---"):]
+	after = bytes.TrimPrefix(after, []byte("\r\n"))
+	after = bytes.TrimPrefix(after, []byte("\n"))
+	body = after
+	return frontmatter, body, nil
 }
 
 func renderJobListing(l JobListing) []byte {

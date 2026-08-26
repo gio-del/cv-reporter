@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import RALBadge from '@/components/RALBadge'
 import { saveJobListing } from '@/api/client'
 import type { SaveJobListingResult } from '@/api/types'
@@ -42,6 +43,11 @@ export default function JobListingCreatePage() {
 
   return (
     <>
+      <p className="mb-4 inline-block text-sm">
+        <Link to="/jobs" className="no-underline hover:underline">
+          ← Back to Job Listings
+        </Link>
+      </p>
       <h1>Save a Job Listing</h1>
       <form onSubmit={handleSubmit}>
         {error && (
@@ -96,6 +102,11 @@ export default function JobListingCreatePage() {
             Application status: <strong>{saved.application.status}</strong>
           </p>
           <RALBadge ral={saved.jobListing.ral} />
+          <p>
+            <Link to="/jobs" className="no-underline hover:underline">
+              View all Job Listings →
+            </Link>
+          </p>
         </section>
       )}
     </>
