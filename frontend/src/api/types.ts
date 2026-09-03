@@ -194,3 +194,26 @@ export interface JobListingWithApplication {
 
 export type SaveJobListingResult = JobListingWithApplication
 
+export type AtsProvider = 'greenhouse' | 'lever' | 'ashby'
+
+export interface AtsListing {
+  title: string
+  location: string
+  url: string
+  description: string
+  alreadySaved: boolean
+}
+
+export interface TrackedBoard {
+  id: string
+  provider: AtsProvider
+  slug: string
+  label?: string
+}
+
+export interface AddTrackedBoardRequest {
+  provider: AtsProvider
+  slug: string
+  label?: string
+}
+

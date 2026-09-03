@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
 	"github.com/gio-del/cv-reporter/backend/internal/claude"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
@@ -25,10 +26,25 @@ func NewRouterWithGenerationClient(dataDir string, generationClient tracking.Cli
 	return NewRouterFull(dataDir, ".", generationClient)
 }
 
+// NewRouterWithClients builds the HTTP handler with both an explicit
+// tracking.Client and an explicit atsboard.HTTPDoer, so tests can fake the
+// outbound calls to ATS public job board APIs alongside the Claude API
+// (see the ATS Job Board Aggregation PRD's Testing Decisions).
+func NewRouterWithClients(dataDir string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
+	return NewRouterFullWithATS(dataDir, ".", generationClient, atsHTTPDoer)
+}
+
 // NewRouterFull builds the HTTP handler with an explicit projectRoot: the
 // directory containing template/ and output/ that Render's typst
-// invocation needs as its --root (see CLAUDE.md and ADR-0012).
+// invocation needs as its --root (see CLAUDE.md and ADR-0012). ATS calls
+// use http.DefaultClient — see NewRouterWithClients for tests needing a
+// fake.
 func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client) http.Handler {
+	return NewRouterFullWithATS(dataDir, projectRoot, generationClient, http.DefaultClient)
+}
+
+// NewRouterFullWithATS is NewRouterFull plus an explicit atsboard.HTTPDoer.
+func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir))
@@ -55,6 +71,10 @@ func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
 	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))
+	mux.HandleFunc("GET /api/ats/{provider}/{slug}/listings", listAtsListingsHandler(dataDir, atsHTTPDoer))
+	mux.HandleFunc("GET /api/ats/tracked-boards", listTrackedBoardsHandler(dataDir))
+	mux.HandleFunc("POST /api/ats/tracked-boards", createTrackedBoardHandler(dataDir))
+	mux.HandleFunc("DELETE /api/ats/tracked-boards/{id}", deleteTrackedBoardHandler(dataDir))
 	return mux
 }
 

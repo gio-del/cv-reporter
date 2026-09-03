@@ -7,6 +7,7 @@ const navItems = [
   { to: '/snippets', label: 'Cover Letter Snippets', end: false },
   { to: '/generate', label: 'Generate', end: false },
   { to: '/jobs', label: 'Job Listings', end: false },
+  { to: '/ats', label: 'Browse ATS Boards', end: false },
 ]
 
 export default function AppNav() {
