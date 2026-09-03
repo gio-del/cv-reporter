@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const providerLabel: Record<AtsProvider, string> = {
   greenhouse: 'Greenhouse',
   lever: 'Lever',
+  ashby: 'Ashby',
 }
 
 export default function AtsBrowsePage() {

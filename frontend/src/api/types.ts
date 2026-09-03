@@ -194,7 +194,7 @@ export interface JobListingWithApplication {
 
 export type SaveJobListingResult = JobListingWithApplication
 
-export type AtsProvider = 'greenhouse' | 'lever'
+export type AtsProvider = 'greenhouse' | 'lever' | 'ashby'
 
 export interface AtsListing {
   title: string
