@@ -107,12 +107,28 @@ func createJobListingHandler(dataDir string, client tracking.Client) http.Handle
 	}
 }
 
+// captureJobListingCORSPreflightHandler answers the browser's CORS preflight
+// for the extension's ingestion endpoint. The caller runs on a
+// moz-extension:// or chrome-extension:// origin, which is CORS-checked
+// like any other cross-origin fetch on at least some Firefox versions,
+// regardless of the extension's declared host_permissions (observed in manual
+// verification), so this endpoint must answer preflight and carry CORS
+// headers itself rather than relying on that exemption.
+func captureJobListingCORSPreflightHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // captureJobListingFromExtensionHandler is the browser extension's ingestion
 // endpoint (story 3): it normalizes a page capture into tracking.SaveRequest
 // and reuses PRD 3's Save path exactly, the same way PRD 4's ATS browse view
 // reuses POST /api/job-listings from the frontend.
 func captureJobListingFromExtensionHandler(dataDir string, client tracking.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		var req captureJobListingRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
