@@ -10,6 +10,7 @@ type Provider string
 
 const (
 	ProviderGreenhouse Provider = "greenhouse"
+	ProviderLever      Provider = "lever"
 )
 
 // ErrUnknownProvider is returned by Fetch for a Provider none of
@@ -23,6 +24,8 @@ func Fetch(ctx context.Context, doer HTTPDoer, provider Provider, boardSlug stri
 	switch provider {
 	case ProviderGreenhouse:
 		return FetchGreenhouseListings(ctx, doer, boardSlug)
+	case ProviderLever:
+		return FetchLeverListings(ctx, doer, boardSlug)
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownProvider, provider)
 	}
