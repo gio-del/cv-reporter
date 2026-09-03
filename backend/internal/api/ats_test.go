@@ -68,6 +68,42 @@ func TestListAtsListings_Greenhouse_ReturnsNormalizedListings(t *testing.T) {
 	}
 }
 
+func TestListAtsListings_MarksAlreadySavedListingsByURL(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	saveResp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"url":            "https://boards.greenhouse.io/acme/jobs/1",
+		"jobDescription": "Already saved role.",
+	})
+	saveResp.Body.Close()
+	if saveResp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected save to succeed with 201, got %d", saveResp.StatusCode)
+	}
+
+	resp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var listings []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&listings); err != nil {
+		t.Fatal(err)
+	}
+	if len(listings) != 1 {
+		t.Fatalf("expected 1 listing, got %d", len(listings))
+	}
+	if listings[0]["alreadySaved"] != true {
+		t.Errorf("expected the previously-saved listing to be marked alreadySaved, got %v", listings[0]["alreadySaved"])
+	}
+}
+
 func TestListAtsListings_BoardNotFound_Returns404WithClearError(t *testing.T) {
 	dataDir := seedDataDir(t)
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {

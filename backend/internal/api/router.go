@@ -71,7 +71,7 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
 	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))
-	mux.HandleFunc("GET /api/ats/{provider}/{slug}/listings", listAtsListingsHandler(atsHTTPDoer))
+	mux.HandleFunc("GET /api/ats/{provider}/{slug}/listings", listAtsListingsHandler(dataDir, atsHTTPDoer))
 	mux.HandleFunc("GET /api/ats/tracked-boards", listTrackedBoardsHandler(dataDir))
 	mux.HandleFunc("POST /api/ats/tracked-boards", createTrackedBoardHandler(dataDir))
 	mux.HandleFunc("DELETE /api/ats/tracked-boards/{id}", deleteTrackedBoardHandler(dataDir))

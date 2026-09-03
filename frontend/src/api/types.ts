@@ -201,6 +201,7 @@ export interface AtsListing {
   location: string
   url: string
   description: string
+  alreadySaved: boolean
 }
 
 export interface TrackedBoard {

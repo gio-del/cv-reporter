@@ -180,15 +180,15 @@ export default function AtsBrowsePage() {
       {listings && listings.length > 0 && (
         <ul className="mt-6 flex flex-col gap-3">
           {listings.map((listing) => {
-            const saved = savedByUrl[listing.url]
+            const alreadySaved = listing.alreadySaved || Boolean(savedByUrl[listing.url])
             return (
               <li key={listing.url} className="rounded-xl border border-border bg-card px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className="font-semibold">{listing.title}</strong>
-                  {saved ? (
+                  {alreadySaved ? (
                     <Badge variant="secondary">
                       <Link to="/jobs" className="no-underline hover:underline">
-                        Saved ✓ — view in Job Listings
+                        Already saved — view in Job Listings
                       </Link>
                     </Badge>
                   ) : (
