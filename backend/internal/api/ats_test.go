@@ -86,7 +86,13 @@ func TestListAtsListings_BoardNotFound_Returns404WithClearError(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(strings.ToLower(string(body)), "not found") {
-		t.Errorf("expected a clear not-found error message, got %q", body)
+	got := strings.ToLower(string(body))
+	// Story 6: the message must let the user act on it — name the slug they
+	// typed and suggest what to try next — not just say "not found".
+	if !strings.Contains(got, "does-not-exist") {
+		t.Errorf("expected the error to name the slug that wasn't found, got %q", body)
+	}
+	if !strings.Contains(got, "check the slug") && !strings.Contains(got, "different provider") {
+		t.Errorf("expected the error to suggest checking the slug or trying a different provider, got %q", body)
 	}
 }

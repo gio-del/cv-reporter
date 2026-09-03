@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
@@ -18,7 +19,10 @@ func listAtsListingsHandler(atsHTTPDoer atsboard.HTTPDoer) http.HandlerFunc {
 
 		listings, err := atsboard.Fetch(r.Context(), atsHTTPDoer, provider, slug)
 		if errors.Is(err, atsboard.ErrBoardNotFound) {
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf(
+				"No %s board found for slug %q. Check the slug, or try a different provider.",
+				provider, slug,
+			), http.StatusNotFound)
 			return
 		}
 		if errors.Is(err, atsboard.ErrUnknownProvider) {
