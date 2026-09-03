@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppNav from '@/components/AppNav'
+import AtsBrowsePage from '@/pages/AtsBrowsePage'
 import EntriesListPage from '@/pages/EntriesListPage'
 import EntryCreatePage from '@/pages/EntryCreatePage'
 import EntryDetailPage from '@/pages/EntryDetailPage'
@@ -24,6 +25,7 @@ function App() {
           <Route path="/generate" element={<GenerationPage />} />
           <Route path="/jobs" element={<JobListingsListPage />} />
           <Route path="/jobs/new" element={<JobListingCreatePage />} />
+          <Route path="/ats" element={<AtsBrowsePage />} />
           <Route path="/jobs/:id/generate" element={<GenerationPage />} />
           <Route path="/snippets" element={<SnippetsListPage />} />
           <Route path="/snippets/new" element={<SnippetCreatePage />} />

@@ -2,6 +2,8 @@ import type {
   Application,
   ApplicationMethod,
   ApplicationStatus,
+  AtsListing,
+  AtsProvider,
   Contact,
   Entry,
   EntryInput,
@@ -178,4 +180,8 @@ export function recordApplicationGeneration(id: string, req: RecordGenerationReq
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
   })
+}
+
+export function listAtsListings(provider: AtsProvider, boardSlug: string): Promise<AtsListing[]> {
+  return request(`/api/ats/${encodeURIComponent(provider)}/${encodeURIComponent(boardSlug)}/listings`)
 }

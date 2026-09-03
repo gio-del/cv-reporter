@@ -194,3 +194,12 @@ export interface JobListingWithApplication {
 
 export type SaveJobListingResult = JobListingWithApplication
 
+export type AtsProvider = 'greenhouse'
+
+export interface AtsListing {
+  title: string
+  location: string
+  url: string
+  description: string
+}
+
