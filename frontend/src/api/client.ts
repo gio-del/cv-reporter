@@ -1,4 +1,5 @@
 import type {
+  AddTrackedBoardRequest,
   Application,
   ApplicationMethod,
   ApplicationStatus,
@@ -19,6 +20,7 @@ import type {
   SaveJobListingResult,
   Snippet,
   SnippetInput,
+  TrackedBoard,
 } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -184,4 +186,24 @@ export function recordApplicationGeneration(id: string, req: RecordGenerationReq
 
 export function listAtsListings(provider: AtsProvider, boardSlug: string): Promise<AtsListing[]> {
   return request(`/api/ats/${encodeURIComponent(provider)}/${encodeURIComponent(boardSlug)}/listings`)
+}
+
+export function listTrackedBoards(): Promise<TrackedBoard[]> {
+  return request('/api/ats/tracked-boards')
+}
+
+export function addTrackedBoard(req: AddTrackedBoardRequest): Promise<TrackedBoard> {
+  return request('/api/ats/tracked-boards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
+export async function removeTrackedBoard(id: string): Promise<void> {
+  const res = await fetch(`/api/ats/tracked-boards/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body || `Delete failed (${res.status})`)
+  }
 }

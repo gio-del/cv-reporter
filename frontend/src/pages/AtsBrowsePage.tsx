@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listAtsListings, saveJobListing } from '@/api/client'
-import type { AtsListing, AtsProvider, SaveJobListingResult } from '@/api/types'
+import { addTrackedBoard, listAtsListings, listTrackedBoards, removeTrackedBoard, saveJobListing } from '@/api/client'
+import type { AtsListing, AtsProvider, SaveJobListingResult, TrackedBoard } from '@/api/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -30,19 +31,58 @@ export default function AtsBrowsePage() {
   const [savingUrl, setSavingUrl] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedByUrl, setSavedByUrl] = useState<Record<string, SaveJobListingResult>>({})
+  const [trackedBoards, setTrackedBoards] = useState<TrackedBoard[]>([])
+  const [trackingBusy, setTrackingBusy] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  useEffect(() => {
+    listTrackedBoards()
+      .then(setTrackedBoards)
+      .catch(() => {})
+  }, [])
+
+  const currentTracked = trackedBoards.find((b) => b.provider === provider && b.slug === boardSlug.trim())
+
+  async function fetchListings(p: AtsProvider, slug: string) {
     setError(null)
     setListings(null)
     setLoading(true)
     try {
-      const result = await listAtsListings(provider, boardSlug.trim())
+      const result = await listAtsListings(p, slug)
       setListings(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    await fetchListings(provider, boardSlug.trim())
+  }
+
+  function handleTrackedBoardClick(board: TrackedBoard) {
+    setProvider(board.provider)
+    setBoardSlug(board.slug)
+    fetchListings(board.provider, board.slug)
+  }
+
+  async function handleToggleTracked() {
+    const slug = boardSlug.trim()
+    if (!slug) return
+    setTrackingBusy(true)
+    try {
+      if (currentTracked) {
+        await removeTrackedBoard(currentTracked.id)
+        setTrackedBoards((prev) => prev.filter((b) => b.id !== currentTracked.id))
+      } else {
+        const board = await addTrackedBoard({ provider, slug, label: titleCase(slug) })
+        setTrackedBoards((prev) => [...prev.filter((b) => b.id !== board.id), board])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setTrackingBusy(false)
     }
   }
 
@@ -71,6 +111,18 @@ export default function AtsBrowsePage() {
         </Link>
       </p>
       <h1>Browse ATS Job Boards</h1>
+
+      {trackedBoards.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tracked:</span>
+          {trackedBoards.map((board) => (
+            <Button key={board.id} type="button" size="sm" variant="outline" onClick={() => handleTrackedBoardClick(board)}>
+              {board.label || board.slug} <span className="text-muted-foreground">({providerLabel[board.provider]})</span>
+            </Button>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
         <FieldGroup className="flex-row flex-wrap gap-3">
           <Field>
@@ -102,6 +154,14 @@ export default function AtsBrowsePage() {
         <Button type="submit" disabled={loading || !boardSlug.trim()}>
           {loading ? 'Fetching…' : 'Fetch open roles'}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={trackingBusy || !boardSlug.trim()}
+          onClick={handleToggleTracked}
+        >
+          {currentTracked ? 'Untrack this board' : 'Track this board'}
+        </Button>
       </form>
 
       {error && (
@@ -126,9 +186,11 @@ export default function AtsBrowsePage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <strong className="font-semibold">{listing.title}</strong>
                   {saved ? (
-                    <Link to="/jobs" className="text-sm no-underline hover:underline">
-                      Saved ✓ — view in Job Listings
-                    </Link>
+                    <Badge variant="secondary">
+                      <Link to="/jobs" className="no-underline hover:underline">
+                        Saved ✓ — view in Job Listings
+                      </Link>
+                    </Badge>
                   ) : (
                     <Button size="sm" onClick={() => handleSave(listing)} disabled={savingUrl === listing.url}>
                       {savingUrl === listing.url ? 'Saving…' : 'Save as Job Listing'}

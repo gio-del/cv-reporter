@@ -203,3 +203,16 @@ export interface AtsListing {
   description: string
 }
 
+export interface TrackedBoard {
+  id: string
+  provider: AtsProvider
+  slug: string
+  label?: string
+}
+
+export interface AddTrackedBoardRequest {
+  provider: AtsProvider
+  slug: string
+  label?: string
+}
+
