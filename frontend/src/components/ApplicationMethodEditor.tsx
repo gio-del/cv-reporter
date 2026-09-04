@@ -3,13 +3,21 @@ import type { ApplicationMethod, ApplicationMethodKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 const methodKindLabel: Record<ApplicationMethodKind, string> = {
   portal: 'Portal',
   email: 'Email',
   easy_apply: 'LinkedIn Easy Apply',
   other: 'Other',
+  unresolved: "Couldn't check — retry",
 }
+
+// The kinds a user can correct to by hand — excludes `unresolved`, a
+// system-set sentinel meaning inference couldn't even be attempted, not a
+// real method to pick (story 15: the user can still correct straight to
+// any of these at any time, unresolved or not).
+const correctableMethodKinds: ApplicationMethodKind[] = ['portal', 'email', 'easy_apply', 'other']
 
 // Displays the inferred Application Method and lets the user correct it if
 // it's wrong (story 6) — Claude's inference at save time (story 5) is a
@@ -48,7 +56,10 @@ export default function ApplicationMethodEditor({
   if (!editing) {
     return (
       <p className="mb-0 text-sm">
-        Apply via <strong>{methodKindLabel[method.kind]}</strong>
+        Apply via{' '}
+        <strong className={cn('font-semibold', method.kind === 'unresolved' && 'text-unresolved')}>
+          {methodKindLabel[method.kind]}
+        </strong>
         {method.value && <>: {method.value}</>}
         {' · '}
         <button type="button" className="text-primary underline-offset-4 hover:underline" onClick={startEditing}>
@@ -65,7 +76,7 @@ export default function ApplicationMethodEditor({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {(Object.keys(methodKindLabel) as ApplicationMethodKind[]).map((kind) => (
+          {correctableMethodKinds.map((kind) => (
             <SelectItem key={kind} value={kind}>
               {methodKindLabel[kind]}
             </SelectItem>

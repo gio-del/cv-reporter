@@ -97,7 +97,7 @@ export interface CoverLetterResult {
   sourceSnippetIds?: string[]
 }
 
-export type RALSource = 'stated' | 'estimated' | 'n/a'
+export type RALSource = 'stated' | 'estimated' | 'n/a' | 'unresolved'
 
 export interface RALRange {
   min?: number
@@ -146,7 +146,7 @@ export interface JobListing {
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
 
-export type ApplicationMethodKind = 'portal' | 'email' | 'easy_apply' | 'other'
+export type ApplicationMethodKind = 'portal' | 'email' | 'easy_apply' | 'other' | 'unresolved'
 
 export interface ApplicationMethod {
   kind: ApplicationMethodKind
