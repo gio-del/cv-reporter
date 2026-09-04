@@ -6,6 +6,7 @@ import RALBadge from '@/components/RALBadge'
 import {
   generationFileUrl,
   listJobListings,
+  resolveJobListing,
   updateApplicationContact,
   updateApplicationMethod,
   updateApplicationStatus,
@@ -41,6 +42,8 @@ export default function JobListingsListPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
 
   useEffect(() => {
     listJobListings()
@@ -77,6 +80,19 @@ export default function JobListingsListPage() {
     )
   }
 
+  async function handleResolve(jobListingId: string) {
+    setResolveError(null)
+    setResolvingId(jobListingId)
+    try {
+      const resolved = await resolveJobListing(jobListingId)
+      setListings((prev) => (prev ? prev.map((l) => (l.jobListing.id === jobListingId ? resolved : l)) : prev))
+    } catch (err) {
+      setResolveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
   if (error)
     return (
       <p role="alert" className="font-medium text-destructive">
@@ -100,17 +116,39 @@ export default function JobListingsListPage() {
         </p>
       )}
 
+      {resolveError && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {resolveError}
+        </p>
+      )}
+
       {listings.length === 0 && <p>No Job Listings saved yet.</p>}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
           const nextStatuses = allowedNextStatuses[application.status]
+          const needsResolve = jobListing.ral.source === 'unresolved' || application.method.kind === 'unresolved'
           return (
             <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <strong className="font-semibold">{jobListing.company}</strong>
                 <div className="flex items-center gap-2">
+                  {needsResolve && (
+                    <Badge variant="outline" className="border-unresolved text-unresolved">
+                      Needs attention
+                    </Badge>
+                  )}
                   <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  {needsResolve && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResolve(jobListing.id)}
+                      disabled={resolvingId === jobListing.id}
+                    >
+                      {resolvingId === jobListing.id ? 'Resolving…' : 'Resolve'}
+                    </Button>
+                  )}
                   {nextStatuses.length > 0 && (
                     <Select
                       value=""
