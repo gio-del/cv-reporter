@@ -81,6 +81,28 @@ func suggestContactHandler(dataDir string, client tracking.Client) http.HandlerF
 	}
 }
 
+// resolveJobListingHandler re-attempts RAL Range resolution and/or
+// Application Method inference for the Job Listing identified by id,
+// whichever is currently Unresolved (stories 9-13), returning the same
+// {jobListing, application} shape Save's endpoints return. 404 when id
+// doesn't exist (story 17), matching the existing GetJobListing/
+// suggest-contact pattern.
+func resolveJobListingHandler(dataDir string, client tracking.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, application, err := tracking.Resolve(r.Context(), dataDir, client, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, saveJobListingResponse{JobListing: listing, Application: application})
+	}
+}
+
 func createJobListingHandler(dataDir string, client tracking.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveJobListingRequest
