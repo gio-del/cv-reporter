@@ -50,10 +50,14 @@ type rawApplication struct {
 	Generations  []GenerationRecord `yaml:"generations,omitempty"`
 }
 
-// Save resolves req's Job Description, RAL Range, and Application Method
-// (story 5), then writes a new Job Listing and its linked Application
-// (Status Saved) to dataDir — "saving a Job Listing immediately creates its
-// Application" (story 2).
+// Save resolves req's Job Description (required — its absence blocks the
+// save via ErrValidation, same as a missing Company), then attempts RAL
+// Range resolution and Application Method inference independently and
+// best-effort: either failing sets that field Unresolved rather than
+// discarding the save (stories 1-4, 14) — only Company/Job Description
+// validation still blocks writing the Job Listing and its linked
+// Application (Status Saved, "saving a Job Listing immediately creates its
+// Application", story 2).
 func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (JobListing, Application, error) {
 	if strings.TrimSpace(req.Company) == "" {
 		return JobListing{}, Application{}, fmt.Errorf("%w: company is required", ErrValidation)
@@ -67,15 +71,8 @@ func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (
 		return JobListing{}, Application{}, fmt.Errorf("%w: jobDescription or jobDescriptionUrl is required", ErrValidation)
 	}
 
-	ral, err := generation.ResolveRAL(ctx, jobDescription, client)
-	if err != nil {
-		return JobListing{}, Application{}, fmt.Errorf("resolving RAL range: %w", err)
-	}
-
-	method, err := client.InferApplicationMethod(ctx, jobDescription)
-	if err != nil {
-		return JobListing{}, Application{}, fmt.Errorf("inferring application method: %w", err)
-	}
+	ral := resolveRALBestEffort(ctx, jobDescription, client)
+	method := resolveApplicationMethodBestEffort(ctx, jobDescription, client)
 
 	jobsFullDir := filepath.Join(dataDir, jobsDir)
 	if err := os.MkdirAll(jobsFullDir, 0o755); err != nil {

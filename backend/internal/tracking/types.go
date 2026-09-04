@@ -44,6 +44,11 @@ const (
 	MethodEmail     ApplicationMethodKind = "email"
 	MethodEasyApply ApplicationMethodKind = "easy_apply"
 	MethodOther     ApplicationMethodKind = "other"
+	// MethodUnresolved is a system-set sentinel meaning Application Method
+	// inference couldn't even be attempted (client.InferApplicationMethod
+	// returned an error) — not a real method the user can pick by hand (see
+	// knownMethodKinds in method.go, which intentionally excludes it).
+	MethodUnresolved ApplicationMethodKind = "unresolved"
 )
 
 // ApplicationMethod is inferred by Claude from a Job Listing's Job

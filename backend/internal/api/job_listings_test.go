@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -164,6 +165,137 @@ func TestCreateJobListing_NoStatedRAL_CallsClientEstimateRAL(t *testing.T) {
 	ral := listing["ral"].(map[string]any)
 	if ral["source"] != "estimated" {
 		t.Errorf("expected estimated RAL, got %v", ral["source"])
+	}
+}
+
+func TestCreateJobListing_RALEstimationFails_StillSavesWithUnresolvedRAL(t *testing.T) {
+	dataDir := seedDataDir(t)
+	inferCalled := false
+	client := &fakeGenerationClient{
+		estimateRAL: func(ctx context.Context, jobDescription string) (generation.RALRange, error) {
+			return generation.RALRange{}, errors.New("claude api unreachable")
+		},
+		inferApplicationMethod: func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+			inferCalled = true
+			return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer, remote."}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+	if !inferCalled {
+		t.Error("expected Application Method inference to still run when RAL estimation fails")
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	ral := listing["ral"].(map[string]any)
+	if ral["source"] != "unresolved" {
+		t.Errorf("expected unresolved RAL, got %v", ral["source"])
+	}
+	application := result["application"].(map[string]any)
+	method := application["method"].(map[string]any)
+	if method["kind"] != "other" {
+		t.Errorf("expected Application Method to still resolve normally, got %v", method)
+	}
+
+	id := listing["id"].(string)
+	jobFile, err := os.ReadFile(filepath.Join(dataDir, "jobs", id+".md"))
+	if err != nil {
+		t.Fatalf("expected job listing file to exist: %v", err)
+	}
+	if !bytes.Contains(jobFile, []byte("unresolved")) {
+		t.Errorf("expected job listing file to record RAL source unresolved, got:\n%s", jobFile)
+	}
+}
+
+func TestCreateJobListing_MethodInferenceFails_StillSavesWithUnresolvedMethod(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		inferApplicationMethod: func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer. Salary: €50,000 - €60,000."}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	ral := listing["ral"].(map[string]any)
+	if ral["source"] != "stated" {
+		t.Errorf("expected RAL to still resolve normally (stated), got %v", ral["source"])
+	}
+	application := result["application"].(map[string]any)
+	method := application["method"].(map[string]any)
+	if method["kind"] != "unresolved" {
+		t.Errorf("expected unresolved Application Method, got %v", method)
+	}
+
+	id := listing["id"].(string)
+	applicationFile, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatalf("expected application file to exist: %v", err)
+	}
+	if !bytes.Contains(applicationFile, []byte("unresolved")) {
+		t.Errorf("expected application file to record method kind unresolved, got:\n%s", applicationFile)
+	}
+}
+
+func TestCreateJobListing_BothRALAndMethodFail_BothMarkedUnresolved(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		estimateRAL: func(ctx context.Context, jobDescription string) (generation.RALRange, error) {
+			return generation.RALRange{}, errors.New("claude api unreachable")
+		},
+		inferApplicationMethod: func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer, remote."}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	ral := listing["ral"].(map[string]any)
+	if ral["source"] != "unresolved" {
+		t.Errorf("expected unresolved RAL, got %v", ral["source"])
+	}
+	application := result["application"].(map[string]any)
+	method := application["method"].(map[string]any)
+	if method["kind"] != "unresolved" {
+		t.Errorf("expected unresolved Application Method, got %v", method)
 	}
 }
 
