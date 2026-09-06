@@ -128,6 +128,37 @@ func TestUpdateApplicationStatus_FullHappyPathToOffer(t *testing.T) {
 	}
 }
 
+func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	for _, status := range []string{"tailoring", "sent", "rejected"} {
+		resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": status})
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("transitioning to %q: expected 200, got %d", status, resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "interviewing"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("reopening to interviewing: expected 200, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	if application["status"] != "interviewing" {
+		t.Errorf("expected status interviewing, got %v", application["status"])
+	}
+}
+
 func TestUpdateApplicationMethod_ValidCorrection_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))

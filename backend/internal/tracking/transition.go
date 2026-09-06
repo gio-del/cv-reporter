@@ -8,22 +8,25 @@ import (
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition
-// rejects — the tracker only moves forward along CONTEXT.md's Status chain
-// (Saved → Tailoring → Sent → Interviewing → Rejected/Offer), never
-// backward or by skipping a stage, so a manual correction is caught here
-// rather than silently corrupting the pipeline view.
+// rejects — the tracker only moves along CONTEXT.md's Status chain (Saved →
+// Tailoring → Sent → Interviewing → Rejected/Offer), with Reopen (Rejected →
+// Interviewing) as the sole allowed backward move, so any other manual
+// correction or skipped stage is caught here rather than silently
+// corrupting the pipeline view.
 var ErrInvalidTransition = errors.New("invalid status transition")
 
 // allowedTransitions is the Status state machine (story 4): each Status
 // maps to the Statuses it may move to next. A missing/empty entry means
-// terminal (Rejected, Offer). Rejected is reachable from Sent directly (a
-// rejection without an interview) as well as from Interviewing.
+// terminal (Offer). Rejected is reachable from Sent directly (a rejection
+// without an interview) as well as from Interviewing, and can itself move
+// back to Interviewing via Reopen for a premature rejection — Offer stays
+// the only fully terminal Status.
 var allowedTransitions = map[Status][]Status{
 	StatusSaved:        {StatusTailoring},
 	StatusTailoring:    {StatusSent},
 	StatusSent:         {StatusInterviewing, StatusRejected},
 	StatusInterviewing: {StatusRejected, StatusOffer},
-	StatusRejected:     {},
+	StatusRejected:     {StatusInterviewing},
 	StatusOffer:        {},
 }
 

@@ -13,6 +13,16 @@ import {
   updateApplicationStatus,
 } from '@/api/client'
 import type { ApplicationMethod, ApplicationStatus, Contact, JobListingWithApplication } from '@/api/types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -35,8 +45,21 @@ const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
   tailoring: ['sent'],
   sent: ['interviewing', 'rejected'],
   interviewing: ['rejected', 'offer'],
-  rejected: [],
+  rejected: ['interviewing'],
   offer: [],
+}
+
+// Moving into Rejected, and Reopening out of it, each reverse the other and
+// need explicit confirmation before the PATCH fires (stories 2-4).
+function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
+  return to === 'rejected' || (from === 'rejected' && to === 'interviewing')
+}
+
+interface PendingStatusChange {
+  jobListingId: string
+  company: string
+  from: ApplicationStatus
+  to: ApplicationStatus
 }
 
 export default function JobListingsListPage() {
@@ -46,6 +69,7 @@ export default function JobListingsListPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null)
 
   useEffect(() => {
     listJobListings()
@@ -66,6 +90,20 @@ export default function JobListingsListPage() {
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  function handleStatusSelect(jobListingId: string, company: string, from: ApplicationStatus, to: ApplicationStatus) {
+    if (needsConfirmation(from, to)) {
+      setPendingChange({ jobListingId, company, from, to })
+      return
+    }
+    handleStatusChange(jobListingId, to)
+  }
+
+  function handleConfirmPendingChange() {
+    if (!pendingChange) return
+    handleStatusChange(pendingChange.jobListingId, pendingChange.to)
+    setPendingChange(null)
   }
 
   async function handleMethodChange(jobListingId: string, method: ApplicationMethod) {
@@ -163,7 +201,14 @@ export default function JobListingsListPage() {
                   {nextStatuses.length > 0 && (
                     <Select
                       value=""
-                      onValueChange={(value) => handleStatusChange(jobListing.id, value as ApplicationStatus)}
+                      onValueChange={(value) =>
+                        handleStatusSelect(
+                          jobListing.id,
+                          jobListing.company,
+                          application.status,
+                          value as ApplicationStatus,
+                        )
+                      }
                       disabled={updatingId === jobListing.id}
                     >
                       <SelectTrigger size="sm" aria-label={`Move ${jobListing.company} to a new status`}>
@@ -248,6 +293,34 @@ export default function JobListingsListPage() {
           )
         })}
       </ul>
+
+      <AlertDialog open={pendingChange !== null} onOpenChange={(open) => !open && setPendingChange(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingChange?.to === 'rejected'
+                ? 'Mark this Application Rejected?'
+                : 'Reopen this Application to Interviewing?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingChange?.to === 'rejected'
+                ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
+                : `${pendingChange?.company} will move back to Interviewing.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmPendingChange()
+              }}
+            >
+              {pendingChange?.to === 'rejected' ? 'Yes, mark Rejected' : 'Yes, reopen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
