@@ -32,6 +32,7 @@ Note: Firefox unloads temporary add-ons when the browser restarts — you'll nee
 ## Notes
 
 - LinkedIn ships an atomic/hashed CSS build with no stable semantic class names, no `<h1>`, and no JSON-LD structured data on the job-view page. `content.js` instead reads: the job title from `document.title` (`"<Job Title> | <Company> | LinkedIn"`), the company from the first `a[href*="/company/"]` link, and the description as the longest `[data-testid="expandable-text-box"]` block on the page. If capture starts failing, re-run the diagnostic snippet below in the page console and adjust `content.js` accordingly.
+- The captured URL: on a direct `/jobs/view/<id>/` page, it's the stripped `window.location.href`. On the search-results split-pane view, clicking between postings only changes the `currentJobId` query param — `window.location` itself stays on the generic search page — so `content.js` reads `currentJobId` and builds `https://www.linkedin.com/jobs/view/<id>/` instead.
 - The backend URL is hardcoded to `http://localhost:8080` in `background.js` — edit it there if your backend runs elsewhere.
 
 ### If capture breaks again

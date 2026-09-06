@@ -32,6 +32,20 @@
     return jobTitle || "";
   }
 
+  function captureUrl() {
+    // The search-results split-pane view (.../jobs/search-results/?currentJobId=123...)
+    // never changes window.location itself when you click between postings —
+    // only the currentJobId query param does — so the stripped href is the
+    // generic search page, not the posting. A direct /jobs/view/<id>/ page has
+    // no currentJobId param, so the existing stripped-URL behavior still
+    // applies there unchanged.
+    const currentJobId = new URLSearchParams(window.location.search).get("currentJobId");
+    if (currentJobId) {
+      return `https://www.linkedin.com/jobs/view/${currentJobId}/`;
+    }
+    return window.location.href.split("?")[0];
+  }
+
   function longestText(selector) {
     let longest = "";
     for (const el of document.querySelectorAll(selector)) {
@@ -46,7 +60,7 @@
       title: titleFromDocumentTitle(),
       company: firstNonEmptyText(['a[href*="/company/"]']),
       location: "",
-      url: window.location.href.split("?")[0],
+      url: captureUrl(),
       description: longestText('[data-testid="expandable-text-box"]'),
     };
   }
