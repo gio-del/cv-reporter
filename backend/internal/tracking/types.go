@@ -22,6 +22,10 @@ type JobListing struct {
 	SavedAt        string              `json:"savedAt"`
 	JobDescription string              `json:"jobDescription"`
 	RAL            generation.RALRange `json:"ral"`
+	// Logo is the filename (relative to the jobs dir) of the Company Logo
+	// downloaded server-side at save time (ADR-0013), empty when none was
+	// captured or the download failed.
+	Logo string `json:"logo,omitempty"`
 }
 
 // Status is where an Application stands, per CONTEXT.md's Status entry.

@@ -143,6 +143,7 @@ export interface JobListing {
   savedAt: string
   jobDescription: string
   ral: RALRange
+  logo?: string
 }
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'

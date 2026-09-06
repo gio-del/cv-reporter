@@ -33,6 +33,10 @@ type SaveRequest struct {
 	URL               string
 	JobDescription    string
 	JobDescriptionURL string
+	// LogoURL is the source's Company Logo image URL (browser-extension
+	// capture only — ATS/manual save paths never populate it), downloaded
+	// best-effort by Save (ADR-0013).
+	LogoURL string
 }
 
 type rawJobListingFrontmatter struct {
@@ -42,6 +46,7 @@ type rawJobListingFrontmatter struct {
 	Source  string              `yaml:"source"`
 	SavedAt string              `yaml:"savedAt"`
 	RAL     generation.RALRange `yaml:"ral"`
+	Logo    string              `yaml:"logo,omitempty"`
 }
 
 type rawApplication struct {
@@ -60,7 +65,7 @@ type rawApplication struct {
 // validation still blocks writing the Job Listing and its linked
 // Application (Status Saved, "saving a Job Listing immediately creates its
 // Application", story 2).
-func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (JobListing, Application, error) {
+func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req SaveRequest) (JobListing, Application, error) {
 	if strings.TrimSpace(req.Company) == "" {
 		return JobListing{}, Application{}, fmt.Errorf("%w: company is required", ErrValidation)
 	}
@@ -81,6 +86,7 @@ func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (
 		return JobListing{}, Application{}, err
 	}
 	slug := uniqueSlug(jobsFullDir, slugify(req.Company))
+	logo := downloadLogoBestEffort(ctx, doer, req.LogoURL, jobsFullDir, slug)
 
 	listing := JobListing{
 		ID:             slug,
@@ -91,6 +97,7 @@ func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (
 		SavedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 		JobDescription: jobDescription,
 		RAL:            ral,
+		Logo:           logo,
 	}
 	if err := os.WriteFile(filepath.Join(jobsFullDir, slug+".md"), renderJobListing(listing), 0o644); err != nil {
 		return JobListing{}, Application{}, err
@@ -176,6 +183,7 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 		SavedAt:        raw.SavedAt,
 		JobDescription: strings.TrimSpace(string(body)),
 		RAL:            raw.RAL,
+		Logo:           raw.Logo,
 	}, nil
 }
 
@@ -232,6 +240,7 @@ func renderJobListing(l JobListing) []byte {
 		Source:  l.Source,
 		SavedAt: l.SavedAt,
 		RAL:     l.RAL,
+		Logo:    l.Logo,
 	}
 
 	var buf bytes.Buffer

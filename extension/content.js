@@ -46,6 +46,17 @@
     return window.location.href.split("?")[0];
   }
 
+  function companyLogoUrl() {
+    // The company logo is an <img> inside the same a[href*="/company/"]
+    // link the company name comes from. LinkedIn lazy-loads some images
+    // via a data-delayed-url attribute before src is populated, so fall
+    // back to that when src is still empty/placeholder.
+    const link = document.querySelector('a[href*="/company/"]');
+    const img = link && link.querySelector("img");
+    if (!img) return "";
+    return img.src || img.getAttribute("data-delayed-url") || "";
+  }
+
   function longestText(selector) {
     let longest = "";
     for (const el of document.querySelectorAll(selector)) {
@@ -62,6 +73,7 @@
       location: "",
       url: captureUrl(),
       description: longestText('[data-testid="expandable-text-box"]'),
+      logoUrl: companyLogoUrl(),
     };
   }
 
