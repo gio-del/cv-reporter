@@ -136,6 +136,7 @@ export type JobListingSource = 'manual'
 
 export interface JobListing {
   id: string
+  title?: string
   company: string
   url?: string
   source: JobListingSource
@@ -181,6 +182,7 @@ export interface RecordGenerationRequest {
 }
 
 export interface SaveJobListingRequest {
+  title?: string
   company: string
   url?: string
   jobDescription?: string

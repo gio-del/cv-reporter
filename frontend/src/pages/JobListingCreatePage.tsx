@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { jobListingHeading } from '@/lib/utils'
 
-const blankForm = { company: '', url: '', jobDescription: '', jobDescriptionUrl: '' }
+const blankForm = { title: '', company: '', url: '', jobDescription: '', jobDescriptionUrl: '' }
 type FormState = typeof blankForm
 
 export default function JobListingCreatePage() {
@@ -27,6 +28,7 @@ export default function JobListingCreatePage() {
     setSaving(true)
     try {
       const result = await saveJobListing({
+        title: form.title.trim() || undefined,
         company: form.company,
         url: form.url.trim() || undefined,
         jobDescription: form.jobDescription.trim() || undefined,
@@ -57,6 +59,10 @@ export default function JobListingCreatePage() {
         )}
 
         <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="job-title">Job Title (optional)</FieldLabel>
+            <Input id="job-title" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. Senior Backend Engineer" />
+          </Field>
           <Field>
             <FieldLabel htmlFor="company">Company</FieldLabel>
             <Input id="company" value={form.company} onChange={(e) => set('company', e.target.value)} required />
@@ -97,7 +103,7 @@ export default function JobListingCreatePage() {
 
       {saved && (
         <section className="mt-6 rounded-xl border border-border bg-card p-5">
-          <h2 className="mt-0">Saved: {saved.jobListing.company}</h2>
+          <h2 className="mt-0">Saved: {jobListingHeading(saved.jobListing)}</h2>
           <p>
             Application status: <strong>{saved.application.status}</strong>
           </p>

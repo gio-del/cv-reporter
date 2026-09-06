@@ -91,6 +91,7 @@ export default function AtsBrowsePage() {
     setSavingUrl(listing.url)
     try {
       const result = await saveJobListing({
+        title: listing.title,
         company: titleCase(boardSlug.trim()),
         url: listing.url,
         jobDescription: listing.description,

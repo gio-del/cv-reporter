@@ -74,6 +74,33 @@ func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedA
 	}
 }
 
+func TestCaptureJobListingFromExtension_TitleCarriesThrough(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"title":       "Backend Engineer",
+		"company":     "Acme Corp",
+		"description": "Go backend engineer, remote friendly.",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if listing["title"] != "Backend Engineer" {
+		t.Errorf("expected title to carry through, got %v", listing["title"])
+	}
+}
+
 // Confirms the extension endpoint inherits Save's best-effort resolution
 // (PRD "Resilient Job Listing Save", story 14) without re-testing every
 // RAL/Method failure combination the shared Save path already covers.

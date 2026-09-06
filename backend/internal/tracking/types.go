@@ -15,6 +15,7 @@ const SourceManual = "manual"
 // considering, per CONTEXT.md's Job Listing entry.
 type JobListing struct {
 	ID             string              `json:"id"`
+	Title          string              `json:"title,omitempty"`
 	Company        string              `json:"company"`
 	URL            string              `json:"url,omitempty"`
 	Source         string              `json:"source"`

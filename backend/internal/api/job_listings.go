@@ -10,6 +10,7 @@ import (
 )
 
 type saveJobListingRequest struct {
+	Title             string `json:"title"`
 	Company           string `json:"company"`
 	URL               string `json:"url"`
 	JobDescription    string `json:"jobDescription"`
@@ -23,10 +24,11 @@ type saveJobListingResponse struct {
 
 // captureJobListingRequest is what a browser extension's content script can
 // trivially read off a job posting page it's already viewing (PRD "Browser
-// Extension (LinkedIn Capture)", story 2). Title and Location aren't part of
+// Extension (LinkedIn Capture)", story 2). Location isn't part of
 // tracking.JobListing (see PRD 4's precedent of folding a captured Listing
-// down to just company/url/jobDescription before calling Save), so they're
-// accepted here but not persisted as separate fields.
+// down to just company/url/jobDescription before calling Save), so it's
+// accepted here but not persisted as a separate field; Title is (PRD "Job
+// Listing data fidelity").
 type captureJobListingRequest struct {
 	Title       string `json:"title"`
 	Company     string `json:"company"`
@@ -112,6 +114,7 @@ func createJobListingHandler(dataDir string, client tracking.Client) http.Handle
 		}
 
 		listing, application, err := tracking.Save(r.Context(), dataDir, client, tracking.SaveRequest{
+			Title:             req.Title,
 			Company:           req.Company,
 			URL:               req.URL,
 			JobDescription:    req.JobDescription,
@@ -158,6 +161,7 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 		}
 
 		listing, application, err := tracking.Save(r.Context(), dataDir, client, tracking.SaveRequest{
+			Title:          req.Title,
 			Company:        req.Company,
 			URL:            req.URL,
 			JobDescription: req.Description,

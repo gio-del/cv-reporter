@@ -15,6 +15,7 @@ import type { ApplicationMethod, ApplicationStatus, Contact, JobListingWithAppli
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { jobListingHeading } from '@/lib/utils'
 
 const statusLabel: Record<ApplicationStatus, string> = {
   saved: 'Saved',
@@ -131,7 +132,7 @@ export default function JobListingsListPage() {
           return (
             <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <strong className="font-semibold">{jobListing.company}</strong>
+                <strong className="font-semibold">{jobListingHeading(jobListing)}</strong>
                 <div className="flex items-center gap-2">
                   {needsResolve && (
                     <Badge variant="outline" className="border-unresolved text-unresolved">

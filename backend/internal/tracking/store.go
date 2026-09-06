@@ -28,6 +28,7 @@ var ErrValidation = errors.New("validation failed")
 // generation.GenerateRequest's JobDescription/JobDescriptionURL shape
 // (story 1).
 type SaveRequest struct {
+	Title             string
 	Company           string
 	URL               string
 	JobDescription    string
@@ -35,6 +36,7 @@ type SaveRequest struct {
 }
 
 type rawJobListingFrontmatter struct {
+	Title   string              `yaml:"title,omitempty"`
 	Company string              `yaml:"company"`
 	URL     string              `yaml:"url,omitempty"`
 	Source  string              `yaml:"source"`
@@ -82,6 +84,7 @@ func Save(ctx context.Context, dataDir string, client Client, req SaveRequest) (
 
 	listing := JobListing{
 		ID:             slug,
+		Title:          req.Title,
 		Company:        req.Company,
 		URL:            req.URL,
 		Source:         SourceManual,
@@ -166,6 +169,7 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 	}
 	return JobListing{
 		ID:             slug,
+		Title:          raw.Title,
 		Company:        raw.Company,
 		URL:            raw.URL,
 		Source:         raw.Source,
@@ -222,6 +226,7 @@ func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
 
 func renderJobListing(l JobListing) []byte {
 	raw := rawJobListingFrontmatter{
+		Title:   l.Title,
 		Company: l.Company,
 		URL:     l.URL,
 		Source:  l.Source,
