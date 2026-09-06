@@ -136,12 +136,14 @@ export type JobListingSource = 'manual'
 
 export interface JobListing {
   id: string
+  title?: string
   company: string
   url?: string
   source: JobListingSource
   savedAt: string
   jobDescription: string
   ral: RALRange
+  logo?: string
 }
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
@@ -181,6 +183,7 @@ export interface RecordGenerationRequest {
 }
 
 export interface SaveJobListingRequest {
+  title?: string
   company: string
   url?: string
   jobDescription?: string

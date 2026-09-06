@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
+import { cn, jobListingHeading } from '@/lib/utils'
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
@@ -196,7 +196,7 @@ export default function GenerationPage() {
           </Link>
         </p>
       )}
-      <h1>{jobListing ? `Generate a Tailored CV for ${jobListing.company}` : 'Generate a Tailored CV'}</h1>
+      <h1>{jobListing ? `Generate a Tailored CV for ${jobListingHeading(jobListing)}` : 'Generate a Tailored CV'}</h1>
 
       <section>
         <FieldGroup>
@@ -329,7 +329,7 @@ export default function GenerationPage() {
           <h2>Visual Review</h2>
           {jobListingId && !linkError && (
             <p>
-              Linked to <strong>{jobListing?.company ?? jobListingId}</strong>'s Application.
+              Linked to <strong>{jobListing ? jobListingHeading(jobListing) : jobListingId}</strong>'s Application.
             </p>
           )}
           {linkError && (

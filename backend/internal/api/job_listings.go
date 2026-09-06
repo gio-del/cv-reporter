@@ -5,11 +5,13 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 type saveJobListingRequest struct {
+	Title             string `json:"title"`
 	Company           string `json:"company"`
 	URL               string `json:"url"`
 	JobDescription    string `json:"jobDescription"`
@@ -23,16 +25,18 @@ type saveJobListingResponse struct {
 
 // captureJobListingRequest is what a browser extension's content script can
 // trivially read off a job posting page it's already viewing (PRD "Browser
-// Extension (LinkedIn Capture)", story 2). Title and Location aren't part of
+// Extension (LinkedIn Capture)", story 2). Location isn't part of
 // tracking.JobListing (see PRD 4's precedent of folding a captured Listing
-// down to just company/url/jobDescription before calling Save), so they're
-// accepted here but not persisted as separate fields.
+// down to just company/url/jobDescription before calling Save), so it's
+// accepted here but not persisted as a separate field; Title and LogoURL
+// are (PRD "Job Listing data fidelity").
 type captureJobListingRequest struct {
 	Title       string `json:"title"`
 	Company     string `json:"company"`
 	Location    string `json:"location"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
+	LogoURL     string `json:"logoUrl"`
 }
 
 func listJobListingsHandler(dataDir string) http.HandlerFunc {
@@ -59,6 +63,31 @@ func getJobListingHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, listing)
+	}
+}
+
+// getJobListingLogoHandler serves the Company Logo file tracking.Save
+// downloaded for the Job Listing identified by id (story 8), 404 when the
+// listing doesn't exist or has no logo (story 9). Content-Type is left to
+// http.ServeFile's own extension-based sniffing, since the file on disk
+// already carries the extension downloadLogoBestEffort picked for it.
+func getJobListingLogoHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, err := tracking.GetJobListing(dataDir, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if listing.Logo == "" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(dataDir, "jobs", listing.Logo))
 	}
 }
 
@@ -111,7 +140,10 @@ func createJobListingHandler(dataDir string, client tracking.Client) http.Handle
 			return
 		}
 
-		listing, application, err := tracking.Save(r.Context(), dataDir, client, tracking.SaveRequest{
+		// No doer: neither the manual-paste nor the ATS-browse save path
+		// (this handler's two callers) ever supplies a LogoURL to download.
+		listing, application, err := tracking.Save(r.Context(), dataDir, client, nil, tracking.SaveRequest{
+			Title:             req.Title,
 			Company:           req.Company,
 			URL:               req.URL,
 			JobDescription:    req.JobDescription,
@@ -147,7 +179,7 @@ func captureJobListingCORSPreflightHandler(w http.ResponseWriter, r *http.Reques
 // endpoint (story 3): it normalizes a page capture into tracking.SaveRequest
 // and reuses PRD 3's Save path exactly, the same way PRD 4's ATS browse view
 // reuses POST /api/job-listings from the frontend.
-func captureJobListingFromExtensionHandler(dataDir string, client tracking.Client) http.HandlerFunc {
+func captureJobListingFromExtensionHandler(dataDir string, client tracking.Client, doer tracking.HTTPDoer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
@@ -157,10 +189,12 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 			return
 		}
 
-		listing, application, err := tracking.Save(r.Context(), dataDir, client, tracking.SaveRequest{
+		listing, application, err := tracking.Save(r.Context(), dataDir, client, doer, tracking.SaveRequest{
+			Title:          req.Title,
 			Company:        req.Company,
 			URL:            req.URL,
 			JobDescription: req.Description,
+			LogoURL:        req.LogoURL,
 		})
 		if errors.Is(err, tracking.ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)

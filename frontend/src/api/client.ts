@@ -136,6 +136,10 @@ export function getJobListing(id: string): Promise<JobListing> {
   return request(`/api/job-listings/${encodeURIComponent(id)}`)
 }
 
+export function jobListingLogoUrl(id: string): string {
+  return `/api/job-listings/${encodeURIComponent(id)}/logo`
+}
+
 export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListingResult> {
   return request('/api/job-listings', {
     method: 'POST',

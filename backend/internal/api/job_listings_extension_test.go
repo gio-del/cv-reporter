@@ -1,9 +1,11 @@
 package api_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,6 +73,241 @@ func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedA
 	}
 	if !strings.Contains(string(jobFile), "Go backend engineer, remote friendly.") {
 		t.Errorf("expected job listing file to contain the captured description, got:\n%s", jobFile)
+	}
+}
+
+func TestCaptureJobListingFromExtension_TitleCarriesThrough(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"title":       "Backend Engineer",
+		"company":     "Acme Corp",
+		"description": "Go backend engineer, remote friendly.",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if listing["title"] != "Backend Engineer" {
+		t.Errorf("expected title to carry through, got %v", listing["title"])
+	}
+}
+
+// A minimal valid 1x1 PNG, so the downloaded bytes sniff as image/png.
+var fixturePNG = []byte{
+	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+	0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+	0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
+	0x0a, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0x00, 0x01, 0x00, 0x00,
+	0x05, 0x00, 0x01, 0x0d, 0x0a, 0x2d, 0xb4, 0x00, 0x00, 0x00, 0x00, 0x49,
+	0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+}
+
+func TestCaptureJobListingFromExtension_LogoURLPresent_DownloadsAndPersistsLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != "https://media.linkedin.com/logo.png" {
+			t.Errorf("expected a request to the logo URL, got %s", req.URL.String())
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"image/png"}},
+			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
+		}, nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":     "Acme Corp",
+		"description": "Go backend engineer, remote friendly.",
+		"logoUrl":     "https://media.linkedin.com/logo.png",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	logo, ok := listing["logo"].(string)
+	if !ok || logo == "" {
+		t.Fatalf("expected a non-empty logo filename, got %v", listing["logo"])
+	}
+
+	logoBytes, err := os.ReadFile(filepath.Join(dataDir, "jobs", logo))
+	if err != nil {
+		t.Fatalf("expected the downloaded logo file to exist on disk: %v", err)
+	}
+	if !bytes.Equal(logoBytes, fixturePNG) {
+		t.Errorf("expected the downloaded logo file to contain the fetched bytes")
+	}
+}
+
+func TestGetJobListingLogo_ServesDownloadedLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"image/png"}},
+			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
+		}, nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	saveResp := postJSON(t, server.URL+"/api/job-listings/from-extension", map[string]any{
+		"company":     "Acme Corp",
+		"description": "Go backend engineer.",
+		"logoUrl":     "https://media.linkedin.com/logo.png",
+	})
+	var saved map[string]any
+	json.NewDecoder(saveResp.Body).Decode(&saved)
+	saveResp.Body.Close()
+	id := saved["jobListing"].(map[string]any)["id"].(string)
+
+	resp, err := http.Get(server.URL + "/api/job-listings/" + id + "/logo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(body, fixturePNG) {
+		t.Errorf("expected the served bytes to match the downloaded logo")
+	}
+}
+
+func TestGetJobListingLogo_NoLogo_Returns404(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/job-listings/" + id + "/logo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestCaptureJobListingFromExtension_LogoURLNotAnImage_StillSavesWithoutLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/plain; charset=utf-8"}},
+			Body:       io.NopCloser(strings.NewReader("not an image")),
+		}, nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":     "Acme Corp",
+		"description": "Go backend engineer, remote friendly.",
+		"logoUrl":     "https://media.linkedin.com/not-a-logo.txt",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if logo, present := listing["logo"]; present {
+		t.Errorf("expected no logo field when the downloaded content isn't an image, got %v", logo)
+	}
+
+	id := listing["id"].(string)
+	entries, err := os.ReadDir(filepath.Join(dataDir, "jobs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != id+".md" {
+			t.Errorf("expected no stray non-image file to be written, found %s", e.Name())
+		}
+	}
+}
+
+func TestCaptureJobListingFromExtension_LogoDownloadFails_StillSavesWithoutLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return nil, errors.New("connection refused")
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":     "Acme Corp",
+		"description": "Go backend engineer, remote friendly.",
+		"logoUrl":     "https://media.linkedin.com/logo.png",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if logo, present := listing["logo"]; present {
+		t.Errorf("expected no logo field when the download fails, got %v", logo)
+	}
+}
+
+func TestCaptureJobListingFromExtension_NoLogoURL_SavesWithoutLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "description": "Go backend engineer, remote friendly."}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if logo, present := listing["logo"]; present {
+		t.Errorf("expected no logo field when no logoUrl was captured, got %v", logo)
 	}
 }
 

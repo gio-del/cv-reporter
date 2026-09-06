@@ -15,12 +15,17 @@ const SourceManual = "manual"
 // considering, per CONTEXT.md's Job Listing entry.
 type JobListing struct {
 	ID             string              `json:"id"`
+	Title          string              `json:"title,omitempty"`
 	Company        string              `json:"company"`
 	URL            string              `json:"url,omitempty"`
 	Source         string              `json:"source"`
 	SavedAt        string              `json:"savedAt"`
 	JobDescription string              `json:"jobDescription"`
 	RAL            generation.RALRange `json:"ral"`
+	// Logo is the filename (relative to the jobs dir) of the Company Logo
+	// downloaded server-side at save time (ADR-0013), empty when none was
+	// captured or the download failed.
+	Logo string `json:"logo,omitempty"`
 }
 
 // Status is where an Application stands, per CONTEXT.md's Status entry.

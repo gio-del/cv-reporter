@@ -12,8 +12,10 @@
   //   - the company name is the first `a[href*="/company/"]` link's text
   //   - the job description is the longest `[data-testid="expandable-text-box"]`
   //     block (a shorter one is typically an "about the company" blurb) —
-  //     it's already the full text regardless of visual line-clamping, so
-  //     there's no need to click the "see more" toggle first.
+  //     it's already the full content regardless of visual line-clamping, so
+  //     there's no need to click the "see more" toggle first. Its innerHTML
+  //     (not textContent) is run through Turndown so paragraphs, line
+  //     breaks, lists, and bold/italic/links survive as Markdown.
   // If LinkedIn changes any of this, capture will start failing — that's a
   // known fragility of reading a third party's DOM (see extension/README.md).
 
@@ -32,13 +34,52 @@
     return jobTitle || "";
   }
 
-  function longestText(selector) {
-    let longest = "";
-    for (const el of document.querySelectorAll(selector)) {
-      const value = el.textContent.trim();
-      if (value.length > longest.length) longest = value;
+  function captureUrl() {
+    // The search-results split-pane view (.../jobs/search-results/?currentJobId=123...)
+    // never changes window.location itself when you click between postings —
+    // only the currentJobId query param does — so the stripped href is the
+    // generic search page, not the posting. A direct /jobs/view/<id>/ page has
+    // no currentJobId param, so the existing stripped-URL behavior still
+    // applies there unchanged.
+    const currentJobId = new URLSearchParams(window.location.search).get("currentJobId");
+    if (currentJobId) {
+      return `https://www.linkedin.com/jobs/view/${currentJobId}/`;
     }
-    return longest;
+    return window.location.href.split("?")[0];
+  }
+
+  function companyLogoUrl() {
+    // The company logo is an <img> inside the same a[href*="/company/"]
+    // link the company name comes from. LinkedIn lazy-loads some images
+    // via a data-delayed-url attribute before src is populated, so fall
+    // back to that when src is still empty/placeholder.
+    const link = document.querySelector('a[href*="/company/"]');
+    const img = link && link.querySelector("img");
+    if (!img) return "";
+    return img.src || img.getAttribute("data-delayed-url") || "";
+  }
+
+  function longestElement(selector) {
+    let longestEl = null;
+    let longestLen = 0;
+    for (const el of document.querySelectorAll(selector)) {
+      const len = el.textContent.trim().length;
+      if (len > longestLen) {
+        longestLen = len;
+        longestEl = el;
+      }
+    }
+    return longestEl;
+  }
+
+  function descriptionMarkdown(selector) {
+    const el = longestElement(selector);
+    if (!el) return "";
+    // turndown.js is loaded as a content script ahead of this one (see
+    // manifest.json), defining the global TurndownService — preserves
+    // paragraphs, line breaks, lists, bold/italic, and links as Markdown
+    // instead of flattening the description into one run of text.
+    return new TurndownService().turndown(el.innerHTML).trim();
   }
 
   function captureJobPosting() {
@@ -46,8 +87,9 @@
       title: titleFromDocumentTitle(),
       company: firstNonEmptyText(['a[href*="/company/"]']),
       location: "",
-      url: window.location.href.split("?")[0],
-      description: longestText('[data-testid="expandable-text-box"]'),
+      url: captureUrl(),
+      description: descriptionMarkdown('[data-testid="expandable-text-box"]'),
+      logoUrl: companyLogoUrl(),
     };
   }
 

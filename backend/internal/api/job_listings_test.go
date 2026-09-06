@@ -98,6 +98,52 @@ func TestCreateJobListing_StatedRAL_WritesFilesAndCreatesSavedApplication(t *tes
 	}
 }
 
+func TestCreateJobListing_TitleCarriesThrough(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"title":          "Senior Backend Engineer",
+		"company":        "Acme Corp",
+		"jobDescription": "Go backend engineer, remote friendly.",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if listing["title"] != "Senior Backend Engineer" {
+		t.Errorf("expected title to carry through, got %v", listing["title"])
+	}
+}
+
+func TestCreateJobListing_NoTitle_OmitsTitleField(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer."}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if _, present := listing["title"]; present {
+		t.Errorf("expected no title field when none was given, got %v", listing["title"])
+	}
+}
+
 func TestCreateJobListing_InfersApplicationMethodFromJobDescription(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{
