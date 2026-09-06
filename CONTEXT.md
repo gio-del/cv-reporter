@@ -13,7 +13,7 @@ One unit of work experience or project, stored as its own file (YAML frontmatter
 _Avoid_: item, record, job (ambiguous with Job Description)
 
 **Client Engagement**:
-An Entry representing the work done for one client while at a consultancy employer (e.g. Quantyca). Several Client Engagement Entries can share the same employer/title/date-range metadata but are independently selectable — Selection can surface one client's work prominently while omitting another's.
+An Entry representing the work done for one client while at a consultancy employer. Several Client Engagement Entries can share the same employer/title/date-range metadata but are independently selectable — Selection can surface one client's work prominently while omitting another's.
 _Avoid_: sub-project, client project
 
 **Tag**:

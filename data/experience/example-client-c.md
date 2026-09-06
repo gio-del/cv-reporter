@@ -1,8 +1,8 @@
 ---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Autostrade per l'Italia
-location: Monza
+client: Example Client C
+location: Example City
 start: "2024-10"
 end: null
 flagship: false

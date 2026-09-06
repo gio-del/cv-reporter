@@ -1,36 +1,38 @@
 # Static, always-included content: contact info, education, and the Static
 # Sections (publications, awards, activities, languages). Never subject to
 # Selection or Rewrite — see CONTEXT.md.
+#
+# NOTE: this is example/stub data. Replace with your own before using the
+# tailoring pipeline — this file is committed to a public repo, so keep real
+# personal details (name, contact info, education, publications) out of it.
 
-name: Giovanni De Lucia
-location: Milan, Italy
-email: giovanni.delucia17@gmail.com
-phone: "+39 333 788 3099"
-linkedin: giovannidelucia
-github: gio-del
+name: Jane Doe
+location: Example City, Country
+email: jane.doe@example.com
+phone: "+1 555 0100"
+linkedin: janedoe
+github: janedoe
 
 education:
   - degree: MSc
-    institution: Politecnico di Milano
+    institution: Example University
     program: Computer Science and Engineering
     start: "2022"
     end: "2024-04"
-    grade: "110/110 cum laude"
+    grade: "Example grade"
     courses:
       - Distributed Systems
       - Advanced Algorithms and Parallel Programming
       - Machine Learning
-      - Offensive and Defensive Cybersecurity
       - Computer Security
-      - Software Engineering 2
-      - Databases 2
-      - IoT
+      - Software Engineering
+      - Databases
   - degree: BSc
-    institution: Politecnico di Milano
-    program: Ingegneria Informatica (Computer Science)
+    institution: Example University
+    program: Computer Science and Engineering
     start: "2019"
     end: "2022"
-    grade: "110/110"
+    grade: "Example grade"
     courses:
       - Computer Architectures
       - Operating Systems
@@ -39,25 +41,23 @@ education:
       - Software Engineering
 
 publications:
-  - title: "TimberStrike: Dataset Reconstruction Attack Revealing Privacy Leakage in Federated Tree-Based Systems"
-    authors: "Marco Di Gennaro, Giovanni De Lucia, Stefano Longari, Stefano Zanero, Michele Carminati"
-    venue: "Proceedings on Privacy Enhancing Technologies (PoPETs) 2025(4)"
-    link: "https://arxiv.org/abs/2506.07605"
+  - title: "Example Paper Title: A Study of Something Interesting"
+    authors: "Jane Doe, Alex Example, Sam Sample"
+    venue: "Example Conference/Journal 2025"
+    link: "https://example.com/paper"
     note: >
-      Grew out of the MSc thesis: attacks and countermeasures on privacy of
-      Federated Learning systems based on tree-structured models (Decision
-      Trees, XGBoost).
+      One or two sentences of context about the publication.
 
 awards:
-  - title: "Best Freshman Award (PoliMi, 2020)"
-    description: "Awarded among the best freshmen of the year based on academic performance."
+  - title: "Example Award (Example University, 2020)"
+    description: "One line describing the award and why it was given."
 
 activities:
-  - title: "School and University Tutor (2019-2023)"
-    description: "Tutoring activities for high school and university students in scientific subjects."
+  - title: "Example Activity (2019-2023)"
+    description: "One line describing the activity."
 
 languages:
-  - name: Italian
-    level: Native
   - name: English
-    level: "Professional working proficiency (C1, TOEIC 945/990)"
+    level: Native
+  - name: Example Language
+    level: "Professional working proficiency"

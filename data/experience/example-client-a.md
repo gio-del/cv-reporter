@@ -1,8 +1,8 @@
 ---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
