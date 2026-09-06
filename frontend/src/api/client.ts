@@ -148,6 +148,10 @@ export function suggestContact(jobListingId: string): Promise<Contact> {
   return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/suggest-contact`, { method: 'POST' })
 }
 
+export function resolveJobListing(jobListingId: string): Promise<JobListingWithApplication> {
+  return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/resolve`, { method: 'POST' })
+}
+
 export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',

@@ -14,10 +14,14 @@ const (
 	RALSourceStated    RALSource = "stated"
 	RALSourceEstimated RALSource = "estimated"
 	RALSourceNA        RALSource = "n/a"
+	// RALSourceUnresolved means resolution couldn't even be attempted
+	// (client.EstimateRAL returned an error) — distinct from RALSourceNA,
+	// which means research ran and genuinely found nothing.
+	RALSourceUnresolved RALSource = "unresolved"
 )
 
 // RALRange is the gross annual salary range for a Job Listing. Min/Max are
-// nil when Source is RALSourceNA.
+// nil when Source is RALSourceNA or RALSourceUnresolved.
 type RALRange struct {
 	Min      *int      `json:"min,omitempty"`
 	Max      *int      `json:"max,omitempty"`

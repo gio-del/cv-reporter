@@ -1,7 +1,9 @@
 package api_test
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedApplication(t *testing.T) {
@@ -68,6 +71,38 @@ func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedA
 	}
 	if !strings.Contains(string(jobFile), "Go backend engineer, remote friendly.") {
 		t.Errorf("expected job listing file to contain the captured description, got:\n%s", jobFile)
+	}
+}
+
+// Confirms the extension endpoint inherits Save's best-effort resolution
+// (PRD "Resilient Job Listing Save", story 14) without re-testing every
+// RAL/Method failure combination the shared Save path already covers.
+func TestCaptureJobListingFromExtension_MethodInferenceFails_StillSavesWithUnresolvedMethod(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		inferApplicationMethod: func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
+			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"company": "Acme Corp", "description": "Go backend engineer, remote friendly."}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	application := result["application"].(map[string]any)
+	method := application["method"].(map[string]any)
+	if method["kind"] != "unresolved" {
+		t.Errorf("expected unresolved Application Method, got %v", method)
 	}
 }
 

@@ -5,12 +5,14 @@ const sourceLabel: Record<RALRange['source'], string> = {
   stated: 'Stated in the Job Description',
   estimated: "Claude's estimate — not a fact",
   'n/a': 'Not found',
+  unresolved: "Couldn't check — retry",
 }
 
 const sourceBorderClass: Record<RALRange['source'], string> = {
   stated: 'border-ral-stated',
   estimated: 'border-ral-estimated',
   'n/a': 'border-border',
+  unresolved: 'border-unresolved',
 }
 
 // Always labels the RAL Range's source, so the user is never misled into

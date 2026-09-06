@@ -38,6 +38,10 @@
   /* RAL Range badge status borders — same in both themes. */
   --color-ral-stated: color-mix(in srgb, #16a34a 60%, transparent);
   --color-ral-estimated: color-mix(in srgb, #b45309 60%, transparent);
+  /* Unresolved (couldn't even check) — distinct from every existing RAL
+     source/Method kind color, shared by RALBadge and
+     ApplicationMethodEditor. */
+  --color-unresolved: color-mix(in srgb, #dc2626 60%, transparent);
 
   /* Swiss/minimal radius scale: crisp corners on controls, slightly
      rounder cards/overlays. */
