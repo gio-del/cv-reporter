@@ -33,8 +33,16 @@ The pasted text or fetched-URL content describing a role, held by a Job Listing,
 _Avoid_: posting, job ad
 
 **Job Listing**:
-A persisted, tracked record of a role the user is considering: source (pasted, browser-extension capture, or ATS feed), company, URL, saved date, its Job Description, and RAL Range. Distinct from Job Description itself, which is just the text/content field it holds.
+A persisted, tracked record of a role the user is considering: source (pasted, browser-extension capture, or ATS feed), company, its Job Title, an optional Company Logo, URL, saved date, its Job Description, and RAL Range. Distinct from Job Description itself, which is just the text/content field it holds.
 _Avoid_: posting, job ad, listing
+
+**Job Title**:
+The name of the role a Job Listing is for (e.g. "Senior Backend Engineer"), captured from the source (browser-extension DOM capture, an ATS board's own listing, or entered manually) and shown alongside Company wherever a Job Listing is displayed. Distinct from Entry's `role` field, which is the user's own job title at a past employer/client — never the other way around.
+_Avoid_: role (ambiguous with Entry's role), position, job
+
+**Company Logo**:
+An optional image for a Job Listing, downloaded server-side from the source's logo URL at save time and stored alongside that Job Listing's record. Only ever populated from a browser-extension LinkedIn capture today — ATS feeds and manual entry have no logo source, so a Job Listing from either simply has none.
+_Avoid_: image, photo, icon
 
 **RAL Range**:
 The gross annual salary (Reddito Annuo Lordo) range for a Job Listing, with a source: Stated (found in the Job Description), Estimated (Claude web-researched it for that role/company/location — a guess, not a fact), or N/A (couldn't find anything). Always shown in the FE, source labeled.
@@ -45,7 +53,7 @@ The tracked record of one attempt to apply to a Job Listing (exactly one Applica
 _Avoid_: submission
 
 **Status** (of an Application):
-Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer.
+Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer. Rejected is not fully terminal: it can be moved back to Interviewing via Reopen, for when a rejection turns out to be premature (e.g. a recruiter reaches back out). Both moving to Rejected and Reopening from it require explicit user confirmation, since each reverses the other. Offer remains fully terminal.
 _Avoid_: state, stage
 
 **Application Method**:
