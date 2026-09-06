@@ -10,6 +10,8 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
+Job Listings can be added to the web app three ways: manual paste (URL/text), pulling from an ATS's public job-board API (Greenhouse/Lever/Ashby), or a browser extension (`extension/`) that captures the LinkedIn job posting you're currently viewing — see `docs/adr/0007-job-sourcing.md` for why it's scoped this way and `extension/README.md` for how to load it.
+
 ## Repo layout
 
 - `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
@@ -17,8 +19,9 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file and renders it; contains no selection/relevance logic.
 - `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data.
 - `.claude/skills/tailor-cv/` — the skill that drives the tailoring pipeline.
-- `backend/` — Go HTTP API serving/editing the Master Data files under `data/` (see `backend/internal/api`).
+- `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
+- `extension/` — browser extension that captures the LinkedIn job posting you're viewing into the app as a Job Listing (see `extension/README.md`).
 - `docs/adr/` — architecture decision records.
 
 ## Running the tailoring pipeline
@@ -59,9 +62,24 @@ docker-compose up
 | GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
 | PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
 | DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
+| GET | `/api/job-listings` | list Job Listings (with their Application) |
+| POST | `/api/job-listings` | save a Job Listing (URL/text) — creates its Application; RAL Range + Application Method are best-effort (see ADR-0011; failures persist as `unresolved`, never block the save) |
+| POST | `/api/job-listings/from-extension` | save a Job Listing captured by the browser extension (`extension/`) — same best-effort save as above |
+| GET | `/api/job-listings/{id}` | get a Job Listing |
+| POST | `/api/job-listings/{id}/resolve` | retry RAL Range/Application Method resolution for whatever is still `unresolved` on a Job Listing (no-op if both already resolved) |
+| POST | `/api/job-listings/{id}/suggest-contact` | suggest an Application contact for a Job Listing |
+| PATCH | `/api/applications/{id}/status` | move an Application's status (state machine — see `tracking.allowedTransitions`) |
+| PATCH | `/api/applications/{id}/method` | correct an Application's Application Method |
+| PATCH | `/api/applications/{id}/contact` | correct an Application's contact |
+| GET | `/api/applications/{id}/mailto` | get a `mailto:` link prefilled for an Application |
+| POST | `/api/applications/{id}/generations` | record a Generation against an Application |
 | POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
 | POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
 | GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |
+| GET | `/api/ats/{provider}/{slug}/listings` | list public job-board listings from an ATS (Greenhouse/Lever/Ashby) |
+| GET | `/api/ats/tracked-boards` | list tracked ATS boards |
+| POST | `/api/ats/tracked-boards` | track an ATS board |
+| DELETE | `/api/ats/tracked-boards/{id}` | stop tracking an ATS board |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
