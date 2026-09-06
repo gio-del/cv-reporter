@@ -18,6 +18,7 @@ func TestTransition_AllowedMoves(t *testing.T) {
 		{tracking.StatusSent, tracking.StatusRejected},
 		{tracking.StatusInterviewing, tracking.StatusRejected},
 		{tracking.StatusInterviewing, tracking.StatusOffer},
+		{tracking.StatusRejected, tracking.StatusInterviewing},
 	}
 	for _, c := range cases {
 		got, err := tracking.Transition(c.from, c.to)
