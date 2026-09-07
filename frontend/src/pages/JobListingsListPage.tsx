@@ -28,6 +28,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { jobListingHeading } from '@/lib/utils'
 
 const statusLabel: Record<ApplicationStatus, string> = {
@@ -205,14 +206,19 @@ export default function JobListingsListPage() {
                   )}
                   <Badge variant="secondary">{statusLabel[application.status]}</Badge>
                   {needsResolve && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleResolve(jobListing.id)}
-                      disabled={resolvingId === jobListing.id}
-                    >
-                      {resolvingId === jobListing.id ? 'Resolving…' : 'Resolve'}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleResolve(jobListing.id)}
+                          disabled={resolvingId === jobListing.id}
+                        >
+                          {resolvingId === jobListing.id ? 'Resolving…' : 'Resolve'}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Retries RAL Range and Application Method resolution</TooltipContent>
+                    </Tooltip>
                   )}
                   {nextStatuses.length > 0 && (
                     <Select
