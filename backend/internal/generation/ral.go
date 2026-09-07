@@ -37,14 +37,22 @@ var (
 	currencySymbolRe = regexp.MustCompile(`(€|\$|£)`)
 	currencyCodeRe   = regexp.MustCompile(`(?i)\b(EUR|USD|GBP)\b`)
 
-	// numberToken: digits with optional thousand separators, optional "k"
-	// (thousands) suffix. currencyPrefix optionally absorbs a currency
-	// symbol/code directly before a number (e.g. "€45,000"), since it can
-	// appear before either or both numbers in a range.
-	numberToken   = `[\d]{1,3}(?:[.,]\d{3})*\s*(?:k)?`
+	// numberToken: digits with optional thousand separators, an optional
+	// single fractional digit (fractional-K shorthand, e.g. "63,2k" means
+	// 63,200 — distinct from the full grouped-digit form's exactly-3-digit
+	// groups), optional "k" (thousands) suffix. currencyPrefix optionally
+	// absorbs a currency symbol/code directly before a number (e.g.
+	// "€45,000"), since it can appear before either or both numbers in a
+	// range.
+	numberToken   = `[\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d)?\s*(?:k)?`
 	currencyPrefx = `(?:€|\$|£|EUR|USD|GBP)?\s*`
 	rangeRe       = regexp.MustCompile(`(?i)` + currencyPrefx + `(` + numberToken + `)\s*(?:-|–|—|to)\s*` + currencyPrefx + `(` + numberToken + `)`)
 	singleRe      = regexp.MustCompile(`(?i)` + currencyPrefx + `(` + numberToken + `)`)
+
+	// fractionalKRe matches a numberToken that used the fractional-K
+	// shorthand ("63,2k" / "63.2k"), as opposed to a whole-thousand
+	// shorthand ("40k") or a full grouped-digit figure ("63.000").
+	fractionalKRe = regexp.MustCompile(`(?i)^(\d{1,3})[.,](\d)k$`)
 )
 
 // ParseStatedRAL looks for a salary figure or range stated directly in a
@@ -81,21 +89,13 @@ func parseRange(line string) (min, max int, ok bool) {
 	if m == nil {
 		return 0, 0, false
 	}
-	raw1, k1 := splitK(m[1])
-	raw2, k2 := splitK(m[2])
-	v1, ok1 := parseAmount(raw1)
-	v2, ok2 := parseAmount(raw2)
+	v1, k1, ok1 := parseToken(m[1])
+	v2, k2, ok2 := parseToken(m[2])
 	if !ok1 || !ok2 {
 		return 0, 0, false
 	}
 	if k2 && !k1 && v1 < 1000 {
-		k1 = true
-	}
-	if k1 {
 		v1 *= 1000
-	}
-	if k2 {
-		v2 *= 1000
 	}
 	if v1 > v2 {
 		v1, v2 = v2, v1
@@ -108,15 +108,35 @@ func parseSingle(line string) (int, bool) {
 	if m == nil {
 		return 0, false
 	}
-	raw, k := splitK(m[1])
+	v, _, ok := parseToken(m[1])
+	return v, ok
+}
+
+// parseToken resolves one numberToken match into a whole-currency-unit
+// integer, already scaled for whichever "k" shorthand it used (fractional-K
+// like "63,2k" -> 63200, or whole-thousand like "40k" -> 40000) — or left
+// unscaled for a full grouped-digit figure like "63.000" -> 63000. hasK
+// reports whether a "k" suffix was present, so parseRange can still infer it
+// on a first number lacking its own suffix (e.g. "40-50k").
+func parseToken(token string) (value int, hasK bool, ok bool) {
+	token = strings.TrimSpace(token)
+	if m := fractionalKRe.FindStringSubmatch(token); m != nil {
+		intPart, err1 := strconv.Atoi(m[1])
+		fracDigit, err2 := strconv.Atoi(m[2])
+		if err1 != nil || err2 != nil {
+			return 0, false, false
+		}
+		return intPart*1000 + fracDigit*100, true, true
+	}
+	raw, k := splitK(token)
 	v, ok := parseAmount(raw)
 	if !ok {
-		return 0, false
+		return 0, false, false
 	}
 	if k {
 		v *= 1000
 	}
-	return v, true
+	return v, k, true
 }
 
 func splitK(token string) (raw string, hasK bool) {
