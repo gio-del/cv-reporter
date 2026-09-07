@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const providerLabel: Record<AtsProvider, string> = {
   greenhouse: 'Greenhouse',
@@ -112,9 +113,14 @@ export default function AtsBrowsePage() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Tracked:</span>
           {trackedBoards.map((board) => (
-            <Button key={board.id} type="button" size="sm" variant="outline" onClick={() => handleTrackedBoardClick(board)}>
-              {board.label || board.slug} <span className="text-muted-foreground">({providerLabel[board.provider]})</span>
-            </Button>
+            <Tooltip key={board.id}>
+              <TooltipTrigger asChild>
+                <Button type="button" size="sm" variant="outline" onClick={() => handleTrackedBoardClick(board)}>
+                  {board.label || board.slug} <span className="text-muted-foreground">({providerLabel[board.provider]})</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Load open roles from this tracked board</TooltipContent>
+            </Tooltip>
           ))}
         </div>
       )}

@@ -3,6 +3,7 @@ import { suggestContact } from '@/api/client'
 import type { Contact } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Manages the Contact for an email-method Application (story 7): entered
 // manually, or Claude-suggested via web search — either way the user
@@ -73,9 +74,14 @@ export default function ContactSection({
           {contact ? 'Edit' : 'Enter manually'}
         </Button>
         {!contact && (
-          <Button size="sm" variant="outline" onClick={handleSuggest} disabled={suggesting}>
-            {suggesting ? 'Asking Claude…' : 'Suggest via Claude'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="sm" variant="outline" onClick={handleSuggest} disabled={suggesting}>
+                {suggesting ? 'Asking Claude…' : 'Suggest via Claude'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Searches the web via Claude for a likely hiring contact — review before saving</TooltipContent>
+          </Tooltip>
         )}
         {error && (
           <p role="alert" className="mb-0 basis-full text-sm font-medium text-destructive">

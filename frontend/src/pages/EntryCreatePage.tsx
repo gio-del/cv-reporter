@@ -8,6 +8,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const blankForm = {
   employer: '',
@@ -113,14 +114,23 @@ export default function EntryCreatePage() {
                 <Input id="location" value={form.location} onChange={(e) => set('location', e.target.value)} />
               </Field>
               <Field orientation="horizontal">
-                <Checkbox
-                  id="flagship"
-                  checked={form.flagship}
-                  onCheckedChange={(checked) => set('flagship', checked === true)}
-                />
-                <FieldLabel htmlFor="flagship" className="font-normal">
-                  Flagship
-                </FieldLabel>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-2">
+                      <Checkbox
+                        id="flagship"
+                        checked={form.flagship}
+                        onCheckedChange={(checked) => set('flagship', checked === true)}
+                      />
+                      <FieldLabel htmlFor="flagship" className="font-normal">
+                        Flagship
+                      </FieldLabel>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Flagship Entries are shown first when generating a Default Mode CV (no job description)
+                  </TooltipContent>
+                </Tooltip>
               </Field>
             </>
           ) : (
