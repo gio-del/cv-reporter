@@ -62,7 +62,11 @@ export default function ApplicationMethodEditor({
         </strong>
         {method.value && <>: {method.value}</>}
         {' · '}
-        <button type="button" className="text-primary underline-offset-4 hover:underline" onClick={startEditing}>
+        <button
+          type="button"
+          className="cursor-pointer text-primary underline-offset-4 hover:underline"
+          onClick={startEditing}
+        >
           Correct
         </button>
       </p>
