@@ -75,21 +75,61 @@
   function descriptionMarkdown(selector) {
     const el = longestElement(selector);
     if (!el) return "";
+    // LinkedIn nests its own "…altro"/"…more" toggle button as the last
+    // child of this same element, so its label leaks into the captured
+    // text if read as-is. Clone first and strip every <button> descendant
+    // — targets the general "stray interactive control" shape, not just
+    // this one button, and degrades to the unmodified description (rather
+    // than failing capture entirely) if the clone/strip step ever throws.
+    let html = el.innerHTML;
+    try {
+      const clone = el.cloneNode(true);
+      clone.querySelectorAll("button").forEach((button) => button.remove());
+      html = clone.innerHTML;
+    } catch (err) {
+      console.error("[CVReporter] button-stripping threw, using unmodified description", err);
+    }
     // turndown.js is loaded as a content script ahead of this one (see
     // manifest.json), defining the global TurndownService — preserves
     // paragraphs, line breaks, lists, bold/italic, and links as Markdown
     // instead of flattening the description into one run of text.
-    return new TurndownService().turndown(el.innerHTML).trim();
+    return new TurndownService().turndown(html).trim();
+  }
+
+  // salaryBadgeText looks for LinkedIn's own salary-insight pill near the
+  // job title (e.g. "63,2K € /yr - 70,8K € /yr") — often the only place a
+  // listing states RAL at all, absent from the description prose entirely.
+  // No stable selector exists for it (no data-testid/aria-label/role — pure
+  // hashed atomic CSS classes shared with every other pill in that row), so
+  // this scans short page elements for currency-plus-number-shaped text
+  // instead. Best-effort: any failure, or no match, simply yields no new
+  // signal — description-text RAL resolution is unaffected either way.
+  function salaryBadgeText(descriptionSelector) {
+    try {
+      const descriptionEl = longestElement(descriptionSelector);
+      const salaryPatternRe = /[€$£]\s*\d[\d.,]*\s*k?|\d[\d.,]*\s*k\b[^\d]{0,10}\/\s*yr/i;
+      for (const el of document.querySelectorAll("body *")) {
+        if (descriptionEl && descriptionEl.contains(el)) continue;
+        const text = el.textContent.trim();
+        if (!text || text.length >= 40) continue;
+        if (salaryPatternRe.test(text)) return text;
+      }
+    } catch (err) {
+      console.error("[CVReporter] salaryBadgeText threw", err);
+    }
+    return "";
   }
 
   function captureJobPosting() {
+    const descriptionSelector = '[data-testid="expandable-text-box"]';
     return {
       title: titleFromDocumentTitle(),
       company: firstNonEmptyText(['a[href*="/company/"]']),
       location: "",
       url: captureUrl(),
-      description: descriptionMarkdown('[data-testid="expandable-text-box"]'),
+      description: descriptionMarkdown(descriptionSelector),
       logoUrl: companyLogoUrl(),
+      listingSalaryText: salaryBadgeText(descriptionSelector),
     };
   }
 
