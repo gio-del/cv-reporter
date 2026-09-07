@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { getProfile, updateProfile } from '@/api/client'
 import type { Activity, Award, Education, Language, Profile, Publication } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -370,11 +369,6 @@ export default function ProfilePage() {
   if (editing) {
     return (
       <>
-        <p className="mb-4 inline-block text-sm">
-          <Link to="/" className="no-underline hover:underline">
-            ← Back to Master Data
-          </Link>
-        </p>
         <h1>Edit Profile</h1>
         <ProfileEditForm
           profile={profile}
@@ -390,11 +384,6 @@ export default function ProfilePage() {
 
   return (
     <>
-      <p className="mb-4 inline-block text-sm">
-        <Link to="/" className="no-underline hover:underline">
-          ← Back to Master Data
-        </Link>
-      </p>
       <h1>Profile</h1>
 
       <section>

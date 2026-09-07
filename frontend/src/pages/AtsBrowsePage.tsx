@@ -106,11 +106,6 @@ export default function AtsBrowsePage() {
 
   return (
     <>
-      <p className="mb-4 inline-block text-sm">
-        <Link to="/jobs" className="no-underline hover:underline">
-          ← Back to Job Listings
-        </Link>
-      </p>
       <h1>Browse ATS Job Boards</h1>
 
       {trackedBoards.length > 0 && (

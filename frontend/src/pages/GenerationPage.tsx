@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import BulletDiff from '@/components/BulletDiff'
 import RALBadge from '@/components/RALBadge'
 import {
@@ -189,13 +189,6 @@ export default function GenerationPage() {
 
   return (
     <>
-      {jobListingId && (
-        <p className="mb-4 inline-block text-sm">
-          <Link to="/jobs" className="no-underline hover:underline">
-            ← Back to Job Listings
-          </Link>
-        </p>
-      )}
       <h1>{jobListing ? `Generate a Tailored CV for ${jobListingHeading(jobListing)}` : 'Generate a Tailored CV'}</h1>
 
       <section>

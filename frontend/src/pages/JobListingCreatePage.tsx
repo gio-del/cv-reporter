@@ -45,11 +45,6 @@ export default function JobListingCreatePage() {
 
   return (
     <>
-      <p className="mb-4 inline-block text-sm">
-        <Link to="/jobs" className="no-underline hover:underline">
-          ← Back to Job Listings
-        </Link>
-      </p>
       <h1>Save a Job Listing</h1>
       <form onSubmit={handleSubmit}>
         {error && (

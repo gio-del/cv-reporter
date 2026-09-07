@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { createEntry } from '@/api/client'
 import type { EntryInput, EntryType } from '@/api/types'
 import { Button } from '@/components/ui/button'
@@ -72,11 +72,6 @@ export default function EntryCreatePage() {
 
   return (
     <>
-      <p className="mb-4 inline-block text-sm">
-        <Link to="/" className="no-underline hover:underline">
-          ← Back to Master Data
-        </Link>
-      </p>
       <h1>New Entry</h1>
       <form onSubmit={handleSubmit}>
         {error && (
