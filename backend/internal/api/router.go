@@ -64,6 +64,7 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("POST /api/job-listings/from-extension", captureJobListingFromExtensionHandler(dataDir, generationClient, atsHTTPDoer))
 	mux.HandleFunc("OPTIONS /api/job-listings/from-extension", captureJobListingCORSPreflightHandler)
 	mux.HandleFunc("GET /api/job-listings/{id}", getJobListingHandler(dataDir))
+	mux.HandleFunc("DELETE /api/job-listings/{id}", deleteJobListingHandler(dataDir))
 	mux.HandleFunc("GET /api/job-listings/{id}/logo", getJobListingLogoHandler(dataDir))
 	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", suggestContactHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/job-listings/{id}/resolve", resolveJobListingHandler(dataDir, generationClient))
