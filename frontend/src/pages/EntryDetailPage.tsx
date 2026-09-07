@@ -82,7 +82,7 @@ export default function EntryDetailPage() {
 
   return (
     <>
-      <p>
+      <p className="mb-4 inline-block text-sm">
         <Link to="/" className="no-underline hover:underline">
           ← Back to Master Data
         </Link>
