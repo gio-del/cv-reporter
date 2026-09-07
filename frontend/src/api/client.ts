@@ -148,6 +148,14 @@ export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListi
   })
 }
 
+export async function deleteJobListing(id: string): Promise<void> {
+  const res = await fetch(`/api/job-listings/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(body || `Delete failed (${res.status})`)
+  }
+}
+
 export function suggestContact(jobListingId: string): Promise<Contact> {
   return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/suggest-contact`, { method: 'POST' })
 }

@@ -91,6 +91,24 @@ func getJobListingLogoHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
+// deleteJobListingHandler removes a Job Listing and its 1:1 Application
+// together (story 9), mirroring deleteEntryHandler's shape exactly.
+func deleteJobListingHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		err := tracking.Delete(dataDir, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
 // suggestContactHandler researches a Contact suggestion for the Job
 // Listing identified by id (story 7). It never persists — the FE must
 // PATCH /api/applications/{id}/contact to save it once the user confirms.

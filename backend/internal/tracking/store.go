@@ -157,6 +157,28 @@ func GetJobListing(dataDir, id string) (JobListing, error) {
 	return getJobListing(dataDir, id)
 }
 
+// Delete removes a Job Listing and its 1:1 Application together (story 9):
+// the Company Logo file (if any), the Application file, then the Job
+// Listing file — in that order so a partial failure never leaves the Job
+// Listing behind without having tried to clean up what it owns. A missing
+// Logo or Application file is tolerated (the Job Listing file is still
+// removed); only the final removal's error is returned, so callers can
+// errors.Is(err, os.ErrNotExist) exactly like masterdata.DeleteEntry.
+func Delete(dataDir, id string) error {
+	listing, err := getJobListing(dataDir, id)
+	if err == nil && listing.Logo != "" {
+		if rmErr := os.Remove(filepath.Join(dataDir, jobsDir, listing.Logo)); rmErr != nil && !os.IsNotExist(rmErr) {
+			return rmErr
+		}
+	}
+
+	if rmErr := os.Remove(filepath.Join(dataDir, applicationsDir, id+".md")); rmErr != nil && !os.IsNotExist(rmErr) {
+		return rmErr
+	}
+
+	return os.Remove(filepath.Join(dataDir, jobsDir, id+".md"))
+}
+
 func getJobListing(dataDir, slug string) (JobListing, error) {
 	content, err := os.ReadFile(filepath.Join(dataDir, jobsDir, slug+".md"))
 	if err != nil {
