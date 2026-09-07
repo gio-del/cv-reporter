@@ -11,8 +11,8 @@ import (
 // Save"): a failure here (Claude API unreachable, no credentials, rate
 // limited) must never block persisting an otherwise-valid Job Listing.
 // Shared by Save and Resolve so both retry the same way.
-func resolveRALBestEffort(ctx context.Context, jobDescription string, client Client) generation.RALRange {
-	ral, err := generation.ResolveRAL(ctx, jobDescription, client)
+func resolveRALBestEffort(ctx context.Context, jobDescription string, listingSalaryText string, client Client) generation.RALRange {
+	ral, err := generation.ResolveRAL(ctx, jobDescription, listingSalaryText, client)
 	if err != nil {
 		return generation.RALRange{Source: generation.RALSourceUnresolved}
 	}

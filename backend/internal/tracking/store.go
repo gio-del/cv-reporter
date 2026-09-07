@@ -78,7 +78,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		return JobListing{}, Application{}, fmt.Errorf("%w: jobDescription or jobDescriptionUrl is required", ErrValidation)
 	}
 
-	ral := resolveRALBestEffort(ctx, jobDescription, client)
+	ral := resolveRALBestEffort(ctx, jobDescription, "", client)
 	method := resolveApplicationMethodBestEffort(ctx, jobDescription, client)
 
 	jobsFullDir := filepath.Join(dataDir, jobsDir)

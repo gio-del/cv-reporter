@@ -18,15 +18,35 @@ const (
 	// (client.EstimateRAL returned an error) — distinct from RALSourceNA,
 	// which means research ran and genuinely found nothing.
 	RALSourceUnresolved RALSource = "unresolved"
+	// RALSourceConflict means the Job Description text and the listing's
+	// own salary field both state a figure and the two ranges don't
+	// overlap at all — see RALRange's DescriptionStated/ListingStated.
+	RALSourceConflict RALSource = "conflict"
 )
 
+// RALFigure is one source's own stated salary figure, surfaced verbatim
+// (never auto-picked) as part of a RALSourceConflict RALRange.
+type RALFigure struct {
+	Min      int    `json:"min" yaml:"min"`
+	Max      int    `json:"max" yaml:"max"`
+	Currency string `json:"currency" yaml:"currency"`
+}
+
 // RALRange is the gross annual salary range for a Job Listing. Min/Max are
-// nil when Source is RALSourceNA or RALSourceUnresolved.
+// nil when Source is RALSourceNA, RALSourceUnresolved, or RALSourceConflict
+// — a Conflict has no auto-picked winner, only DescriptionStated/
+// ListingStated, each source's own figure.
 type RALRange struct {
 	Min      *int      `json:"min,omitempty"`
 	Max      *int      `json:"max,omitempty"`
 	Currency string    `json:"currency,omitempty"`
 	Source   RALSource `json:"source"`
+
+	// DescriptionStated and ListingStated are populated only when Source
+	// is RALSourceConflict, one figure per source (CONTEXT.md's RAL Range
+	// entry).
+	DescriptionStated *RALFigure `json:"descriptionStated,omitempty" yaml:"descriptionStated,omitempty"`
+	ListingStated     *RALFigure `json:"listingStated,omitempty" yaml:"listingStated,omitempty"`
 }
 
 var (
@@ -46,7 +66,13 @@ var (
 	// range.
 	numberToken   = `[\d]{1,3}(?:[.,]\d{3})*(?:[.,]\d)?\s*(?:k)?`
 	currencyPrefx = `(?:€|\$|£|EUR|USD|GBP)?\s*`
-	rangeRe       = regexp.MustCompile(`(?i)` + currencyPrefx + `(` + numberToken + `)\s*(?:-|–|—|to)\s*` + currencyPrefx + `(` + numberToken + `)`)
+	// rangeFillerRe: a per-unit label (e.g. "€ /yr") can sit between the
+	// first number and the separator — LinkedIn's own salary-insight badge
+	// reads "63,2K € /yr - 70,8K € /yr", not "63,2K - 70,8K € /yr". No
+	// digit or dash character is allowed through, so this can't jump over
+	// an unrelated second range on the same line.
+	rangeFillerRe = `[^\d\-–—]{0,20}`
+	rangeRe       = regexp.MustCompile(`(?i)` + currencyPrefx + `(` + numberToken + `)` + rangeFillerRe + `(?:-|–|—|to)\s*` + currencyPrefx + `(` + numberToken + `)`)
 	singleRe      = regexp.MustCompile(`(?i)` + currencyPrefx + `(` + numberToken + `)`)
 
 	// fractionalKRe matches a numberToken that used the fractional-K
