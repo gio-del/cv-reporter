@@ -24,12 +24,14 @@ function emptyLanguage(): Language {
 
 function ListSection<T>({
   title,
+  itemLabel,
   items,
   onChange,
   makeEmpty,
   renderItem,
 }: {
   title: string
+  itemLabel: string
   items: T[]
   onChange: (items: T[]) => void
   makeEmpty: () => T
@@ -65,7 +67,7 @@ function ListSection<T>({
         ))}
       </div>
       <Button type="button" variant="outline" onClick={() => onChange([...items, makeEmpty()])}>
-        + Add {title.slice(0, -1)}
+        + Add {itemLabel}
       </Button>
     </FieldSet>
   )
@@ -134,6 +136,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
 
       <ListSection
         title="Education"
+        itemLabel="Education"
         items={form.education}
         onChange={(items) => set('education', items)}
         makeEmpty={emptyEducation}
@@ -205,6 +208,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
 
       <ListSection
         title="Publications"
+        itemLabel="Publication"
         items={form.publications}
         onChange={(items) => set('publications', items)}
         makeEmpty={emptyPublication}
@@ -256,6 +260,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
 
       <ListSection
         title="Awards"
+        itemLabel="Award"
         items={form.awards}
         onChange={(items) => set('awards', items)}
         makeEmpty={emptyAward}
@@ -283,6 +288,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
 
       <ListSection
         title="Activities"
+        itemLabel="Activity"
         items={form.activities}
         onChange={(items) => set('activities', items)}
         makeEmpty={emptyActivity}
@@ -310,6 +316,7 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
 
       <ListSection
         title="Languages"
+        itemLabel="Language"
         items={form.languages}
         onChange={(items) => set('languages', items)}
         makeEmpty={emptyLanguage}
