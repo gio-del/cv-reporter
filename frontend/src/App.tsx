@@ -11,28 +11,31 @@ import ProfilePage from '@/pages/ProfilePage'
 import SnippetCreatePage from '@/pages/SnippetCreatePage'
 import SnippetDetailPage from '@/pages/SnippetDetailPage'
 import SnippetsListPage from '@/pages/SnippetsListPage'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppNav />
-      <main className="mx-auto max-w-[960px] px-6 pt-6 pb-12 sm:px-4">
-        <Routes>
-          <Route path="/" element={<EntriesListPage />} />
-          <Route path="/entries/new" element={<EntryCreatePage />} />
-          <Route path="/entries/*" element={<EntryDetailPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/generate" element={<GenerationPage />} />
-          <Route path="/jobs" element={<JobListingsListPage />} />
-          <Route path="/jobs/new" element={<JobListingCreatePage />} />
-          <Route path="/ats" element={<AtsBrowsePage />} />
-          <Route path="/jobs/:id/generate" element={<GenerationPage />} />
-          <Route path="/snippets" element={<SnippetsListPage />} />
-          <Route path="/snippets/new" element={<SnippetCreatePage />} />
-          <Route path="/snippets/:id" element={<SnippetDetailPage />} />
-        </Routes>
-      </main>
-    </BrowserRouter>
+    <TooltipProvider>
+      <BrowserRouter>
+        <AppNav />
+        <main className="mx-auto max-w-[960px] px-6 pt-6 pb-12 sm:px-4">
+          <Routes>
+            <Route path="/" element={<EntriesListPage />} />
+            <Route path="/entries/new" element={<EntryCreatePage />} />
+            <Route path="/entries/*" element={<EntryDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/generate" element={<GenerationPage />} />
+            <Route path="/jobs" element={<JobListingsListPage />} />
+            <Route path="/jobs/new" element={<JobListingCreatePage />} />
+            <Route path="/ats" element={<AtsBrowsePage />} />
+            <Route path="/jobs/:id/generate" element={<GenerationPage />} />
+            <Route path="/snippets" element={<SnippetsListPage />} />
+            <Route path="/snippets/new" element={<SnippetCreatePage />} />
+            <Route path="/snippets/:id" element={<SnippetDetailPage />} />
+          </Routes>
+        </main>
+      </BrowserRouter>
+    </TooltipProvider>
   )
 }
 

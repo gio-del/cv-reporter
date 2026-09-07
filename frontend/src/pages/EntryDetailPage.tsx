@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { deleteEntry, getEntry } from '@/api/client'
 import type { Entry } from '@/api/types'
 import {
@@ -62,11 +62,6 @@ export default function EntryDetailPage() {
   if (editing) {
     return (
       <>
-        <p className="mb-4 inline-block text-sm">
-          <Link to="/" className="no-underline hover:underline">
-            ← Back to Master Data
-          </Link>
-        </p>
         <h1>Edit {title}</h1>
         <EntryEditForm
           entry={entry}
@@ -82,11 +77,6 @@ export default function EntryDetailPage() {
 
   return (
     <>
-      <p>
-        <Link to="/" className="no-underline hover:underline">
-          ← Back to Master Data
-        </Link>
-      </p>
       <h1>{title}</h1>
       {entry.type === 'experience' && (
         <dl>

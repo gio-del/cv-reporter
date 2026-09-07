@@ -25,11 +25,6 @@ export default function SnippetsListPage() {
 
   return (
     <>
-      <p className="mb-4 inline-block text-sm">
-        <Link to="/" className="no-underline hover:underline">
-          ← Back to Master Data
-        </Link>
-      </p>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="mb-0">Cover Letter Snippets</h1>
         <Button asChild>

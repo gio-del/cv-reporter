@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import BulletDiff from '@/components/BulletDiff'
 import RALBadge from '@/components/RALBadge'
 import {
@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn, jobListingHeading } from '@/lib/utils'
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
@@ -189,13 +190,6 @@ export default function GenerationPage() {
 
   return (
     <>
-      {jobListingId && (
-        <p className="mb-4 inline-block text-sm">
-          <Link to="/jobs" className="no-underline hover:underline">
-            ← Back to Job Listings
-          </Link>
-        </p>
-      )}
       <h1>{jobListing ? `Generate a Tailored CV for ${jobListingHeading(jobListing)}` : 'Generate a Tailored CV'}</h1>
 
       <section>
@@ -317,9 +311,14 @@ export default function GenerationPage() {
           )}
 
           <div className="mt-6 flex gap-3">
-            <Button onClick={handleRender} disabled={rendering}>
-              {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={handleRender} disabled={rendering}>
+                  {rendering ? 'Rendering…' : render ? 'Re-render' : 'Approve Text Review'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Renders the Tailored CV PDF from your edits above</TooltipContent>
+            </Tooltip>
           </div>
         </section>
       )}
