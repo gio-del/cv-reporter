@@ -6,6 +6,7 @@ import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
 import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import {
+  deleteJobListing,
   generationFileUrl,
   jobListingLogoUrl,
   listJobListings,
@@ -65,6 +66,11 @@ interface PendingStatusChange {
   to: ApplicationStatus
 }
 
+interface PendingDelete {
+  jobListingId: string
+  heading: string
+}
+
 export default function JobListingsListPage() {
   const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +80,9 @@ export default function JobListingsListPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     listJobListings()
@@ -136,6 +145,22 @@ export default function JobListingsListPage() {
     )
   }
 
+  async function handleConfirmDelete() {
+    if (!pendingDelete) return
+    const { jobListingId } = pendingDelete
+    setDeleteError(null)
+    setDeletingId(jobListingId)
+    try {
+      await deleteJobListing(jobListingId)
+      setListings((prev) => (prev ? prev.filter((l) => l.jobListing.id !== jobListingId) : prev))
+      setPendingDelete(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   async function handleResolve(jobListingId: string) {
     setResolveError(null)
     setResolvingId(jobListingId)
@@ -175,6 +200,12 @@ export default function JobListingsListPage() {
       {resolveError && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {resolveError}
+        </p>
+      )}
+
+      {deleteError && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {deleteError}
         </p>
       )}
 
@@ -331,6 +362,17 @@ export default function JobListingsListPage() {
                     )}
                   </span>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto"
+                  onClick={() =>
+                    setPendingDelete({ jobListingId: jobListing.id, heading: jobListingHeading(jobListing) })
+                  }
+                  disabled={deletingId === jobListing.id}
+                >
+                  Delete
+                </Button>
               </div>
             </li>
           )
@@ -360,6 +402,31 @@ export default function JobListingsListPage() {
               }}
             >
               {pendingChange?.to === 'rejected' ? 'Yes, mark Rejected' : 'Yes, reopen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pendingDelete?.heading}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will also remove its Application (Status, Method, Contact, and Generation history). This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId !== null}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmDelete()
+              }}
+              disabled={deletingId !== null}
+            >
+              {deletingId !== null ? 'Deleting…' : 'Yes, delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
