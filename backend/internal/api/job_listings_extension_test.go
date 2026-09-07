@@ -103,6 +103,86 @@ func TestCaptureJobListingFromExtension_TitleCarriesThrough(t *testing.T) {
 	}
 }
 
+// Confirms listingSalaryText is read from the extension-capture payload and
+// reaches ResolveRAL alongside the Job Description (story 4/18): a
+// non-overlapping salary badge figure produces a Conflict RALRange with
+// both figures labeled. The overlap/conflict logic itself is already
+// covered at the ResolveRAL seam in backend/internal/generation — this only
+// checks that the field is wired through.
+func TestCaptureJobListingFromExtension_ListingSalaryTextConflictsWithDescription_ReturnsConflictRAL(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":           "Acme Corp",
+		"description":       "RAL Fino a 63.000 EUR",
+		"listingSalaryText": "70,8K € /yr - 80,8K € /yr",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	ral := listing["ral"].(map[string]any)
+	if ral["source"] != "conflict" {
+		t.Fatalf("expected source conflict, got %v", ral["source"])
+	}
+	descriptionStated, ok := ral["descriptionStated"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected descriptionStated to be populated, got %v", ral["descriptionStated"])
+	}
+	if descriptionStated["min"] != float64(63000) || descriptionStated["max"] != float64(63000) {
+		t.Errorf("unexpected descriptionStated: %v", descriptionStated)
+	}
+	listingStated, ok := ral["listingStated"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected listingStated to be populated, got %v", ral["listingStated"])
+	}
+	if listingStated["min"] != float64(70800) || listingStated["max"] != float64(80800) {
+		t.Errorf("unexpected listingStated: %v", listingStated)
+	}
+}
+
+// Confirms a capture with no listingSalaryText at all behaves exactly as
+// before (regression check) — Job Description alone still resolves Stated.
+func TestCaptureJobListingFromExtension_NoListingSalaryText_ResolvesFromDescriptionAlone(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":     "Acme Corp",
+		"description": "RAL 45,000 - 55,000 EUR",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings/from-extension", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	ral := listing["ral"].(map[string]any)
+	if ral["source"] != "stated" {
+		t.Fatalf("expected source stated, got %v", ral["source"])
+	}
+	if ral["min"] != float64(45000) || ral["max"] != float64(55000) {
+		t.Errorf("unexpected ral: %v", ral)
+	}
+}
+
 // A minimal valid 1x1 PNG, so the downloaded bytes sniff as image/png.
 var fixturePNG = []byte{
 	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
