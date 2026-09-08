@@ -1,0 +1,15 @@
+{
+  "name": "cv-reporter-local",
+  "owner": {
+    "name": "Giovanni De Lucia"
+  },
+  "description": "Skills specific to the cv-reporter project.",
+  "plugins": [
+    {
+      "name": "cv-reporter-skills",
+      "source": "./plugins/cv-reporter-skills",
+      "description": "Skills for generating Tailored CVs from this repo's Master Data",
+      "version": "1.0.0"
+    }
+  ]
+}

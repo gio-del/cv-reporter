@@ -1,0 +1,9 @@
+{
+  "name": "cv-reporter-skills",
+  "displayName": "CV Reporter Skills",
+  "description": "Skills specific to this repo's Tailored CV pipeline.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Giovanni De Lucia"
+  }
+}

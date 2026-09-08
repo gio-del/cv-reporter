@@ -6,7 +6,7 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 
 ## Two parts
 
-**1. The tailoring pipeline** — a Claude Code skill (`.claude/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL) or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required). Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
+**1. The tailoring pipeline** — a Claude Code skill (`plugins/cv-reporter-skills/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required). Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
@@ -18,7 +18,7 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/...) + Markdown bullets.
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file and renders it; contains no selection/relevance logic.
 - `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data.
-- `.claude/skills/tailor-cv/` — the skill that drives the tailoring pipeline.
+- `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
 - `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
 - `extension/` — browser extension that captures the LinkedIn job posting you're viewing into the app as a Job Listing (see `extension/README.md`).
@@ -26,7 +26,14 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 
 ## Running the tailoring pipeline
 
-Invoke the `tailor-cv` skill in Claude Code with a job description (or nothing, for Default Mode). To render manually once a tailored data file exists:
+`tailor-cv` is served by this repo's own plugin marketplace (`.claude-plugin/marketplace.json`), not `.claude/skills/`. On a fresh clone, enable it once with:
+
+```
+claude plugin marketplace add .
+claude plugin install cv-reporter-skills@cv-reporter-local
+```
+
+(or set `extraKnownMarketplaces`/`enabledPlugins` in `.claude/settings.json` to auto-enable it for every trusted checkout — see ADR-0015). Once installed, invoke it in Claude Code as `/cv-reporter-skills:tailor-cv`, with a job description, a reference to an already-tracked Application, or nothing (Default Mode). To render manually once a tailored data file exists:
 
 ```
 typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
