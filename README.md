@@ -120,4 +120,4 @@ From `frontend/`: `npm run dev` (served by the `frontend` service above inside D
 - [`CONTEXT.md`](CONTEXT.md) — domain vocabulary (ubiquitous language)
 - [`docs/adr/`](docs/adr/) — architecture decision records
 - [`extension/README.md`](extension/README.md) — how the LinkedIn capture extension works and how to load it
-- [`brand/palette.md`](brand/palette.md) — the color palette behind the logo, and the shared reference for the upcoming UI-rebrand
+- [`brand/palette.md`](brand/palette.md) — the color palette behind the logo, applied across the frontend's shadcn/ui theme
