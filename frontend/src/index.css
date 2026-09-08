@@ -61,48 +61,50 @@
 :root {
   color-scheme: light dark;
 
-  --background: #f7fafa;
-  --foreground: #0f172a;
+  /* Brand palette (see /brand/palette.md): primary #4F46E5 (indigo),
+     accent #F59E0B (amber, "selected/tailored"), ink #1E293B (slate). */
+  --background: #f8fafc;
+  --foreground: #1e293b;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1e293b;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #0d9488;
+  --popover-foreground: #1e293b;
+  --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  --secondary: #eef4f3;
-  --secondary-foreground: #0f172a;
-  --muted: #eef4f3;
-  --muted-foreground: #475569;
-  --accent: #c2410c;
-  --accent-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #312e81;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f59e0b;
+  --accent-foreground: #1e293b;
   --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
-  --border: #d7e3e1;
-  --input: #d7e3e1;
-  --ring: #0d9488;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #4f46e5;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1412;
-    --foreground: #e6f1ef;
-    --card: #10201d;
-    --card-foreground: #e6f1ef;
-    --popover: #10201d;
-    --popover-foreground: #e6f1ef;
-    --primary: #2dd4bf;
-    --primary-foreground: #04201b;
-    --secondary: #16302b;
-    --secondary-foreground: #e6f1ef;
-    --muted: #16302b;
-    --muted-foreground: #9fb8b3;
-    --accent: #fb923c;
-    --accent-foreground: #04201b;
+    --background: #0b1120;
+    --foreground: #e2e8f0;
+    --card: #1e293b;
+    --card-foreground: #e2e8f0;
+    --popover: #1e293b;
+    --popover-foreground: #e2e8f0;
+    --primary: #818cf8;
+    --primary-foreground: #1e1b4b;
+    --secondary: #334155;
+    --secondary-foreground: #e2e8f0;
+    --muted: #334155;
+    --muted-foreground: #94a3b8;
+    --accent: #fbbf24;
+    --accent-foreground: #1e293b;
     --destructive: #f87171;
     --destructive-foreground: #2a0a0a;
-    --border: #234238;
-    --input: #234238;
-    --ring: #2dd4bf;
+    --border: #334155;
+    --input: #334155;
+    --ring: #818cf8;
   }
 }
 
@@ -124,11 +126,11 @@
   }
 
   h1 {
-    @apply text-[1.75rem] font-semibold mb-6;
+    @apply text-[1.75rem] font-bold tracking-tight mb-6;
   }
 
   h2 {
-    @apply text-xl font-semibold mt-8 mb-3;
+    @apply text-xl font-semibold tracking-tight mt-8 mb-3;
   }
 
   h3 {

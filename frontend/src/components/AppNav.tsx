@@ -16,7 +16,9 @@ export default function AppNav() {
       className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border bg-card px-6 py-4"
       aria-label="Primary"
     >
-      <strong className="mr-auto font-semibold">CV Reporter</strong>
+      <NavLink to="/" className="mr-auto flex items-center">
+        <img src="/logo-lockup.svg" alt="CV Reporter" className="h-7 w-auto" />
+      </NavLink>
       {navItems.map((item) => (
         <NavLink
           key={item.to}
