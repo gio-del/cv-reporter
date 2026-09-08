@@ -3,7 +3,7 @@
   "owner": {
     "name": "Giovanni De Lucia"
   },
-  "description": "Skills specific to the cv-reporter project (not the author's general-purpose personal skills, which stay synced via skills-lock.json).",
+  "description": "Skills specific to the cv-reporter project.",
   "plugins": [
     {
       "name": "cv-reporter-skills",
