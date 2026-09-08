@@ -97,13 +97,21 @@ export interface CoverLetterResult {
   sourceSnippetIds?: string[]
 }
 
-export type RALSource = 'stated' | 'estimated' | 'n/a' | 'unresolved'
+export type RALSource = 'stated' | 'estimated' | 'n/a' | 'unresolved' | 'conflict'
+
+export interface RALFigure {
+  min: number
+  max: number
+  currency: string
+}
 
 export interface RALRange {
   min?: number
   max?: number
   currency?: string
   source: RALSource
+  descriptionStated?: RALFigure
+  listingStated?: RALFigure
 }
 
 export interface GenerateResult {

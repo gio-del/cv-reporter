@@ -53,6 +53,34 @@ func TestParseStatedRAL_KSuffixRange_ParsesThousands(t *testing.T) {
 	}
 }
 
+func TestParseStatedRAL_FractionalKSuffixRange_ParsesThousandsWithDecimal(t *testing.T) {
+	jd := "RAL 63,2K - 70,8K € /yr"
+	ral, ok := ParseStatedRAL(jd)
+	if !ok {
+		t.Fatal("expected a stated RAL to be found")
+	}
+	if ral.Min == nil || *ral.Min != 63200 {
+		t.Errorf("expected min 63200, got %v", ral.Min)
+	}
+	if ral.Max == nil || *ral.Max != 70800 {
+		t.Errorf("expected max 70800, got %v", ral.Max)
+	}
+}
+
+func TestParseStatedRAL_FractionalKSuffixSingle_ParsesThousandsWithPeriodDecimal(t *testing.T) {
+	jd := "RAL 63.2K per year."
+	ral, ok := ParseStatedRAL(jd)
+	if !ok {
+		t.Fatal("expected a stated RAL to be found")
+	}
+	if ral.Min == nil || *ral.Min != 63200 {
+		t.Errorf("expected min 63200, got %v", ral.Min)
+	}
+	if ral.Max == nil || *ral.Max != 63200 {
+		t.Errorf("expected max 63200, got %v", ral.Max)
+	}
+}
+
 func TestParseStatedRAL_NoSalaryText_ReturnsFalse(t *testing.T) {
 	jd := "We are looking for a Go backend engineer with 3+ years of experience in distributed systems."
 	if _, ok := ParseStatedRAL(jd); ok {

@@ -37,6 +37,11 @@ type SaveRequest struct {
 	// capture only — ATS/manual save paths never populate it), downloaded
 	// best-effort by Save (ADR-0013).
 	LogoURL string
+	// ListingSalaryText is LinkedIn's own salary-insight badge text
+	// (browser-extension capture only — ATS/manual save paths have no
+	// equivalent structured field, same as LogoURL), fed to RAL Range
+	// resolution alongside the Job Description (ADR-0014).
+	ListingSalaryText string
 }
 
 type rawJobListingFrontmatter struct {
@@ -78,7 +83,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		return JobListing{}, Application{}, fmt.Errorf("%w: jobDescription or jobDescriptionUrl is required", ErrValidation)
 	}
 
-	ral := resolveRALBestEffort(ctx, jobDescription, client)
+	ral := resolveRALBestEffort(ctx, jobDescription, req.ListingSalaryText, client)
 	method := resolveApplicationMethodBestEffort(ctx, jobDescription, client)
 
 	jobsFullDir := filepath.Join(dataDir, jobsDir)

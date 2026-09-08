@@ -69,7 +69,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, err
 	}
 
-	ral, err := ResolveRAL(ctx, jobDescription, client)
+	ral, err := ResolveRAL(ctx, jobDescription, "", client)
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
 	}
@@ -83,14 +83,38 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	}, nil
 }
 
-// ResolveRAL implements the PRD's RAL Range lookup: parse the Job
-// Description text first, and only ask the Client to research one (via web
-// search) if nothing is stated directly. Exported so the tracking package
-// (Job Listing's RAL Range, see CONTEXT.md) can reuse the same lookup
-// Generate uses, rather than duplicating it.
-func ResolveRAL(ctx context.Context, jobDescription string, client Client) (RALRange, error) {
-	if ral, ok := ParseStatedRAL(jobDescription); ok {
-		return ral, nil
+// ResolveRAL implements the PRD's RAL Range lookup, now against two
+// sources: the Job Description text and, for a LinkedIn capture, the
+// listing's own dedicated salary-badge text (listingSalaryText — empty for
+// every other intake path, which behaves exactly as before). If only one
+// source states a figure, that's Stated exactly as before, regardless of
+// which source it came from. If both state figures, overlapping/matching
+// ranges resolve to the Job-Description-stated figure (the listing figure
+// discarded, no conflict surfaced); non-overlapping ranges report
+// RALSourceConflict with both figures labeled, rather than picking one
+// silently (ADR-0014). Only when neither source states anything does this
+// ask the Client to research one (via web search), same as before.
+// Exported so the tracking package (Job Listing's RAL Range, see
+// CONTEXT.md) can reuse the same lookup Generate uses, rather than
+// duplicating it.
+func ResolveRAL(ctx context.Context, jobDescription string, listingSalaryText string, client Client) (RALRange, error) {
+	descriptionRAL, descriptionOK := ParseStatedRAL(jobDescription)
+	listingRAL, listingOK := ParseStatedRAL(listingSalaryText)
+
+	switch {
+	case descriptionOK && listingOK:
+		if ralRangesOverlap(descriptionRAL, listingRAL) {
+			return descriptionRAL, nil
+		}
+		return RALRange{
+			Source:            RALSourceConflict,
+			DescriptionStated: ralFigureFrom(descriptionRAL),
+			ListingStated:     ralFigureFrom(listingRAL),
+		}, nil
+	case descriptionOK:
+		return descriptionRAL, nil
+	case listingOK:
+		return listingRAL, nil
 	}
 
 	ral, err := client.EstimateRAL(ctx, jobDescription)
@@ -102,6 +126,17 @@ func ResolveRAL(ctx context.Context, jobDescription string, client Client) (RALR
 		ral.Source = RALSourceEstimated
 	}
 	return ral, nil
+}
+
+// ralRangesOverlap reports whether a and b's [Min,Max] ranges share any
+// point at all — touching counts as overlapping (e.g. 40000-50000 and
+// 50000-60000).
+func ralRangesOverlap(a, b RALRange) bool {
+	return *a.Min <= *b.Max && *b.Min <= *a.Max
+}
+
+func ralFigureFrom(ral RALRange) *RALFigure {
+	return &RALFigure{Min: *ral.Min, Max: *ral.Max, Currency: ral.Currency}
 }
 
 // ResolveJobDescription returns the Job Description text to use: text

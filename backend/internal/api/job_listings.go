@@ -37,6 +37,11 @@ type captureJobListingRequest struct {
 	URL         string `json:"url"`
 	Description string `json:"description"`
 	LogoURL     string `json:"logoUrl"`
+	// ListingSalaryText is LinkedIn's own salary-insight badge text,
+	// captured separately from Description (ADR-0014) — empty when the
+	// listing has no such badge, which resolveRALBestEffort treats
+	// exactly as today (Job-Description-text-only resolution).
+	ListingSalaryText string `json:"listingSalaryText"`
 }
 
 func listJobListingsHandler(dataDir string) http.HandlerFunc {
@@ -208,11 +213,12 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 		}
 
 		listing, application, err := tracking.Save(r.Context(), dataDir, client, doer, tracking.SaveRequest{
-			Title:          req.Title,
-			Company:        req.Company,
-			URL:            req.URL,
-			JobDescription: req.Description,
-			LogoURL:        req.LogoURL,
+			Title:             req.Title,
+			Company:           req.Company,
+			URL:               req.URL,
+			JobDescription:    req.Description,
+			LogoURL:           req.LogoURL,
+			ListingSalaryText: req.ListingSalaryText,
 		})
 		if errors.Is(err, tracking.ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
