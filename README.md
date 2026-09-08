@@ -1,6 +1,26 @@
-# CV Reporter
+<p align="center">
+  <img src="brand/logo-lockup.svg" alt="CV Reporter" width="320">
+</p>
 
-A personal tool that turns one person's complete career history (Master Data) into a tailored, one-page CV (PDF), generated on demand for a specific job application. It is not a generic resume builder.
+<p align="center">
+  A personal tool that turns one person's complete career history into a tailored, one-page CV — generated on demand for a specific job application.
+</p>
+
+<p align="center">
+  <img alt="Go" src="https://img.shields.io/badge/Go-00ADD8?logo=go&logoColor=white">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
+  <img alt="React" src="https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB">
+  <img alt="Typst" src="https://img.shields.io/badge/Typst-239DAD?logo=typst&logoColor=white">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/job-listings.png" alt="Job Listings tracking view" width="90%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/generate.png" alt="Generation flow" width="90%">
+</p>
+
+It is not a generic resume builder — it's built around one person's career history, and produces a *Tailored CV* per *Job Description*. This stays a personal tool, not a product pitched at other users.
 
 See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagement, Selection, Rewrite, Tailored CV, Job Listing, Application, ...) and `docs/adr/` for why the architecture looks like this.
 
@@ -10,7 +30,7 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
-Job Listings can be added to the web app three ways: manual paste (URL/text), pulling from an ATS's public job-board API (Greenhouse/Lever/Ashby), or a browser extension (`extension/`) that captures the LinkedIn job posting you're currently viewing — see `docs/adr/0007-job-sourcing.md` for why it's scoped this way and `extension/README.md` for how to load it.
+Job Listings can be added to the web app three ways: manual paste (URL/text), pulling from an ATS's public job-board API (Greenhouse/Lever/Ashby), or a browser extension (`extension/`) that captures the LinkedIn job posting you're currently viewing — see `docs/adr/0007-job-sourcing.md` for why it's scoped this way and [`extension/README.md`](extension/README.md) for how to load it and how capture works.
 
 ## Repo layout
 
@@ -21,7 +41,8 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
 - `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
-- `extension/` — browser extension that captures the LinkedIn job posting you're viewing into the app as a Job Listing (see `extension/README.md`).
+- `extension/` — browser extension that captures the LinkedIn job posting you're viewing into the app as a Job Listing (see [`extension/README.md`](extension/README.md)).
+- `brand/` — logo (full lockup + icon-only mark) and color palette; the shared identity the web app's UI is meant to match.
 - `docs/adr/` — architecture decision records.
 
 ## Running the tailoring pipeline
@@ -93,3 +114,10 @@ Backend tests are Go `testing`-package HTTP integration tests, run with `go test
 ### Frontend dev loop
 
 From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`.
+
+## Further reading
+
+- [`CONTEXT.md`](CONTEXT.md) — domain vocabulary (ubiquitous language)
+- [`docs/adr/`](docs/adr/) — architecture decision records
+- [`extension/README.md`](extension/README.md) — how the LinkedIn capture extension works and how to load it
+- [`brand/palette.md`](brand/palette.md) — the color palette behind the logo, and the shared reference for the upcoming UI-rebrand
