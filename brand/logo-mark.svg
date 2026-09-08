@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="CV Reporter icon: a document with a targeted bullseye, representing a CV tailored to hit one specific role">
+  <path d="M16 6 L40 6 L50 16 L50 54 Q50 58 46 58 L16 58 Q12 58 12 54 L12 10 Q12 6 16 6 Z" fill="#4F46E5"/>
+  <path d="M40 6 L40 16 L50 16 Z" fill="#3730A3"/>
+  <circle cx="31" cy="34" r="12" fill="#FFFFFF"/>
+  <circle cx="31" cy="34" r="8" fill="#4F46E5"/>
+  <circle cx="31" cy="34" r="4" fill="#FFFFFF"/>
+  <circle cx="31" cy="34" r="1.8" fill="#F59E0B"/>
+</svg>
