@@ -33,3 +33,7 @@ Note: ADR-0001 ("no Node.js/JS toolchain") only ever applied to the tailoring pi
 - `frontend/` — React + TypeScript + Vite app consuming that API.
 
 Adding a new job or project means adding a new Markdown file under `data/experience/` or `data/projects/` following the existing frontmatter shape — not writing code.
+
+## Keeping docs in sync
+
+Whenever a change alters something `README.md`, `CONTEXT.md`, or `docs/adr/` documents (a new/changed API route, a new top-level directory, a new running-it step, a superseded decision), update that documentation in the same session/commit as the code change — don't leave it for a later pass.
