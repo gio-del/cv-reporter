@@ -10,7 +10,7 @@ Read `CONTEXT.md` first for the domain vocabulary (Master Data, Entry, Client En
 
 ## Running it
 
-The tailoring "build" is the `tailor-cv` skill (`.claude/skills/tailor-cv/SKILL.md`) — invoke it with a job description (pasted text or URL) or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required).
+The tailoring "build" is the `tailor-cv` skill (`plugins/cv-reporter-skills/skills/tailor-cv/SKILL.md`, invoked as `/cv-reporter-skills:tailor-cv`) — invoke it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required), recording the Generation against the tracked Application afterward when that's the input mode used.
 
 Rendering requires the `typst` CLI on `PATH`. To render manually once a tailored data file exists:
 ```
@@ -28,7 +28,7 @@ Note: ADR-0001 ("no Node.js/JS toolchain") only ever applied to the tailoring pi
 - `data/cover-letter-snippets/*.md` — optional Master Data. One file per Cover Letter Snippet: YAML frontmatter (`kind`, optional `tags`) + a Markdown paragraph body.
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file (path passed via `--input data=...`) and renders it; contains no relevance/selection logic. The Tech Stack section it renders is expected to already be derived (deduplicated `tags` of the selected Entries) by whoever assembled the JSON — the template just prints it.
 - `output/` — gitignored. Rendered PDFs and the per-Generation assembled JSON are derived artifacts, not Master Data.
-- `.claude/skills/tailor-cv/` — the skill that drives the whole tailoring pipeline described above.
+- `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/SKILL.md`), the skill that drives the whole tailoring pipeline described above. Kept separate from the author's general-purpose personal skills (`develop`, `tdd`, `domain-modeling`, …), which stay synced in via `skills-lock.json` from an external repo and are untouched by this one.
 - `backend/` — Go HTTP API (see `backend/internal/api`) that reads/writes the same Master Data files under `data/` that the skill uses.
 - `frontend/` — React + TypeScript + Vite app consuming that API.
 
