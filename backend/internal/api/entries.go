@@ -9,18 +9,21 @@ import (
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
 )
 
-func listEntriesHandler(dataDir string) http.HandlerFunc {
+func listEntriesHandler(dataDir, projectRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		entries, err := masterdata.ListEntries(dataDir)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		for i := range entries {
+			attachLastModified(&entries[i], dataDir, projectRoot)
+		}
 		writeJSON(w, http.StatusOK, entries)
 	}
 }
 
-func getEntryHandler(dataDir string) http.HandlerFunc {
+func getEntryHandler(dataDir, projectRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		entry, err := masterdata.GetEntry(dataDir, id)
@@ -32,8 +35,20 @@ func getEntryHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachLastModified(&entry, dataDir, projectRoot)
 		writeJSON(w, http.StatusOK, entry)
 	}
+}
+
+// attachLastModified populates entry.LastModified via a git-log lookup,
+// leaving it nil (never erroring the request) if there's no history to
+// report — see masterdata.EntryLastModified.
+func attachLastModified(entry *masterdata.Entry, dataDir, projectRoot string) {
+	lm, err := masterdata.EntryLastModified(projectRoot, dataDir, entry.ID)
+	if err != nil || lm == (masterdata.LastModified{}) {
+		return
+	}
+	entry.LastModified = &lm
 }
 
 func createEntryHandler(dataDir string) http.HandlerFunc {
