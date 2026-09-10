@@ -81,6 +81,14 @@ type GenerationRecord struct {
 	CoverLetterPath string                         `json:"coverLetterPath,omitempty"`
 	Groundedness    *generation.GroundednessResult `json:"groundedness,omitempty" yaml:"groundedness,omitempty"`
 
+	// SourceSnippetIDs are the Cover Letter Snippet ids this Generation's
+	// Cover Letter drew from, as returned by POST /api/generations at
+	// generation time. Empty/absent means either no Snippet was used (fresh
+	// prose) or this record predates the field — the two are indistinguishable,
+	// and both must be treated as "no usage signal from this record" rather
+	// than "never used" (issue #48).
+	SourceSnippetIDs []string `json:"sourceSnippetIds,omitempty"`
+
 	// Usage is the Claude API usage/cost the Generate call that produced this
 	// Generation caused, as returned in GenerateResult.Usage — passed through
 	// verbatim by the FE at record time (issue #39: cost/usage visibility

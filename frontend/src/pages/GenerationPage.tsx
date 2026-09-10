@@ -107,6 +107,7 @@ export default function GenerationPage() {
   const [mode, setMode] = useState<'default' | 'tailored' | null>(null)
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [coverLetterSnippetIds, setCoverLetterSnippetIds] = useState<string[] | undefined>(undefined)
   const [ral, setRal] = useState<RALRange | null>(null)
   const [usage, setUsage] = useState<GenerationUsage | null>(null)
   const [language, setLanguage] = useState<string | null>(null)
@@ -154,6 +155,7 @@ export default function GenerationPage() {
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
+      setCoverLetterSnippetIds(result.coverLetter?.sourceSnippetIds)
       setRal(result.ral ?? null)
       setUsage(result.usage ?? null)
       setLanguage(result.language)
@@ -265,6 +267,7 @@ export default function GenerationPage() {
             slug: result.slug,
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
+            sourceSnippetIds: result.coverLetterPath ? coverLetterSnippetIds : undefined,
             usage: usage ?? undefined,
             language: language ?? undefined,
             groundedness: groundedness ?? undefined,

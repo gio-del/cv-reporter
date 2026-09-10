@@ -78,6 +78,50 @@ func TestListSnippets_ReturnsSnippetsSeededOnDisk(t *testing.T) {
 	}
 }
 
+func TestListSnippets_IncludesLastUsedAtFromRecordedGenerations(t *testing.T) {
+	dataDir := seedSnippetsDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":             "acme-corp",
+		"cvPath":           "output/acme-corp/cv.pdf",
+		"coverLetterPath":  "output/acme-corp/cover-letter.pdf",
+		"sourceSnippetIds": []string{"opening-ai-platforms"},
+	})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 recording the Generation, got %d", resp.StatusCode)
+	}
+
+	listResp, err := http.Get(server.URL + "/api/master-data/cover-letter-snippets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listResp.Body.Close()
+
+	var snippets []map[string]any
+	if err := json.NewDecoder(listResp.Body).Decode(&snippets); err != nil {
+		t.Fatal(err)
+	}
+
+	byID := map[string]map[string]any{}
+	for _, s := range snippets {
+		byID[s["id"].(string)] = s
+	}
+
+	used := byID["opening-ai-platforms"]
+	if used["lastUsedAt"] == nil || used["lastUsedAt"] == "" {
+		t.Errorf("expected opening-ai-platforms to have a non-empty lastUsedAt, got %v", used["lastUsedAt"])
+	}
+
+	unused := byID["closing-standard"]
+	if v, ok := unused["lastUsedAt"]; ok && v != nil {
+		t.Errorf("expected closing-standard (never used) to have no lastUsedAt, got %v", v)
+	}
+}
+
 func TestGetSnippet_ReturnsFrontmatterAndBody(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
 	server := httptest.NewServer(api.NewRouter(dataDir))

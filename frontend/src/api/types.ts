@@ -77,6 +77,7 @@ export interface Snippet {
   kind: string
   tags: string[]
   body: string
+  lastUsedAt?: string
 }
 
 export type SnippetInput = Omit<Snippet, 'id'>
@@ -219,6 +220,7 @@ export interface GenerationRecord {
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
   usage?: GenerationUsage
 }
 
@@ -266,6 +268,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
   usage?: GenerationUsage
   language?: string
   groundedness?: GroundednessResult

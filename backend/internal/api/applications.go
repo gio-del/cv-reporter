@@ -44,12 +44,13 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 }
 
 type recordGenerationRequest struct {
-	Slug            string                         `json:"slug"`
-	CVPath          string                         `json:"cvPath"`
-	CoverLetterPath string                         `json:"coverLetterPath"`
-	Usage           generation.GenerationUsage     `json:"usage"`
-	Language        string                         `json:"language"`
-	Groundedness    *generation.GroundednessResult `json:"groundedness"`
+	Slug             string                         `json:"slug"`
+	CVPath           string                         `json:"cvPath"`
+	CoverLetterPath  string                         `json:"coverLetterPath"`
+	SourceSnippetIDs []string                       `json:"sourceSnippetIds"`
+	Usage            generation.GenerationUsage     `json:"usage"`
+	Language         string                         `json:"language"`
+	Groundedness     *generation.GroundednessResult `json:"groundedness"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -71,13 +72,14 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 		}
 
 		record := tracking.GenerationRecord{
-			Slug:            req.Slug,
-			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
-			CVPath:          req.CVPath,
-			CoverLetterPath: req.CoverLetterPath,
-			Usage:           req.Usage,
-			Language:        req.Language,
-			Groundedness:    req.Groundedness,
+			Slug:             req.Slug,
+			CreatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+			CVPath:           req.CVPath,
+			CoverLetterPath:  req.CoverLetterPath,
+			SourceSnippetIDs: req.SourceSnippetIDs,
+			Usage:            req.Usage,
+			Language:         req.Language,
+			Groundedness:     req.Groundedness,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {
