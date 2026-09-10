@@ -96,6 +96,7 @@ docker-compose up
 | GET | `/api/job-listings/{id}` | get a Job Listing |
 | POST | `/api/job-listings/{id}/resolve` | retry RAL Range/Application Method resolution for whatever is still `unresolved` on a Job Listing (no-op if both already resolved) |
 | POST | `/api/job-listings/{id}/suggest-contact` | suggest an Application contact for a Job Listing |
+| POST | `/api/job-listings/{id}/check-freshness` | on-demand check of whether a Job Listing's source URL is still live (`live`/`unreachable`/`unknown`), persisting the result and a checked-at timestamp |
 | PATCH | `/api/applications/{id}/status` | move an Application's status (state machine — see `tracking.allowedTransitions`) |
 | PATCH | `/api/applications/{id}/method` | correct an Application's Application Method |
 | PATCH | `/api/applications/{id}/contact` | correct an Application's contact |

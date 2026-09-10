@@ -142,6 +142,8 @@ export interface RenderResult {
 
 export type JobListingSource = 'manual'
 
+export type FreshnessStatus = 'not-yet-checked' | 'live' | 'unreachable' | 'unknown'
+
 export interface JobListing {
   id: string
   title?: string
@@ -152,6 +154,8 @@ export interface JobListing {
   jobDescription: string
   ral: RALRange
   logo?: string
+  freshnessStatus: FreshnessStatus
+  freshnessCheckedAt?: string
 }
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'

@@ -164,6 +164,14 @@ export function resolveJobListing(jobListingId: string): Promise<JobListingWithA
   return request(`/api/job-listings/${encodeURIComponent(jobListingId)}/resolve`, { method: 'POST' })
 }
 
+export async function checkJobListingFreshness(jobListingId: string): Promise<JobListing> {
+  const result = await request<{ jobListing: JobListing }>(
+    `/api/job-listings/${encodeURIComponent(jobListingId)}/check-freshness`,
+    { method: 'POST' },
+  )
+  return result.jobListing
+}
+
 export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
