@@ -19,6 +19,11 @@ type leverPosting struct {
 // FetchLeverListings fetches company's open roles from Lever's public
 // postings API (documented, read-only — see ADR-0007) and normalizes them
 // into the common Listing shape (story 2).
+//
+// Company Logo (issue #42): verified against live api.lever.co postings
+// responses — no logo/image/photo field appears anywhere on a posting, so
+// Listing.LogoURL is always left empty here. If Lever ever exposes one,
+// populate it from whichever field carries it.
 func FetchLeverListings(ctx context.Context, doer HTTPDoer, company string) ([]Listing, error) {
 	url := fmt.Sprintf("https://api.lever.co/v0/postings/%s?mode=json", company)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

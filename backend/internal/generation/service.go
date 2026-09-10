@@ -36,14 +36,15 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	}
 
 	if jobDescription == "" {
-		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries)}, nil
+		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries), Language: DefaultLanguage}, nil
 	}
 
 	candidates := toCandidates(entries)
 
 	selection, err := client.SelectAndRewrite(ctx, SelectionRequest{
-		JobDescription: jobDescription,
-		Candidates:     candidates,
+		JobDescription:   jobDescription,
+		Candidates:       candidates,
+		LanguageOverride: req.LanguageOverride,
 	})
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("selecting and rewriting: %w", err)
@@ -51,6 +52,15 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	if err := validateSelection(selection, entries); err != nil {
 		return GenerateResult{}, err
 	}
+
+	// The override wins even if the Client echoed something else back, so
+	// a user-corrected language at Text Review is never second-guessed.
+	language := selection.Language
+	if req.LanguageOverride != "" {
+		language = req.LanguageOverride
+	}
+	language = NormalizeLanguage(language)
+	selection.Language = language
 
 	snippets, err := masterdata.ListSnippets(dataDir)
 	if err != nil {
@@ -61,6 +71,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		JobDescription: jobDescription,
 		Candidates:     candidates,
 		Snippets:       toCandidateSnippets(snippets),
+		Language:       language,
 	})
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("drafting cover letter: %w", err)
@@ -74,13 +85,53 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
 	}
 
+	groundedness := computeGroundedness(selection, coverLetter, snippets)
+
 	return GenerateResult{
 		Mode:           ModeTailored,
 		JobDescription: jobDescription,
 		Selection:      selection,
 		CoverLetter:    &coverLetter,
 		RAL:            &ral,
+		Usage:          aggregateUsage(DrainUsage(client)),
+		Language:       language,
+		Groundedness:   &groundedness,
 	}, nil
+}
+
+// Preview runs Selection alone for req: no Rewrite, no Cover Letter
+// drafting, no RAL Range estimation, and (unlike Generate) never persisted
+// against an Application — a cheap sanity check of what Selection would
+// pick before committing to a full Generation (see the "Dry-run Selection
+// preview" PRD). Default Mode behaves exactly as in Generate: every Entry
+// included, unmodified, no Client call.
+func Preview(ctx context.Context, dataDir string, client Client, req GenerateRequest) (GenerateResult, error) {
+	entries, err := masterdata.ListEntries(dataDir)
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("loading master data: %w", err)
+	}
+
+	jobDescription, err := ResolveJobDescription(ctx, req.JobDescription, req.JobDescriptionURL)
+	if err != nil {
+		return GenerateResult{}, err
+	}
+
+	if jobDescription == "" {
+		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries)}, nil
+	}
+
+	selection, err := client.SelectOnly(ctx, SelectionRequest{
+		JobDescription: jobDescription,
+		Candidates:     toCandidates(entries),
+	})
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("selecting: %w", err)
+	}
+	if err := validateSelection(selection, entries); err != nil {
+		return GenerateResult{}, err
+	}
+
+	return GenerateResult{Mode: ModeTailored, JobDescription: jobDescription, Selection: selection}, nil
 }
 
 // ResolveRAL implements the PRD's RAL Range lookup, now against two

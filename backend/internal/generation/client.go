@@ -9,6 +9,13 @@ import "context"
 // per the PRD's Testing Decisions.
 type Client interface {
 	SelectAndRewrite(ctx context.Context, req SelectionRequest) (SelectionResult, error)
+
+	// SelectOnly asks for Selection alone, with no Rewrite: a dedicated,
+	// smaller Claude call for the Selection-preview path (see the "Dry-run
+	// Selection preview" PRD), not a filtered view of SelectAndRewrite's
+	// response — that would still incur Rewrite's full cost and latency.
+	SelectOnly(ctx context.Context, req SelectionRequest) (SelectionResult, error)
+
 	DraftCoverLetter(ctx context.Context, req CoverLetterRequest) (CoverLetterResult, error)
 
 	// EstimateRAL researches a RAL Range for jobDescription when

@@ -1,14 +1,15 @@
-# CV Reporter — LinkedIn Capture
+# CV Reporter — Job Capture
 
-A browser extension that captures the LinkedIn job posting you're currently viewing into your local CV Reporter app as a Job Listing. See `docs/adr/0007-job-sourcing.md` for why this is scoped to reading a page you're already looking at, never scraping.
+A browser extension that captures the LinkedIn or Indeed job posting you're currently viewing into your local CV Reporter app as a Job Listing. See `docs/adr/0007-job-sourcing.md` for why this is scoped to reading a page you're already looking at, never scraping.
 
 ## How it works
 
-- A "Save to CV Reporter" button appears (bottom-right) on any `linkedin.com/jobs/*` page.
-- Clicking it reads the Job Title, company, location, Company Logo, and Job Description (as Markdown) already rendered on the page — no request to LinkedIn is made by the extension.
+- A "Save to CV Reporter" button appears (bottom-right) on any `linkedin.com/jobs/*` or `*.indeed.com/viewjob*` page.
+- Clicking it reads the Job Title, company, location, Company Logo, and Job Description (as Markdown) already rendered on the page — no request to LinkedIn/Indeed is made by the extension.
 - That content is sent to your local backend (`POST http://localhost:8080/api/job-listings/from-extension`), which saves it as a Job Listing the same way a manually-pasted one is saved (Company Logo downloaded, RAL Range looked up, Application Method inferred, Application created at Saved).
 - The button shows a success/failure message after each attempt.
 - Nothing happens automatically in the background — only an explicit click triggers a capture.
+- `content.js` (LinkedIn) and `content-indeed.js` (Indeed) are board-specific: each has its own selectors and its own known fragility. They share only what's genuinely board-agnostic — the button/status UI, the message-passing to `background.js`, and Turndown-based HTML-to-Markdown conversion — via `capture-common.js`.
 
 Requires the CV Reporter backend running locally (`docker-compose up` from the repo root; see the root `README.md`).
 
@@ -19,13 +20,13 @@ Requires the CV Reporter backend running locally (`docker-compose up` from the r
 1. Open `chrome://extensions`.
 2. Enable **Developer mode** (top-right toggle).
 3. Click **Load unpacked** and select this `extension/` directory.
-4. Visit any LinkedIn job posting page — the "Save to CV Reporter" button should appear.
+4. Visit any LinkedIn or Indeed job posting page — the "Save to CV Reporter" button should appear.
 
 **Firefox:**
 
 1. Open `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on…** and select `extension/manifest.json` (the manifest file itself, not the folder).
-3. Visit any LinkedIn job posting page — the "Save to CV Reporter" button should appear.
+3. Visit any LinkedIn or Indeed job posting page — the "Save to CV Reporter" button should appear.
 
 Note: Firefox unloads temporary add-ons when the browser restarts — you'll need to reload it each session. `manifest.json` declares both `background.service_worker` (Chrome) and `background.scripts` (Firefox) so the same extension works unmodified in both.
 
@@ -36,7 +37,20 @@ Note: Firefox unloads temporary add-ons when the browser restarts — you'll nee
 - The Company Logo is downloaded by the backend at save time and stored alongside the Job Listing record (ADR-0013) — a failed download never blocks the save, the Job Listing just ends up with no logo.
 - The captured URL: on a direct `/jobs/view/<id>/` page, it's the stripped `window.location.href`. On the search-results split-pane view, clicking between postings only changes the `currentJobId` query param — `window.location` itself stays on the generic search page — so `content.js` reads `currentJobId` and builds `https://www.linkedin.com/jobs/view/<id>/` instead.
 - The backend URL is hardcoded to `http://localhost:8080` in `background.js` — edit it there if your backend runs elsewhere.
-- `turndown.js` is [Turndown](https://github.com/mixmark-io/turndown) vendored as a plain browser-global script (no npm/build step) and loaded as a `content_scripts` entry ahead of `content.js`, which uses the `TurndownService` global it defines.
+- `turndown.js` is [Turndown](https://github.com/mixmark-io/turndown) vendored as a plain browser-global script (no npm/build step) and loaded as a `content_scripts` entry ahead of `content.js`/`content-indeed.js`, which use the `TurndownService` global it defines.
+- `content-indeed.js` reads the job title from `[data-testid="jobsearch-JobInfoHeader-title"]` (falling back to `document.title`), the company from `[data-testid="inlineHeader-companyName"]`, the description from `#jobDescriptionText`, the Company Logo from the header's `<img>`, and a salary line from `#salaryInfoAndJobType` when present — otherwise the same short-element currency-pattern scan LinkedIn's `listingSalaryText` uses. The canonical URL is rebuilt from the `jk` query param (`https://<host>/viewjob?jk=<id>`), dropping tracking params, the same way `content.js` rebuilds LinkedIn's `currentJobId`. **These selectors were written from Indeed's commonly-documented markup, not verified against a live page** (no browser access in the environment that wrote this) — re-confirm against a real Indeed job-view page before relying on this, and update `extension/fixtures/indeed-job-view.html` + `content-indeed.test.js` together if they've drifted.
+
+## Tests
+
+Each board's field-extraction logic (title/company/description/etc.) is written as a pure `(document) => payload` function so it can run against a static HTML fixture in Node, without a live page or the `chrome.*` extension APIs:
+
+```
+cd extension
+npm install
+npm test
+```
+
+Only the pure extraction functions are covered this way — button injection, click handling, and message-passing to `background.js` stay untested, exercised manually via "Loading it" above instead. `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
 
 ### If capture breaks again
 

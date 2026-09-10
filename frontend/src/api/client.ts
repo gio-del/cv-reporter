@@ -2,6 +2,7 @@ import type {
   AddTrackedBoardRequest,
   Application,
   ApplicationMethod,
+  ApplicationStats,
   ApplicationStatus,
   AtsListing,
   AtsProvider,
@@ -10,6 +11,7 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  GenerationUsage,
   JobListing,
   JobListingWithApplication,
   Profile,
@@ -116,6 +118,14 @@ export function createGeneration(req: GenerateRequest): Promise<GenerateResult> 
   })
 }
 
+export function previewGeneration(req: GenerateRequest): Promise<GenerateResult> {
+  return request('/api/generations/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
 export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
   return request('/api/generations/render', {
     method: 'POST',
@@ -128,8 +138,29 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
-export function listJobListings(): Promise<JobListingWithApplication[]> {
-  return request('/api/job-listings')
+export interface JobListingsFilter {
+  status?: ApplicationStatus
+  company?: string
+  savedFrom?: string
+  savedTo?: string
+}
+
+export function listJobListings(filter?: JobListingsFilter): Promise<JobListingWithApplication[]> {
+  const params = new URLSearchParams()
+  if (filter?.status) params.set('status', filter.status)
+  if (filter?.company) params.set('company', filter.company)
+  if (filter?.savedFrom) params.set('savedFrom', filter.savedFrom)
+  if (filter?.savedTo) params.set('savedTo', filter.savedTo)
+  const query = params.toString()
+  return request(`/api/job-listings${query ? `?${query}` : ''}`)
+}
+
+export function exportDataUrl(): string {
+  return '/api/export'
+}
+
+export function getApplicationsStats(): Promise<ApplicationStats> {
+  return request('/api/applications/stats')
 }
 
 export function getJobListing(id: string): Promise<JobListing> {
@@ -222,4 +253,8 @@ export async function removeTrackedBoard(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getUsageSummary(): Promise<GenerationUsage> {
+  return request('/api/usage')
 }

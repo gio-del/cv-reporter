@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -404,6 +405,86 @@ func TestCreateJobListing_MissingJobDescription_Returns400AndNoFilesCreated(t *t
 	assertNoFilesIn(t, filepath.Join(dataDir, "jobs"))
 }
 
+// Confirms POST /api/job-listings (the ATS-browse and manual-paste save
+// path) downloads and persists a Company Logo when the request carries a
+// logoUrl, mirroring what the extension-capture path already does — issue
+// #42 extends this same save path to ATS-sourced listings (fixturePNG is
+// defined in job_listings_extension_test.go, same package).
+func TestCreateJobListing_LogoURLPresent_DownloadsAndPersistsLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		if req.URL.String() != "https://boards.greenhouse.io/acme/logo.png" {
+			t.Errorf("expected a request to the logo URL, got %s", req.URL.String())
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"image/png"}},
+			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
+		}, nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":        "Acme Corp",
+		"url":            "https://boards.greenhouse.io/acme/jobs/1",
+		"jobDescription": "Go backend engineer.",
+		"logoUrl":        "https://boards.greenhouse.io/acme/logo.png",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	logo, ok := listing["logo"].(string)
+	if !ok || logo == "" {
+		t.Fatalf("expected a non-empty logo filename, got %v", listing["logo"])
+	}
+
+	logoBytes, err := os.ReadFile(filepath.Join(dataDir, "jobs", logo))
+	if err != nil {
+		t.Fatalf("expected the downloaded logo file to exist on disk: %v", err)
+	}
+	if !bytes.Equal(logoBytes, fixturePNG) {
+		t.Errorf("expected the downloaded logo file to contain the fetched bytes")
+	}
+}
+
+// Regression check: omitting logoUrl behaves exactly as before this issue
+// — no doer call, no logo field on the saved listing.
+func TestCreateJobListing_NoLogoURL_SavesWithoutLogo(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Go backend engineer.",
+	}
+	resp := postJSON(t, server.URL+"/api/job-listings", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	listing := result["jobListing"].(map[string]any)
+	if logo, present := listing["logo"]; present {
+		t.Errorf("expected no logo field when logoUrl is omitted, got %v", logo)
+	}
+}
+
 func TestListJobListings_ReturnsEachWithItsApplicationNewestFirst(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{}
@@ -569,6 +650,38 @@ func TestSuggestContact_UnknownJobListing_Returns404(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateJobListing_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClientWithUsage{
+		usage: []generation.CallUsage{
+			{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role.",
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	logged := tracking.ReadUsageLog(dataDir)
+	if len(logged) != 1 || logged[0].CallType != "ral_estimation" {
+		t.Fatalf("expected the standalone usage log to contain the RAL-estimation call, got %+v", logged)
+	}
+}
+
+func TestReadUsageLog_NoLogYet_ReturnsNil(t *testing.T) {
+	dataDir := t.TempDir()
+	if got := tracking.ReadUsageLog(dataDir); got != nil {
+		t.Errorf("ReadUsageLog() on a fresh dataDir = %+v, want nil", got)
 	}
 }
 

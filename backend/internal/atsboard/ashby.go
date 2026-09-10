@@ -21,6 +21,11 @@ type ashbyResponse struct {
 // FetchAshbyListings fetches boardSlug's open roles from Ashby's public job
 // board API (documented, read-only — see ADR-0007) and normalizes them
 // into the common Listing shape (story 3).
+//
+// Company Logo (issue #42): verified against live api.ashbyhq.com
+// job-board responses — no logo field at the top level (alongside "jobs")
+// or per job, so Listing.LogoURL is always left empty here. If Ashby ever
+// exposes one, populate it from whichever field carries it.
 func FetchAshbyListings(ctx context.Context, doer HTTPDoer, boardSlug string) ([]Listing, error) {
 	url := fmt.Sprintf("https://api.ashbyhq.com/posting-api/job-board/%s", boardSlug)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
