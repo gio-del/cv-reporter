@@ -155,8 +155,15 @@
     }
     console.log("[CVReporter] captured payload", payload);
 
-    if (!payload.company || !payload.description) {
-      showStatus(statusEl, false, "Couldn't find a job posting on this page — open a specific listing and try again.");
+    // validateCapture (extension/validate-capture.js, loaded as a content
+    // script ahead of this one — see manifest.json) is the single place
+    // that decides whether a capture is good enough to send: it replaces
+    // the old bare-emptiness check with per-field sanity checks (see PRD
+    // for issue #58), so a plausible-but-wrong capture (stale nav element,
+    // truncated description) is caught instead of silently saved.
+    const problems = validateCapture(payload);
+    if (problems.length > 0) {
+      showStatus(statusEl, false, "Capture looks wrong: " + problems.join(", "));
       return;
     }
 

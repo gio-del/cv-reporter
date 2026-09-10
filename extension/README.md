@@ -37,6 +37,15 @@ Note: Firefox unloads temporary add-ons when the browser restarts — you'll nee
 - The captured URL: on a direct `/jobs/view/<id>/` page, it's the stripped `window.location.href`. On the search-results split-pane view, clicking between postings only changes the `currentJobId` query param — `window.location` itself stays on the generic search page — so `content.js` reads `currentJobId` and builds `https://www.linkedin.com/jobs/view/<id>/` instead.
 - The backend URL is hardcoded to `http://localhost:8080` in `background.js` — edit it there if your backend runs elsewhere.
 - `turndown.js` is [Turndown](https://github.com/mixmark-io/turndown) vendored as a plain browser-global script (no npm/build step) and loaded as a `content_scripts` entry ahead of `content.js`, which uses the `TurndownService` global it defines.
+- `validate-capture.js` is a small, DOM-free content script (also loaded ahead of `content.js`) defining the `validateCapture` global: per-field sanity checks (non-empty title, plausible company, minimum-length description) run on the captured payload before it's ever sent to `background.js`, so a plausible-but-wrong capture (stale nav element, truncated description) surfaces as a specific error instead of silently saving a broken Job Listing. Being pure and DOM-free, it's unit-tested directly — see `validate-capture.test.js` and "Running the tests" below.
+
+## Running the tests
+
+`validate-capture.js`'s pure `validateCapture` function is covered by fixture-based tests using Node's built-in test runner (no dependency/build step):
+
+```
+node --test extension/**/*.test.js
+```
 
 ### If capture breaks again
 
