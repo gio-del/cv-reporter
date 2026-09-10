@@ -7,6 +7,7 @@ import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import {
   deleteJobListing,
+  exportDataUrl,
   generationFileUrl,
   jobListingLogoUrl,
   listJobListings,
@@ -186,9 +187,16 @@ export default function JobListingsListPage() {
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="mb-0">Job Listings</h1>
-        <Button asChild>
-          <Link to="/jobs/new">+ Save Job Listing</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <a href={exportDataUrl()} download>
+              Export data
+            </a>
+          </Button>
+          <Button asChild>
+            <Link to="/jobs/new">+ Save Job Listing</Link>
+          </Button>
+        </div>
       </div>
 
       {statusError && (
