@@ -184,6 +184,35 @@ func createJobListingHandler(dataDir string, client tracking.Client) http.Handle
 	}
 }
 
+// checkFreshnessResponse is check-freshness's response shape — just the
+// updated Job Listing, unlike resolve's {jobListing, application} pair,
+// since freshness never touches the Application record.
+type checkFreshnessResponse struct {
+	JobListing tracking.JobListing `json:"jobListing"`
+}
+
+// checkFreshnessHandler triggers an on-demand freshness check (issue #59,
+// "Job Description link-rot / staleness check") against the Job Listing
+// identified by id's own source URL, using the same injectable HTTP doer
+// already threaded through for ATS sourcing (a real *http.Client in
+// production — see NewRouterFull — a fixture doer in tests). 404 when id
+// doesn't exist, matching resolve/suggest-contact's existing pattern.
+func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, err := tracking.CheckFreshness(r.Context(), dataDir, doer, id)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, checkFreshnessResponse{JobListing: listing})
+	}
+}
+
 // captureJobListingCORSPreflightHandler answers the browser's CORS preflight
 // for the extension's ingestion endpoint. The caller runs on a
 // moz-extension:// or chrome-extension:// origin, which is CORS-checked
