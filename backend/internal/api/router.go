@@ -45,6 +45,24 @@ func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client
 
 // NewRouterFullWithATS is NewRouterFull plus an explicit atsboard.HTTPDoer.
 func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
+	return NewRouterFullWithATSAndAuth(dataDir, projectRoot, generationClient, atsHTTPDoer, "")
+}
+
+// NewRouterWithAuth builds the HTTP handler for the app's API, matching
+// NewRouter, but with LAN-reachable mode's auth gate applied when
+// lanAuthToken is non-empty (see issue #57 and lan_auth.go). An empty
+// lanAuthToken behaves exactly like NewRouter — no check is wired in at
+// all — so default (localhost-only) mode is unaffected.
+func NewRouterWithAuth(dataDir, lanAuthToken string) http.Handler {
+	return NewRouterFullWithATSAndAuth(dataDir, ".", claude.New(), http.DefaultClient, lanAuthToken)
+}
+
+// NewRouterFullWithATSAndAuth is NewRouterFullWithATS plus an explicit LAN
+// auth token. Every /api/* route requires the token (via the
+// X-CV-Reporter-Token header) once lanAuthToken is non-empty; an empty
+// lanAuthToken (the default) leaves every route unwrapped, matching
+// today's no-auth behavior exactly.
+func NewRouterFullWithATSAndAuth(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer, lanAuthToken string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("GET /api/export", exportDataHandler(dataDir))
@@ -85,7 +103,10 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("POST /api/ats/tracked-boards", createTrackedBoardHandler(dataDir))
 	mux.HandleFunc("DELETE /api/ats/tracked-boards/{id}", deleteTrackedBoardHandler(dataDir))
 	mux.HandleFunc("GET /api/usage", getUsageHandler(dataDir))
-	return mux
+	if lanAuthToken == "" {
+		return mux
+	}
+	return requireLANToken(lanAuthToken, mux)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

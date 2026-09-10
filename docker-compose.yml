@@ -1,5 +1,13 @@
 services:
   backend:
+    # No `profiles:` key here on purpose: Compose only starts a service
+    # under a profile it declares, and there's no implicit "default" name
+    # that auto-activates — declaring one would make plain `docker compose
+    # up` start nothing. Both services stay profile-less so `docker compose
+    # up` is unchanged; `docker compose --profile lan up` still starts them
+    # (profile-less services always run) while the `lan` label documents
+    # the intent. The actual LAN-reachable opt-in is BIND_ADDR/LAN_AUTH_TOKEN
+    # below (issue #57, ADR-0004).
     build:
       # Repo root, not ./backend — the Dockerfile also COPYs the
       # root-level typst-version.txt (single source of truth for the
@@ -17,13 +25,23 @@ services:
       # (Master Data browsing works); only Generation requests fail, with
       # a clear "no Anthropic credentials found" error.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # LAN-reachable mode (opt-in, issue #57): leave unset for the default
+      # localhost-only/no-auth behavior. Set alongside BIND_ADDR=0.0.0.0
+      # (below) and run with `docker compose --profile lan up` to make the
+      # app reachable from other devices on the LAN; every /api/* request
+      # then requires this exact value in the X-CV-Reporter-Token header.
+      # See README.md/CLAUDE.md for the tradeoffs this mode accepts.
+      LAN_AUTH_TOKEN: ${LAN_AUTH_TOKEN:-}
     volumes:
       # Render's typst invocation needs template/ and output/ alongside
       # data/, all under one --root (see ADR-0012), so the whole project
       # root is mounted rather than just data/ as before.
       - .:/workspace
     ports:
-      - "127.0.0.1:8080:8080"
+      # BIND_ADDR defaults to 127.0.0.1 (today's unchanged behavior). Set
+      # BIND_ADDR=0.0.0.0 together with LAN_AUTH_TOKEN and invoke with
+      # `docker compose --profile lan up` for LAN-reachable mode.
+      - "${BIND_ADDR:-127.0.0.1}:8080:8080"
 
   frontend:
     build: ./frontend
@@ -33,6 +51,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "127.0.0.1:5173:5173"
+      - "${BIND_ADDR:-127.0.0.1}:5173:5173"
     depends_on:
       - backend
