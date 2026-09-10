@@ -1,6 +1,11 @@
 services:
   backend:
-    build: ./backend
+    build:
+      # Repo root, not ./backend — the Dockerfile also COPYs the
+      # root-level typst-version.txt (single source of truth for the
+      # pinned typst version, see ADR-0012 and issue #55).
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       DATA_DIR: /workspace/data
       PROJECT_ROOT: /workspace

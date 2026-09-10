@@ -96,7 +96,11 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 5. **Assemble the data file.** Merge the approved tailored content with the static parts of `data/profile.yaml` into a single JSON object matching the shape `template/cv.typ` expects (see the comment at the top of that file): `name`, `location`, `email`, `phone`, `linkedin`, `github`, `education`, `experience` (grouped-by-employer array, each item has `employer`, `role`, `client`, `location`, `start`, `end`, `bullets`), `projects`, `tech_stack` (derived — collect the `tags` of every selected Entry, deduplicated), `publications`, `awards`, `activities`, `languages`. Write it to `output/<slug>/data.json`, where `<slug>` is a short kebab-case name for this Generation (e.g. the company applied to, or `default`).
 
-6. **Render.** Run:
+6. **Render.** This repo's render path is pinned to a specific `typst` version and the Liberation Sans font — recorded once in `typst-version.txt` at the repo root and shared with the container's own render path (ADR-0012), so the skill's host-side render and the container's stay in sync instead of silently drifting apart (issue #55). Before compiling, run the preflight check against that pin:
+   ```
+   ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh
+   ```
+   It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. Then render:
    ```
    typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
    ```
