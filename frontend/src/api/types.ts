@@ -192,6 +192,17 @@ export interface RenderResult {
   cvPageCount: number
 }
 
+// RALListQuery is GET /api/job-listings' optional RAL Range sort/filter
+// query params (issue #51). sortOrder is only meaningful once a RAL sort
+// is applied (asc/desc); ralCurrency defaults server-side to EUR when a
+// min/max filter is set without one.
+export interface RALListQuery {
+  sortByRAL?: 'asc' | 'desc'
+  ralMin?: number
+  ralMax?: number
+  ralCurrency?: string
+}
+
 export type JobListingSource = 'manual'
 
 export interface JobListing {

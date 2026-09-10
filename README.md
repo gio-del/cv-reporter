@@ -91,7 +91,7 @@ docker-compose up
 | GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
 | PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
 | DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
-| GET | `/api/job-listings` | list Job Listings (with their Application) |
+| GET | `/api/job-listings` | list Job Listings (with their Application) — optional `sort=ral&order=asc\|desc` and `ral_min`/`ral_max`/`ral_currency` (defaults to `EUR`) query params sort/filter by RAL Range (issue #51); `n/a`/`unresolved`/`conflict` listings always trail a sort and are excluded from a filter |
 | POST | `/api/job-listings` | save a Job Listing (URL/text) — creates its Application; RAL Range + Application Method are best-effort (see ADR-0011; failures persist as `unresolved`, never block the save) |
 | POST | `/api/job-listings/from-extension` | save a Job Listing captured by the browser extension (`extension/`) — same best-effort save as above |
 | GET | `/api/job-listings/{id}` | get a Job Listing |

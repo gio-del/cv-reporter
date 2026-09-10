@@ -15,6 +15,7 @@ import type {
   JobListing,
   JobListingWithApplication,
   Profile,
+  RALListQuery,
   RecordGenerationRequest,
   RenderRequest,
   RenderResult,
@@ -150,14 +151,25 @@ export interface JobListingsFilter {
   savedTo?: string
 }
 
-export function listJobListings(filter?: JobListingsFilter): Promise<JobListingWithApplication[]> {
+// listJobListings passes filter's status/company/savedFrom/savedTo (issue
+// #45) and sortByRAL/ralMin/ralMax/ralCurrency (issue #51) through to GET
+// /api/job-listings's matching optional query params — omitted entirely
+// when not given, matching the endpoint's own unfiltered/unsorted default.
+export function listJobListings(filter?: JobListingsFilter & RALListQuery): Promise<JobListingWithApplication[]> {
   const params = new URLSearchParams()
   if (filter?.status) params.set('status', filter.status)
   if (filter?.company) params.set('company', filter.company)
   if (filter?.savedFrom) params.set('savedFrom', filter.savedFrom)
   if (filter?.savedTo) params.set('savedTo', filter.savedTo)
-  const query = params.toString()
-  return request(`/api/job-listings${query ? `?${query}` : ''}`)
+  if (filter?.sortByRAL) {
+    params.set('sort', 'ral')
+    params.set('order', filter.sortByRAL)
+  }
+  if (filter?.ralMin != null) params.set('ral_min', String(filter.ralMin))
+  if (filter?.ralMax != null) params.set('ral_max', String(filter.ralMax))
+  if (filter?.ralCurrency) params.set('ral_currency', filter.ralCurrency)
+  const qs = params.toString()
+  return request(`/api/job-listings${qs ? `?${qs}` : ''}`)
 }
 
 export function exportDataUrl(): string {
