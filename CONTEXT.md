@@ -101,7 +101,7 @@ The Typst compilation step that turns approved Tailoring output into a PDF.
 _Avoid_: compile, build
 
 **Visual Review**:
-The second Human-in-the-Loop checkpoint: the user checks the rendered PDF for layout issues (overflow, bad page breaks) after Text Review is approved.
+The second Human-in-the-Loop checkpoint: the user checks the rendered PDF for layout issues (overflow, bad page breaks) after Text Review is approved. Alongside it, Render also attaches an automated ATS-parsability check (extracted PDF text vs. the rendered source data) as a non-blocking warning badge — a second signal shown here, not a third checkpoint; the human decision stays Visual Review's alone.
 _Avoid_: final check, PDF review
 
 **Tailored CV**:
