@@ -73,6 +73,18 @@ docker-compose up
 - Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012).
 - Frontend: `http://127.0.0.1:5173`
 
+#### Optional: LAN-reachable mode
+
+By default the web app is localhost-only with no auth, per ADR-0004. To check or update Job Listings/Applications from another device on your home network (e.g. a phone), opt in explicitly by setting `BIND_ADDR` and `LAN_AUTH_TOKEN` in `.env` (see `.env.example`) and starting with the `lan` profile:
+
+```
+docker compose --profile lan up
+```
+
+This binds both services to `0.0.0.0` instead of `127.0.0.1`, and requires every `/api/*` request to carry `LAN_AUTH_TOKEN`'s value in an `X-CV-Reporter-Token` header — the backend rejects requests without it with `401`. Leaving `LAN_AUTH_TOKEN` unset (the default) skips this check entirely, so plain `docker compose up` behaves exactly as before.
+
+This is a single static shared secret, not a login/session system — proportional to a personal, single-user tool, not a multi-user auth model. There is no TLS/HTTPS termination: the token travels in plaintext over your LAN, so only enable this on a network you trust. There's also no frontend UI yet for entering/storing the token per device — until that lands, attach the header manually from whatever client you use to reach the app over the LAN.
+
 ### Backend API
 
 | Method | Path | |
