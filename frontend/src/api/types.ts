@@ -198,12 +198,22 @@ export interface SaveJobListingRequest {
   jobDescriptionUrl?: string
 }
 
+export interface DuplicateMatch {
+  jobListingId: string
+  company: string
+  title?: string
+  savedAt: string
+  score: number
+}
+
 export interface JobListingWithApplication {
   jobListing: JobListing
   application: Application
 }
 
-export type SaveJobListingResult = JobListingWithApplication
+export type SaveJobListingResult = JobListingWithApplication & {
+  duplicateWarning?: DuplicateMatch
+}
 
 export type AtsProvider = 'greenhouse' | 'lever' | 'ashby'
 
