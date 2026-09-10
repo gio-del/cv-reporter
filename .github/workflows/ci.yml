@@ -24,17 +24,21 @@ jobs:
       # typst CLI, and generations_render_test.go exercises that real
       # binary — no skip guard. Pin the exact version + font ADR-0012
       # pins for the backend container (see backend/Dockerfile) so these
-      # tests behave the same in CI as they do locally.
+      # tests behave the same in CI as they do locally. The ATS-parsability
+      # check (backend/internal/generation/parsability.go) shells out to
+      # pdftotext the same way, so poppler-utils is installed here too —
+      # see backend/Dockerfile for why it's pinned there.
       - name: Install typst + Liberation Sans (pinned per ADR-0012)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-liberation
+          sudo apt-get install -y --no-install-recommends fonts-liberation poppler-utils
           curl -fsSL https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz \
             -o /tmp/typst.tar.xz
           tar -xf /tmp/typst.tar.xz -C /tmp
           sudo mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst
           rm -rf /tmp/typst*
           typst --version
+          pdftotext -v
 
       - name: go vet
         working-directory: backend
