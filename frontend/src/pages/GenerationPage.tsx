@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import BulletDiff from '@/components/BulletDiff'
+import ParsabilityBadge from '@/components/ParsabilityBadge'
 import RALBadge from '@/components/RALBadge'
 import {
   createGeneration,
@@ -513,6 +514,12 @@ export default function GenerationPage() {
               re-render.
             </p>
           )}
+          <div className="mb-2 flex flex-wrap gap-2">
+            <ParsabilityBadge result={render.cvParsability} label="CV" />
+            {render.coverLetterParsability && (
+              <ParsabilityBadge result={render.coverLetterParsability} label="Cover Letter" />
+            )}
+          </div>
           <iframe
             className="block h-[min(800px,75vh)] w-full rounded-xl border border-border"
             title="Tailored CV preview"

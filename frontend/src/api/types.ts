@@ -185,11 +185,25 @@ export interface RenderRequest {
   language?: string
 }
 
+export type ParsabilityStatus = 'ok' | 'warning' | 'unavailable'
+
+// ParsabilityResult is the ATS-parsability check's structured outcome
+// (backend/internal/generation/parsability.go): non-blocking, surfaced at
+// Visual Review as a warning badge alongside the CV/Cover Letter preview.
+export interface ParsabilityResult {
+  status: ParsabilityStatus
+  missingFields?: string[]
+  orderingViolations?: string[]
+  reason?: string
+}
+
 export interface RenderResult {
   slug: string
   cvPath: string
   coverLetterPath?: string
   cvPageCount: number
+  cvParsability: ParsabilityResult
+  coverLetterParsability?: ParsabilityResult
 }
 
 // RALListQuery is GET /api/job-listings' optional RAL Range sort/filter

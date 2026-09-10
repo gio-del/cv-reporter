@@ -37,12 +37,18 @@ type RenderRequest struct {
 }
 
 // RenderResult names the produced PDF(s), relative to outputDir, plus the
-// CV's page count so Visual Review can flag overflow (story 10).
+// CV's page count so Visual Review can flag overflow (story 10), and each
+// produced PDF's ATS-parsability check result so Visual Review can flag a
+// bad text-layer extraction alongside it (PRD "PDF ATS-parsability
+// check", story 5) — CoverLetterParsability is only set when req.CoverLetter
+// was, matching CoverLetterPath.
 type RenderResult struct {
-	Slug            string `json:"slug"`
-	CVPath          string `json:"cvPath"`
-	CoverLetterPath string `json:"coverLetterPath,omitempty"`
-	CVPageCount     int    `json:"cvPageCount"`
+	Slug                   string             `json:"slug"`
+	CVPath                 string             `json:"cvPath"`
+	CoverLetterPath        string             `json:"coverLetterPath,omitempty"`
+	CVPageCount            int                `json:"cvPageCount"`
+	CVParsability          ParsabilityResult  `json:"cvParsability"`
+	CoverLetterParsability *ParsabilityResult `json:"coverLetterParsability,omitempty"`
 }
 
 type cvExperience struct {
@@ -133,8 +139,9 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 	if err != nil {
 		return RenderResult{}, fmt.Errorf("counting rendered pages: %w", err)
 	}
+	cvParsability := checkPDFParsability(filepath.Join(projectRoot, cvRelPath), cvExpectedFields(cv))
 
-	result := RenderResult{Slug: req.Slug, CVPath: cvRelPath, CVPageCount: pageCount}
+	result := RenderResult{Slug: req.Slug, CVPath: cvRelPath, CVPageCount: pageCount, CVParsability: cvParsability}
 
 	if req.CoverLetter != nil {
 		cl := coverLetterData{
@@ -151,6 +158,8 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 			return RenderResult{}, err
 		}
 		result.CoverLetterPath = clRelPath
+		clParsability := checkPDFParsability(filepath.Join(projectRoot, clRelPath), coverLetterExpectedFields(cl))
+		result.CoverLetterParsability = &clParsability
 
 		// A plain-text copy alongside the PDF, so it can be downloaded as
 		// either (story 11) without re-deriving it from the PDF.
