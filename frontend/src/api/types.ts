@@ -251,6 +251,12 @@ export interface GenerationRecord {
   coverLetterPath?: string
   sourceSnippetIds?: string[]
   usage?: GenerationUsage
+  entryIds?: string[]
+  // staleEntries names (by employer/client + role) which of entryIds have
+  // been edited in Master Data since createdAt — computed read-time by the
+  // backend, never stored (issue #52). Empty/absent means not stale (or
+  // not checkable, e.g. a record with no stored entryIds).
+  staleEntries?: string[]
 }
 
 export interface Contact {
@@ -301,6 +307,7 @@ export interface RecordGenerationRequest {
   usage?: GenerationUsage
   language?: string
   groundedness?: GroundednessResult
+  entryIds?: string[]
 }
 
 export interface SaveJobListingRequest {

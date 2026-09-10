@@ -272,6 +272,7 @@ export default function GenerationPage() {
             usage: usage ?? undefined,
             language: language ?? undefined,
             groundedness: groundedness ?? undefined,
+            entryIds: selection.map((e) => e.entryId),
           })
         } catch (err) {
           setLinkError(err instanceof Error ? err.message : String(err))
