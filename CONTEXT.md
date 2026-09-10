@@ -41,7 +41,7 @@ The name of the role a Job Listing is for (e.g. "Senior Backend Engineer"), capt
 _Avoid_: role (ambiguous with Entry's role), position, job
 
 **Company Logo**:
-An optional image for a Job Listing, downloaded server-side from the source's logo URL at save time and stored alongside that Job Listing's record. Only ever populated from a browser-extension LinkedIn capture today — ATS feeds and manual entry have no logo source, so a Job Listing from either simply has none.
+An optional image for a Job Listing, downloaded server-side from the source's logo URL at save time and stored alongside that Job Listing's record. Only ever populated from a browser-extension capture (LinkedIn or Indeed) today — ATS feeds and manual entry have no logo source, so a Job Listing from either simply has none.
 _Avoid_: image, photo, icon
 
 **RAL Range**:

@@ -48,6 +48,61 @@ func listAtsListingsHandler(dataDir string, atsHTTPDoer atsboard.HTTPDoer) http.
 			}
 		}
 
-		writeJSON(w, http.StatusOK, atsboard.MarkAlreadySaved(listings, existingURLs))
+		withSaved := atsboard.MarkAlreadySaved(listings, existingURLs)
+
+		// The new-since-last-check digest only applies to boards the user
+		// has deliberately tracked (story 10) — a one-off browse of an
+		// untracked board never reads or writes seen-state.
+		tracked, err := atsboard.ListTrackedBoards(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		boardID := atsboard.TrackedBoardID(provider, slug)
+		isTracked := false
+		for _, b := range tracked {
+			if b.ID == boardID {
+				isTracked = true
+				break
+			}
+		}
+
+		if !isTracked {
+			digest := make([]atsboard.ListingDigest, len(withSaved))
+			for i, ls := range withSaved {
+				digest[i] = atsboard.ListingDigest{Listing: ls.Listing, AlreadySaved: ls.AlreadySaved}
+			}
+			writeJSON(w, http.StatusOK, digest)
+			return
+		}
+
+		seenURLs, existed, err := atsboard.SeenURLs(dataDir, boardID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		listingURLs := make([]string, len(listings))
+		for i, l := range listings {
+			listingURLs[i] = l.URL
+		}
+		effectiveSeen := seenURLs
+		if !existed {
+			// First-ever fetch of a freshly-tracked board (story 5): seed
+			// the baseline from what's visible now, so the existing
+			// backlog isn't reported as new.
+			effectiveSeen = listingURLs
+		}
+		withNew := atsboard.MarkNewSinceLastCheck(listings, effectiveSeen)
+
+		// Fetching updates the board's seen-state (story 3): fold in both
+		// what's visible now and every already-saved URL (story 4), so a
+		// listing saved outside revisiting this board never later shows
+		// as new.
+		if err := atsboard.RecordSeen(dataDir, boardID, append(listingURLs, existingURLs...)); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writeJSON(w, http.StatusOK, atsboard.CombineDigest(withSaved, withNew))
 	}
 }

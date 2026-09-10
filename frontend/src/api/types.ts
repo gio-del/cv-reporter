@@ -1,5 +1,10 @@
 export type EntryType = 'experience' | 'project'
 
+export interface EntryLastModified {
+  at?: string
+  subject?: string
+}
+
 export interface Entry {
   id: string
   type: EntryType
@@ -14,6 +19,8 @@ export interface Entry {
   tags: string[]
   repo?: string
   bullets?: string[]
+  /** Absent when the Entry has no git history yet (freshly added, uncommitted). */
+  lastModified?: EntryLastModified
 }
 
 export type EntryInput = Omit<Entry, 'id'>
@@ -70,6 +77,7 @@ export interface Snippet {
   kind: string
   tags: string[]
   body: string
+  lastUsedAt?: string
 }
 
 export type SnippetInput = Omit<Snippet, 'id'>
@@ -114,23 +122,67 @@ export interface RALRange {
   listingStated?: RALFigure
 }
 
+export interface CallUsage {
+  callType: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+}
+
+export interface GenerationUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+  calls?: CallUsage[]
+}
+
+export type GroundednessReason = 'no-source-match' | 'numeric-mismatch'
+
+export interface GroundednessFlag {
+  sentence: string
+  reason: GroundednessReason
+}
+
+export interface BulletGroundedness {
+  entryId: string
+  sourceIndex: number
+  flags: GroundednessFlag[]
+}
+
+export interface GroundednessResult {
+  bullets?: BulletGroundedness[]
+  coverLetter?: GroundednessFlag[]
+}
+
 export interface GenerateResult {
   mode: GenerateMode
   jobDescription?: string
   selection: SelectionResult
   coverLetter?: CoverLetterResult
   ral?: RALRange
+  usage: GenerationUsage
+  groundedness?: GroundednessResult
+  language: string
 }
 
 export interface GenerateRequest {
   jobDescription?: string
   jobDescriptionUrl?: string
+  languageOverride?: string
 }
 
 export interface RenderRequest {
   slug: string
   selection: SelectionResult
   coverLetter?: { body: string }
+  language?: string
 }
 
 export interface RenderResult {
@@ -168,6 +220,8 @@ export interface GenerationRecord {
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
+  usage?: GenerationUsage
 }
 
 export interface Contact {
@@ -179,15 +233,45 @@ export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
+  statusUpdatedAt?: string
   method: ApplicationMethod
   contact?: Contact
+  isStale: boolean
   generations?: GenerationRecord[]
+}
+
+export interface StatusCount {
+  status: ApplicationStatus
+  count: number
+}
+
+export interface ConversionRate {
+  from: ApplicationStatus
+  to: ApplicationStatus
+  rate: number
+}
+
+export interface StageTime {
+  status: ApplicationStatus
+  averageDays: number
+  sampleSize: number
+}
+
+export interface ApplicationStats {
+  total: number
+  counts: StatusCount[]
+  conversions: ConversionRate[]
+  timeInStage: StageTime[]
 }
 
 export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
+  usage?: GenerationUsage
+  language?: string
+  groundedness?: GroundednessResult
 }
 
 export interface SaveJobListingRequest {
@@ -196,6 +280,15 @@ export interface SaveJobListingRequest {
   url?: string
   jobDescription?: string
   jobDescriptionUrl?: string
+  logoUrl?: string
+}
+
+export interface DuplicateMatch {
+  jobListingId: string
+  company: string
+  title?: string
+  savedAt: string
+  score: number
 }
 
 export interface JobListingWithApplication {
@@ -203,7 +296,9 @@ export interface JobListingWithApplication {
   application: Application
 }
 
-export type SaveJobListingResult = JobListingWithApplication
+export type SaveJobListingResult = JobListingWithApplication & {
+  duplicateWarning?: DuplicateMatch
+}
 
 export type AtsProvider = 'greenhouse' | 'lever' | 'ashby'
 
@@ -213,6 +308,8 @@ export interface AtsListing {
   url: string
   description: string
   alreadySaved: boolean
+  logoUrl?: string
+  new: boolean
 }
 
 export interface TrackedBoard {
@@ -220,11 +317,31 @@ export interface TrackedBoard {
   provider: AtsProvider
   slug: string
   label?: string
+  newCount: number
 }
 
 export interface AddTrackedBoardRequest {
   provider: AtsProvider
   slug: string
   label?: string
+}
+
+export type TagLintConfidence = 'confident' | 'suggested'
+
+export interface TagLintOccurrence {
+  tag: string
+  entryId: string
+  entryType: EntryType
+}
+
+export interface TagLintGroup {
+  key: string
+  confidence: TagLintConfidence
+  occurrences: TagLintOccurrence[]
+}
+
+export interface TagLintReport {
+  groups: TagLintGroup[]
+  singletons: TagLintOccurrence[]
 }
 

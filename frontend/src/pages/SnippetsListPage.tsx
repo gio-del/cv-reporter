@@ -46,12 +46,19 @@ export default function SnippetsListPage() {
               {snippet.body.slice(0, 80)}
               {snippet.body.length > 80 ? '…' : ''}
             </p>
-            <div className="mt-1 flex flex-wrap gap-1">
+            <div className="mt-1 flex flex-wrap items-center gap-1">
               {snippet.tags.map((tag) => (
                 <Badge variant="secondary" key={tag}>
                   {tag}
                 </Badge>
               ))}
+              {snippet.lastUsedAt ? (
+                <span className="text-xs text-muted-foreground">
+                  Last used {new Date(snippet.lastUsedAt).toLocaleDateString()}
+                </span>
+              ) : (
+                <Badge variant="outline">Never used</Badge>
+              )}
             </div>
           </li>
         ))}

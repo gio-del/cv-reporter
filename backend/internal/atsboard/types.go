@@ -22,6 +22,13 @@ type Listing struct {
 	Location    string `json:"location"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
+	// LogoURL is the source's Company Logo image URL, populated by a
+	// provider's fetch function when its response exposes one (per-job or
+	// board-level) — empty when it doesn't (see each Fetch*Listings
+	// function's doc comment for what was actually checked). Downloaded
+	// and stored the same way ADR-0013 already does for extension-captured
+	// logos (issue #42).
+	LogoURL string `json:"logoUrl,omitempty"`
 }
 
 // HTTPDoer is the minimal http.Client surface fetch functions depend on, so
