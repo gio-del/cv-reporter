@@ -2,6 +2,7 @@ import type {
   AddTrackedBoardRequest,
   Application,
   ApplicationMethod,
+  ApplicationStats,
   ApplicationStatus,
   AtsListing,
   AtsProvider,
@@ -10,9 +11,11 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  GenerationUsage,
   JobListing,
   JobListingWithApplication,
   Profile,
+  RALListQuery,
   RecordGenerationRequest,
   RenderRequest,
   RenderResult,
@@ -20,6 +23,7 @@ import type {
   SaveJobListingResult,
   Snippet,
   SnippetInput,
+  TagLintReport,
   TrackedBoard,
 } from './types'
 
@@ -62,6 +66,10 @@ export async function deleteEntry(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getTagLint(): Promise<TagLintReport> {
+  return request('/api/master-data/tag-lint')
 }
 
 export function getProfile(): Promise<Profile> {
@@ -116,6 +124,14 @@ export function createGeneration(req: GenerateRequest): Promise<GenerateResult> 
   })
 }
 
+export function previewGeneration(req: GenerateRequest): Promise<GenerateResult> {
+  return request('/api/generations/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
 export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
   return request('/api/generations/render', {
     method: 'POST',
@@ -128,8 +144,40 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
-export function listJobListings(): Promise<JobListingWithApplication[]> {
-  return request('/api/job-listings')
+export interface JobListingsFilter {
+  status?: ApplicationStatus
+  company?: string
+  savedFrom?: string
+  savedTo?: string
+}
+
+// listJobListings passes filter's status/company/savedFrom/savedTo (issue
+// #45) and sortByRAL/ralMin/ralMax/ralCurrency (issue #51) through to GET
+// /api/job-listings's matching optional query params — omitted entirely
+// when not given, matching the endpoint's own unfiltered/unsorted default.
+export function listJobListings(filter?: JobListingsFilter & RALListQuery): Promise<JobListingWithApplication[]> {
+  const params = new URLSearchParams()
+  if (filter?.status) params.set('status', filter.status)
+  if (filter?.company) params.set('company', filter.company)
+  if (filter?.savedFrom) params.set('savedFrom', filter.savedFrom)
+  if (filter?.savedTo) params.set('savedTo', filter.savedTo)
+  if (filter?.sortByRAL) {
+    params.set('sort', 'ral')
+    params.set('order', filter.sortByRAL)
+  }
+  if (filter?.ralMin != null) params.set('ral_min', String(filter.ralMin))
+  if (filter?.ralMax != null) params.set('ral_max', String(filter.ralMax))
+  if (filter?.ralCurrency) params.set('ral_currency', filter.ralCurrency)
+  const qs = params.toString()
+  return request(`/api/job-listings${qs ? `?${qs}` : ''}`)
+}
+
+export function exportDataUrl(): string {
+  return '/api/export'
+}
+
+export function getApplicationsStats(): Promise<ApplicationStats> {
+  return request('/api/applications/stats')
 }
 
 export function getJobListing(id: string): Promise<JobListing> {
@@ -222,4 +270,8 @@ export async function removeTrackedBoard(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getUsageSummary(): Promise<GenerationUsage> {
+  return request('/api/usage')
 }
