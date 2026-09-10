@@ -114,6 +114,63 @@ func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing
 	}
 }
 
+func TestCreateGeneration_RewriteAddsUngroundedSentence_FlagsItInGroundedness(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{
+				Entries: []generation.SelectedEntry{
+					{
+						EntryID: "experience/quantyca-amplifon",
+						Reason:  "Directly relevant AI platform experience.",
+						Bullets: []generation.SelectedBullet{
+							{
+								SourceIndex: 0,
+								Source:      "Designed and built an AI Platform.",
+								Rewritten:   "Designed and built an AI Platform. Presented the quarterly roadmap to the executive leadership team.",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Looking for a Go backend engineer."})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	groundedness, ok := result["groundedness"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a groundedness object, got %v", result["groundedness"])
+	}
+	bullets, ok := groundedness["bullets"].([]any)
+	if !ok || len(bullets) != 1 {
+		t.Fatalf("expected exactly 1 flagged bullet, got %v", groundedness["bullets"])
+	}
+	bullet := bullets[0].(map[string]any)
+	if bullet["entryId"] != "experience/quantyca-amplifon" {
+		t.Errorf("expected the flagged bullet's entryId to round-trip, got %v", bullet["entryId"])
+	}
+	flags, ok := bullet["flags"].([]any)
+	if !ok || len(flags) != 1 {
+		t.Fatalf("expected exactly 1 flag on the bullet, got %v", bullet["flags"])
+	}
+	flag := flags[0].(map[string]any)
+	if flag["reason"] != "no-source-match" {
+		t.Errorf("expected reason no-source-match, got %v", flag["reason"])
+	}
+}
+
 func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClient(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{
@@ -152,6 +209,9 @@ func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClien
 	}
 	if _, ok := result["ral"]; ok {
 		t.Errorf("expected no ral in Default Mode, got %v", result["ral"])
+	}
+	if _, ok := result["groundedness"]; ok {
+		t.Errorf("expected no groundedness in Default Mode, got %v", result["groundedness"])
 	}
 	selection := result["selection"].(map[string]any)
 	entries, ok := selection["entries"].([]any)

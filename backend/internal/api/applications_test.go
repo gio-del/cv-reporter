@@ -432,6 +432,49 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 	}
 }
 
+func TestRecordApplicationGeneration_WithGroundedness_PersistsIt(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+		"groundedness": map[string]any{
+			"bullets": []map[string]any{
+				{
+					"entryId":     "experience/quantyca-amplifon",
+					"sourceIndex": 0,
+					"flags": []map[string]any{
+						{"sentence": "Fabricated claim.", "reason": "no-source-match"},
+					},
+				},
+			},
+		},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	record := generations[0].(map[string]any)
+	groundedness, ok := record["groundedness"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected groundedness to persist on the record, got %v", record)
+	}
+	bullets := groundedness["bullets"].([]any)
+	if len(bullets) != 1 {
+		t.Fatalf("expected 1 flagged bullet to round-trip, got %v", groundedness["bullets"])
+	}
+}
+
 func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))

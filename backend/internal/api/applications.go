@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -43,9 +44,10 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 }
 
 type recordGenerationRequest struct {
-	Slug            string `json:"slug"`
-	CVPath          string `json:"cvPath"`
-	CoverLetterPath string `json:"coverLetterPath"`
+	Slug            string                         `json:"slug"`
+	CVPath          string                         `json:"cvPath"`
+	CoverLetterPath string                         `json:"coverLetterPath"`
+	Groundedness    *generation.GroundednessResult `json:"groundedness"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -71,6 +73,7 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
 			CVPath:          req.CVPath,
 			CoverLetterPath: req.CoverLetterPath,
+			Groundedness:    req.Groundedness,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {
