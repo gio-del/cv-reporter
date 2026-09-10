@@ -4,6 +4,7 @@ import { listEntries } from '@/api/client'
 import type { Entry } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { formatRelativeTime } from '@/lib/utils'
 
 export default function EntriesListPage() {
   const [entries, setEntries] = useState<Entry[] | null>(null)
@@ -86,6 +87,14 @@ function EntryListItem({ entry, label }: { entry: Entry; label: string }) {
           </Badge>
         ))}
       </div>
+      {entry.lastModified?.at && (
+        <p
+          className="mt-1 text-xs text-muted-foreground"
+          title={entry.lastModified.subject}
+        >
+          Edited {formatRelativeTime(entry.lastModified.at)}
+        </p>
+      )}
     </li>
   )
 }

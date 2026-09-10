@@ -25,6 +25,31 @@ type saveJobListingRequest struct {
 type saveJobListingResponse struct {
 	JobListing  tracking.JobListing  `json:"jobListing"`
 	Application tracking.Application `json:"application"`
+	// DuplicateWarning is set when this save looks like a role already
+	// tracked under a different Job Listing (issue #43) — a non-blocking
+	// hint, never a reason the save above was rejected.
+	DuplicateWarning *tracking.DuplicateMatch `json:"duplicateWarning,omitempty"`
+}
+
+// findDuplicateWarningBestEffort checks the just-saved listing against every
+// other tracked Job Listing and returns a warning if one looks like a
+// likely duplicate. It never fails the save: a listing-read error here is
+// swallowed (nil warning) rather than surfaced as a 500, since the save
+// itself already succeeded by the time this runs.
+func findDuplicateWarningBestEffort(dataDir string, saved tracking.JobListing) *tracking.DuplicateMatch {
+	all, err := tracking.List(dataDir)
+	if err != nil {
+		return nil
+	}
+	existing := make([]tracking.JobListing, 0, len(all))
+	for _, lwa := range all {
+		existing = append(existing, lwa.JobListing)
+	}
+	match, found := tracking.FindLikelyDuplicate(saved, existing)
+	if !found {
+		return nil
+	}
+	return &match
 }
 
 // captureJobListingRequest is what a browser extension's content script can
@@ -187,7 +212,11 @@ func createJobListingHandler(dataDir string, client tracking.Client, doer tracki
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusCreated, saveJobListingResponse{JobListing: listing, Application: application})
+		writeJSON(w, http.StatusCreated, saveJobListingResponse{
+			JobListing:       listing,
+			Application:      application,
+			DuplicateWarning: findDuplicateWarningBestEffort(dataDir, listing),
+		})
 	}
 }
 
@@ -235,6 +264,10 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusCreated, saveJobListingResponse{JobListing: listing, Application: application})
+		writeJSON(w, http.StatusCreated, saveJobListingResponse{
+			JobListing:       listing,
+			Application:      application,
+			DuplicateWarning: findDuplicateWarningBestEffort(dataDir, listing),
+		})
 	}
 }
