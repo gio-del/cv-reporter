@@ -128,8 +128,21 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
-export function listJobListings(): Promise<JobListingWithApplication[]> {
-  return request('/api/job-listings')
+export interface JobListingsFilter {
+  status?: ApplicationStatus
+  company?: string
+  savedFrom?: string
+  savedTo?: string
+}
+
+export function listJobListings(filter?: JobListingsFilter): Promise<JobListingWithApplication[]> {
+  const params = new URLSearchParams()
+  if (filter?.status) params.set('status', filter.status)
+  if (filter?.company) params.set('company', filter.company)
+  if (filter?.savedFrom) params.set('savedFrom', filter.savedFrom)
+  if (filter?.savedTo) params.set('savedTo', filter.savedTo)
+  const query = params.toString()
+  return request(`/api/job-listings${query ? `?${query}` : ''}`)
 }
 
 export function getJobListing(id: string): Promise<JobListing> {
