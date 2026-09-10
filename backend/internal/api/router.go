@@ -60,7 +60,7 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("PUT /api/master-data/cover-letter-snippets/{id...}", putSnippetHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
 	mux.HandleFunc("GET /api/job-listings", listJobListingsHandler(dataDir))
-	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient))
+	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient, atsHTTPDoer))
 	mux.HandleFunc("POST /api/job-listings/from-extension", captureJobListingFromExtensionHandler(dataDir, generationClient, atsHTTPDoer))
 	mux.HandleFunc("OPTIONS /api/job-listings/from-extension", captureJobListingCORSPreflightHandler)
 	mux.HandleFunc("GET /api/job-listings/{id}", getJobListingHandler(dataDir))

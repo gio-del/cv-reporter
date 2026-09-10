@@ -10,12 +10,16 @@ import (
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
+// LogoURL lets the ATS-browse save path (frontend/src/pages/AtsBrowsePage.tsx)
+// pass through a Company Logo it already knows about from atsboard.Listing
+// (issue #42) — the manual-paste save path simply never sets it.
 type saveJobListingRequest struct {
 	Title             string `json:"title"`
 	Company           string `json:"company"`
 	URL               string `json:"url"`
 	JobDescription    string `json:"jobDescription"`
 	JobDescriptionURL string `json:"jobDescriptionUrl"`
+	LogoURL           string `json:"logoUrl"`
 }
 
 type saveJobListingResponse struct {
@@ -155,7 +159,11 @@ func resolveJobListingHandler(dataDir string, client tracking.Client) http.Handl
 	}
 }
 
-func createJobListingHandler(dataDir string, client tracking.Client) http.HandlerFunc {
+// createJobListingHandler backs both the manual-paste save path and the
+// ATS-browse save path — the latter may supply a LogoURL (issue #42, story
+// 4-9), downloaded via doer the same way the extension-capture path
+// already does (see captureJobListingFromExtensionHandler).
+func createJobListingHandler(dataDir string, client tracking.Client, doer tracking.HTTPDoer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req saveJobListingRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -163,14 +171,13 @@ func createJobListingHandler(dataDir string, client tracking.Client) http.Handle
 			return
 		}
 
-		// No doer: neither the manual-paste nor the ATS-browse save path
-		// (this handler's two callers) ever supplies a LogoURL to download.
-		listing, application, err := tracking.Save(r.Context(), dataDir, client, nil, tracking.SaveRequest{
+		listing, application, err := tracking.Save(r.Context(), dataDir, client, doer, tracking.SaveRequest{
 			Title:             req.Title,
 			Company:           req.Company,
 			URL:               req.URL,
 			JobDescription:    req.JobDescription,
 			JobDescriptionURL: req.JobDescriptionURL,
+			LogoURL:           req.LogoURL,
 		})
 		if errors.Is(err, tracking.ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
