@@ -50,6 +50,11 @@ export default function AtsBrowsePage() {
     try {
       const result = await listAtsListings(p, slug)
       setListings(result)
+      // Fetching updates the board's seen-state server-side (story 3), so
+      // refresh the tracked-board badges to reflect the now-reset count.
+      listTrackedBoards()
+        .then(setTrackedBoards)
+        .catch(() => {})
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -117,9 +122,18 @@ export default function AtsBrowsePage() {
               <TooltipTrigger asChild>
                 <Button type="button" size="sm" variant="outline" onClick={() => handleTrackedBoardClick(board)}>
                   {board.label || board.slug} <span className="text-muted-foreground">({providerLabel[board.provider]})</span>
+                  {board.newCount > 0 && (
+                    <Badge variant="default" className="ml-1">
+                      {board.newCount} new
+                    </Badge>
+                  )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Load open roles from this tracked board</TooltipContent>
+              <TooltipContent>
+                {board.newCount > 0
+                  ? `${board.newCount} new listing${board.newCount === 1 ? '' : 's'} since last check`
+                  : 'Load open roles from this tracked board'}
+              </TooltipContent>
             </Tooltip>
           ))}
         </div>
@@ -184,9 +198,21 @@ export default function AtsBrowsePage() {
           {listings.map((listing) => {
             const alreadySaved = listing.alreadySaved || Boolean(savedByUrl[listing.url])
             return (
-              <li key={listing.url} className="rounded-xl border border-border bg-card px-4 py-3">
+              <li
+                key={listing.url}
+                className={`rounded-xl border px-4 py-3 ${
+                  listing.new && !alreadySaved ? 'border-primary bg-primary/5' : 'border-border bg-card'
+                }`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong className="font-semibold">{listing.title}</strong>
+                  <strong className="font-semibold">
+                    {listing.title}
+                    {listing.new && !alreadySaved && (
+                      <Badge variant="default" className="ml-2 align-middle">
+                        New
+                      </Badge>
+                    )}
+                  </strong>
                   {alreadySaved ? (
                     <Badge variant="secondary">
                       <Link to="/jobs" className="no-underline hover:underline">
