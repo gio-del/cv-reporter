@@ -46,6 +46,7 @@ type recordGenerationRequest struct {
 	Slug            string `json:"slug"`
 	CVPath          string `json:"cvPath"`
 	CoverLetterPath string `json:"coverLetterPath"`
+	Language        string `json:"language"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -71,6 +72,7 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
 			CVPath:          req.CVPath,
 			CoverLetterPath: req.CoverLetterPath,
+			Language:        req.Language,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {

@@ -262,6 +262,34 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 	}
 }
 
+func TestRecordApplicationGeneration_PersistsLanguage(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":     "acme-corp",
+		"cvPath":   "output/acme-corp/cv.pdf",
+		"language": "it",
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	latest := generations[len(generations)-1].(map[string]any)
+	if latest["language"] != "it" {
+		t.Errorf("expected the Generation record to persist the target language, got %v", latest)
+	}
+}
+
 func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
