@@ -77,6 +77,68 @@ func TestUpdateApplicationStatus_AllowedTransition_WritesFileAndReturns200(t *te
 	}
 }
 
+func TestUpdateApplicationStatus_AllowedTransition_AppendsStatusHistory(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"})
+	defer resp.Body.Close()
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	history, ok := application["statusHistory"].([]any)
+	if !ok {
+		t.Fatalf("expected statusHistory array in response, got %v", application["statusHistory"])
+	}
+	if len(history) != 2 {
+		t.Fatalf("expected 2 statusHistory entries (saved, tailoring), got %d: %v", len(history), history)
+	}
+	first := history[0].(map[string]any)
+	second := history[1].(map[string]any)
+	if first["status"] != "saved" {
+		t.Errorf("expected first history entry status saved, got %v", first["status"])
+	}
+	if first["changedAt"] == "" || first["changedAt"] == nil {
+		t.Errorf("expected first history entry to carry a non-empty changedAt, got %v", first["changedAt"])
+	}
+	if second["status"] != "tailoring" {
+		t.Errorf("expected second history entry status tailoring, got %v", second["status"])
+	}
+	if second["changedAt"] == "" || second["changedAt"] == nil {
+		t.Errorf("expected second history entry to carry a non-empty changedAt, got %v", second["changedAt"])
+	}
+}
+
+func TestUpdateApplicationStatus_DisallowedTransition_DoesNotAppendStatusHistory(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "offer"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("statusHistory")) {
+		t.Fatalf("expected application file to still carry the initial statusHistory entry, got:\n%s", content)
+	}
+	if bytes.Contains(content, []byte("status: offer")) {
+		t.Errorf("did not expect a rejected transition to appear in the stored application, got:\n%s", content)
+	}
+}
+
 func TestUpdateApplicationStatus_DisallowedTransition_Returns400AndLeavesFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
@@ -528,5 +590,58 @@ func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetApplicationsStats_ReturnsAggregatedShape(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 1 {
+		t.Errorf("expected total 1, got %v", stats["total"])
+	}
+	if _, ok := stats["counts"].([]any); !ok {
+		t.Errorf("expected counts array in response, got %v", stats["counts"])
+	}
+}
+
+func TestGetApplicationsStats_NoApplications_Returns200WithZeroTotal(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 0 {
+		t.Errorf("expected total 0, got %v", stats["total"])
 	}
 }

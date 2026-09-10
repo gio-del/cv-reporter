@@ -193,6 +193,30 @@ export interface Application {
   generations?: GenerationRecord[]
 }
 
+export interface StatusCount {
+  status: ApplicationStatus
+  count: number
+}
+
+export interface ConversionRate {
+  from: ApplicationStatus
+  to: ApplicationStatus
+  rate: number
+}
+
+export interface StageTime {
+  status: ApplicationStatus
+  averageDays: number
+  sampleSize: number
+}
+
+export interface ApplicationStats {
+  total: number
+  counts: StatusCount[]
+  conversions: ConversionRate[]
+  timeInStage: StageTime[]
+}
+
 export interface RecordGenerationRequest {
   slug: string
   cvPath: string
