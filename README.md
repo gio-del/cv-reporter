@@ -30,7 +30,7 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
-Job Listings can be added to the web app three ways: manual paste (URL/text), pulling from an ATS's public job-board API (Greenhouse/Lever/Ashby), or a browser extension (`extension/`) that captures the LinkedIn job posting you're currently viewing — see `docs/adr/0007-job-sourcing.md` for why it's scoped this way and [`extension/README.md`](extension/README.md) for how to load it and how capture works.
+Job Listings can be added to the web app three ways: manual paste (URL/text), pulling from an ATS's public job-board API (Greenhouse/Lever/Ashby), or a browser extension (`extension/`) that captures the LinkedIn or Indeed job posting you're currently viewing — see `docs/adr/0007-job-sourcing.md` for why it's scoped this way and [`extension/README.md`](extension/README.md) for how to load it and how capture works.
 
 ## Repo layout
 
@@ -41,7 +41,7 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
 - `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
-- `extension/` — browser extension that captures the LinkedIn job posting you're viewing into the app as a Job Listing (see [`extension/README.md`](extension/README.md)).
+- `extension/` — browser extension that captures the LinkedIn or Indeed job posting you're viewing into the app as a Job Listing (see [`extension/README.md`](extension/README.md)).
 - `brand/` — logo (full lockup + icon-only mark) and color palette; the shared identity the web app's UI is meant to match.
 - `docs/adr/` — architecture decision records.
 
@@ -95,6 +95,7 @@ This is a single static shared secret, not a login/session system — proportion
 | GET | `/api/master-data/entries/{id}` | get an Entry |
 | PUT | `/api/master-data/entries/{id}` | update an Entry |
 | DELETE | `/api/master-data/entries/{id}` | delete an Entry |
+| GET | `/api/master-data/tag-lint` | scan every Entry's Tags for near-duplicate spellings (case/alias-table "confident" matches, edit-distance "suggested" matches) — read-only, never rewrites Master Data |
 | GET | `/api/master-data/profile` | get profile + Static Sections |
 | PUT | `/api/master-data/profile` | update profile + Static Sections |
 | GET | `/api/master-data/cover-letter-snippets` | list Cover Letter Snippets |
@@ -102,7 +103,7 @@ This is a single static shared secret, not a login/session system — proportion
 | GET | `/api/master-data/cover-letter-snippets/{id}` | get a Cover Letter Snippet |
 | PUT | `/api/master-data/cover-letter-snippets/{id}` | update a Cover Letter Snippet |
 | DELETE | `/api/master-data/cover-letter-snippets/{id}` | delete a Cover Letter Snippet |
-| GET | `/api/job-listings` | list Job Listings (with their Application) |
+| GET | `/api/job-listings` | list Job Listings (with their Application) — optional `sort=ral&order=asc\|desc` and `ral_min`/`ral_max`/`ral_currency` (defaults to `EUR`) query params sort/filter by RAL Range (issue #51); `n/a`/`unresolved`/`conflict` listings always trail a sort and are excluded from a filter |
 | POST | `/api/job-listings` | save a Job Listing (URL/text) — creates its Application; RAL Range + Application Method are best-effort (see ADR-0011; failures persist as `unresolved`, never block the save) |
 | POST | `/api/job-listings/from-extension` | save a Job Listing captured by the browser extension (`extension/`) — same best-effort save as above |
 | GET | `/api/job-listings/{id}` | get a Job Listing |
@@ -120,6 +121,7 @@ This is a single static shared secret, not a login/session system — proportion
 | GET | `/api/ats/tracked-boards` | list tracked ATS boards |
 | POST | `/api/ats/tracked-boards` | track an ATS board |
 | DELETE | `/api/ats/tracked-boards/{id}` | stop tracking an ATS board |
+| GET | `/api/export` | download a zip archive of Job Listing/Application data (`data/jobs/`, `data/applications/`) — a manual backup, since that data is gitignored (ADR-0008) unlike Master Data |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
@@ -131,5 +133,5 @@ From `frontend/`: `npm run dev` (served by the `frontend` service above inside D
 
 - [`CONTEXT.md`](CONTEXT.md) — domain vocabulary (ubiquitous language)
 - [`docs/adr/`](docs/adr/) — architecture decision records
-- [`extension/README.md`](extension/README.md) — how the LinkedIn capture extension works and how to load it
+- [`extension/README.md`](extension/README.md) — how the LinkedIn/Indeed capture extension works and how to load it
 - [`brand/palette.md`](brand/palette.md) — the color palette behind the logo, applied across the frontend's shadcn/ui theme

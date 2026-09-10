@@ -1,6 +1,5 @@
 services:
   backend:
-    build: ./backend
     # No `profiles:` key here on purpose: Compose only starts a service
     # under a profile it declares, and there's no implicit "default" name
     # that auto-activates — declaring one would make plain `docker compose
@@ -9,6 +8,12 @@ services:
     # (profile-less services always run) while the `lan` label documents
     # the intent. The actual LAN-reachable opt-in is BIND_ADDR/LAN_AUTH_TOKEN
     # below (issue #57, ADR-0004).
+    build:
+      # Repo root, not ./backend — the Dockerfile also COPYs the
+      # root-level typst-version.txt (single source of truth for the
+      # pinned typst version, see ADR-0012 and issue #55).
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       DATA_DIR: /workspace/data
       PROJECT_ROOT: /workspace

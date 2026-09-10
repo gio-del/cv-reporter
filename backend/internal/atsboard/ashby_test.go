@@ -55,6 +55,25 @@ func TestFetchAshbyListings_NormalizesFixtureResponse(t *testing.T) {
 	}
 }
 
+// Documents issue #42's finding: Ashby's public job board API exposes no
+// logo field (top-level or per-job), so Listing.LogoURL stays empty given
+// a real-shaped fixture response with no such field.
+func TestFetchAshbyListings_NoLogoFieldInResponse_LogoURLStaysEmpty(t *testing.T) {
+	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusOK, ashbyFixture), nil
+	}}
+
+	listings, err := atsboard.FetchAshbyListings(context.Background(), doer, "acme")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i, l := range listings {
+		if l.LogoURL != "" {
+			t.Errorf("expected listing %d LogoURL to stay empty, got %q", i, l.LogoURL)
+		}
+	}
+}
+
 func TestFetchAshbyListings_BoardNotFound_ReturnsErrBoardNotFound(t *testing.T) {
 	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusNotFound, `{}`), nil

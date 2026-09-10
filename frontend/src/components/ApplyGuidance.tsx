@@ -66,7 +66,7 @@ export default function ApplyGuidance({
   return (
     <div className="flex flex-col gap-2">
       {link ? (
-        <p className="mb-0 text-sm">
+        <p className="mb-0 text-sm break-words">
           Apply here:{' '}
           <a href={link} target="_blank" rel="noreferrer">
             {link}
