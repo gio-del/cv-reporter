@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
@@ -7,6 +7,7 @@ import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import {
   deleteJobListing,
+  exportDataUrl,
   generationFileUrl,
   jobListingLogoUrl,
   listJobListings,
@@ -33,6 +34,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { jobListingHeading } from '@/lib/utils'
 
+const ALL_STATUSES_VALUE = 'all'
+
 const statusLabel: Record<ApplicationStatus, string> = {
   saved: 'Saved',
   tailoring: 'Tailoring',
@@ -40,24 +43,31 @@ const statusLabel: Record<ApplicationStatus, string> = {
   interviewing: 'Interviewing',
   rejected: 'Rejected',
   offer: 'Offer',
+  withdrawn: 'Withdrawn',
 }
 
 // Mirrors the backend's Status state machine (see tracking.allowedTransitions)
 // so the FE only ever offers a valid next move — the backend remains the
 // source of truth and re-validates on PATCH regardless (story 4).
 const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
-  saved: ['tailoring'],
-  tailoring: ['sent'],
-  sent: ['interviewing', 'rejected'],
-  interviewing: ['rejected', 'offer'],
+  saved: ['tailoring', 'withdrawn'],
+  tailoring: ['sent', 'withdrawn'],
+  sent: ['interviewing', 'rejected', 'withdrawn'],
+  interviewing: ['rejected', 'offer', 'withdrawn'],
   rejected: ['interviewing'],
   offer: [],
+  withdrawn: ['interviewing'],
 }
 
-// Moving into Rejected, and Reopening out of it, each reverse the other and
-// need explicit confirmation before the PATCH fires (stories 2-4).
+// Moving into Rejected/Withdrawn, and Reopening out of either back to
+// Interviewing, each reverse the other and need explicit confirmation
+// before the PATCH fires (stories 2-4, PRD stories 3 and 5).
 function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return to === 'rejected' || (from === 'rejected' && to === 'interviewing')
+  return (
+    to === 'rejected' ||
+    to === 'withdrawn' ||
+    ((from === 'rejected' || from === 'withdrawn') && to === 'interviewing')
+  )
 }
 
 interface PendingStatusChange {
@@ -81,6 +91,7 @@ interface AppliedRALFilter {
 }
 
 export default function JobListingsListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
@@ -92,6 +103,29 @@ export default function JobListingsListPage() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Filter state lives in the URL (story 7: bookmarkable/reload-safe views).
+  const statusFilter = (searchParams.get('status') as ApplicationStatus | null) ?? ''
+  const companyFilter = searchParams.get('company') ?? ''
+  const savedFromFilter = searchParams.get('savedFrom') ?? ''
+  const savedToFilter = searchParams.get('savedTo') ?? ''
+  const hasActiveFilter = Boolean(statusFilter || companyFilter || savedFromFilter || savedToFilter)
+
+  function setFilter(key: 'status' | 'company' | 'savedFrom' | 'savedTo', value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) {
+        next.set(key, value)
+      } else {
+        next.delete(key)
+      }
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setSearchParams(new URLSearchParams())
+  }
 
   // RAL Range sort/filter (issue #51): appliedRALFilter/ralSort together
   // drive the fetch below, so applying a filter or sort doesn't get
@@ -109,6 +143,10 @@ export default function JobListingsListPage() {
 
   useEffect(() => {
     listJobListings({
+      status: statusFilter || undefined,
+      company: companyFilter || undefined,
+      savedFrom: savedFromFilter || undefined,
+      savedTo: savedToFilter || undefined,
       sortByRAL: ralSort === 'none' ? undefined : ralSort,
       ralMin: appliedRALFilter?.min,
       ralMax: appliedRALFilter?.max,
@@ -131,7 +169,7 @@ export default function JobListingsListPage() {
         }
       })
       .catch((e) => setError(e.message))
-  }, [ralSort, appliedRALFilter])
+  }, [statusFilter, companyFilter, savedFromFilter, savedToFilter, ralSort, appliedRALFilter])
 
   function handleApplyRALFilter() {
     setRalFilterError(null)
@@ -251,9 +289,16 @@ export default function JobListingsListPage() {
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="mb-0">Job Listings</h1>
-        <Button asChild>
-          <Link to="/jobs/new">+ Save Job Listing</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <a href={exportDataUrl()} download>
+              Export data
+            </a>
+          </Button>
+          <Button asChild>
+            <Link to="/jobs/new">+ Save Job Listing</Link>
+          </Button>
+        </div>
       </div>
 
       {statusError && (
@@ -273,6 +318,71 @@ export default function JobListingsListPage() {
           {deleteError}
         </p>
       )}
+
+      <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card/95 p-3 backdrop-blur">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-status" className="text-xs font-medium text-muted-foreground">
+            Status
+          </label>
+          <Select
+            value={statusFilter || ALL_STATUSES_VALUE}
+            onValueChange={(value) => setFilter('status', value === ALL_STATUSES_VALUE ? '' : value)}
+          >
+            <SelectTrigger id="filter-status" size="sm" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES_VALUE}>All statuses</SelectItem>
+              {(Object.keys(statusLabel) as ApplicationStatus[]).map((status) => (
+                <SelectItem key={status} value={status}>
+                  {statusLabel[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-company" className="text-xs font-medium text-muted-foreground">
+            Company
+          </label>
+          <Input
+            id="filter-company"
+            className="h-9 w-48"
+            placeholder="e.g. acme"
+            value={companyFilter}
+            onChange={(e) => setFilter('company', e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-saved-from" className="text-xs font-medium text-muted-foreground">
+            Saved from
+          </label>
+          <Input
+            id="filter-saved-from"
+            type="date"
+            className="h-9"
+            value={savedFromFilter}
+            onChange={(e) => setFilter('savedFrom', e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-saved-to" className="text-xs font-medium text-muted-foreground">
+            Saved to
+          </label>
+          <Input
+            id="filter-saved-to"
+            type="date"
+            className="h-9"
+            value={savedToFilter}
+            onChange={(e) => setFilter('savedTo', e.target.value)}
+          />
+        </div>
+        {hasActiveFilter && (
+          <Button size="sm" variant="ghost" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
         <div className="flex flex-col gap-1">
@@ -363,9 +473,10 @@ export default function JobListingsListPage() {
         )}
       </div>
 
-      {listings.length === 0 && (
-        <p>{appliedRALFilter ? 'No Job Listings match this RAL filter.' : 'No Job Listings saved yet.'}</p>
+      {listings.length === 0 && (hasActiveFilter || appliedRALFilter) && (
+        <p>No Job Listings match the current filters.</p>
       )}
+      {listings.length === 0 && !hasActiveFilter && !appliedRALFilter && <p>No Job Listings saved yet.</p>}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
@@ -375,23 +486,39 @@ export default function JobListingsListPage() {
           return (
             <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
+                <span className="flex min-w-0 items-center gap-2">
                   {jobListing.logo && (
                     <img
                       src={jobListingLogoUrl(jobListing.id)}
                       alt=""
-                      className="h-8 w-8 rounded object-contain"
+                      className="h-8 w-8 shrink-0 rounded object-contain"
                     />
                   )}
-                  <strong className="font-semibold">{jobListingHeading(jobListing)}</strong>
+                  <strong className="break-words font-semibold">{jobListingHeading(jobListing)}</strong>
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {needsResolve && (
                     <Badge variant="outline" className="border-unresolved text-unresolved">
                       Needs attention
                     </Badge>
                   )}
-                  <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  {application.status === 'withdrawn' ? (
+                    <Badge variant="outline" className="border-withdrawn text-withdrawn">
+                      {statusLabel[application.status]}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  )}
+                  {application.isStale && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="border-accent text-accent">
+                          Follow-up overdue
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>No Status change in over 14 days</TooltipContent>
+                    </Tooltip>
+                  )}
                   {needsResolve && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -457,8 +584,8 @@ export default function JobListingsListPage() {
                   </Button>
                   {isDescriptionExpanded && (
                     <div
-                      className="mt-2 rounded-lg border border-border bg-muted/40 p-3 text-sm
-                        [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_p+ul]:mt-2
+                      className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 text-sm
+                        break-words [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_p+ul]:mt-2
                         [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
                     >
                       <ReactMarkdown remarkPlugins={[remarkBreaks]}>{jobListing.jobDescription}</ReactMarkdown>
@@ -541,12 +668,16 @@ export default function JobListingsListPage() {
             <AlertDialogTitle>
               {pendingChange?.to === 'rejected'
                 ? 'Mark this Application Rejected?'
-                : 'Reopen this Application to Interviewing?'}
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Mark this Application Withdrawn?'
+                  : 'Reopen this Application to Interviewing?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingChange?.to === 'rejected'
                 ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
-                : `${pendingChange?.company} will move back to Interviewing.`}
+                : pendingChange?.to === 'withdrawn'
+                  ? `${pendingChange.company} will be marked Withdrawn. You can Reopen it back to Interviewing later if you change your mind.`
+                  : `${pendingChange?.company} will move back to Interviewing.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -557,7 +688,11 @@ export default function JobListingsListPage() {
                 handleConfirmPendingChange()
               }}
             >
-              {pendingChange?.to === 'rejected' ? 'Yes, mark Rejected' : 'Yes, reopen'}
+              {pendingChange?.to === 'rejected'
+                ? 'Yes, mark Rejected'
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Yes, mark Withdrawn'
+                  : 'Yes, reopen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

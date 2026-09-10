@@ -87,3 +87,31 @@ func createGenerationHandler(dataDir string, client generation.Client) http.Hand
 		writeJSON(w, http.StatusOK, result)
 	}
 }
+
+// previewGenerationHandler serves the Selection-only preview (see the
+// "Dry-run Selection preview" PRD): same request shape as
+// createGenerationHandler, but never calls Rewrite, Cover Letter drafting,
+// RAL Range estimation, or Render, and nothing about the response is ever
+// persisted against an Application.
+func previewGenerationHandler(dataDir string, client generation.Client) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req generation.GenerateRequest
+		if r.Body != nil && r.ContentLength != 0 {
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+
+		result, err := generation.Preview(r.Context(), dataDir, client, req)
+		if errors.Is(err, generation.ErrInvalidSelection) {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+	}
+}

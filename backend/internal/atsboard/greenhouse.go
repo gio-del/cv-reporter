@@ -23,6 +23,13 @@ type greenhouseResponse struct {
 // FetchGreenhouseListings fetches boardSlug's open roles from Greenhouse's
 // public job board API (documented, read-only — see ADR-0007) and
 // normalizes them into the common Listing shape (story 1).
+//
+// Company Logo (issue #42): verified against live boards-api.greenhouse.io
+// responses (both the per-job jobs?content=true payload and the
+// board-level /v1/boards/{slug} endpoint) — neither exposes a logo/image
+// field, so Listing.LogoURL is always left empty here. Confirmed against
+// several public Greenhouse boards; if that ever changes, populate it from
+// whichever field carries it.
 func FetchGreenhouseListings(ctx context.Context, doer HTTPDoer, boardSlug string) ([]Listing, error) {
 	url := fmt.Sprintf("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true", boardSlug)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

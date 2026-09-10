@@ -22,7 +22,11 @@ type TrackedBoard struct {
 	Label    string   `json:"label,omitempty" yaml:"label,omitempty"`
 }
 
-func trackedBoardID(provider Provider, slug string) string {
+// TrackedBoardID is the stable key (provider+slug) identifying a tracked
+// board across both its TrackedBoard record and its seen-state (see
+// seen.go) — re-tracking or re-fetching the same provider/slug always
+// resolves to the same ID.
+func TrackedBoardID(provider Provider, slug string) string {
 	return string(provider) + ":" + slug
 }
 
@@ -51,7 +55,7 @@ func AddTrackedBoard(dataDir string, provider Provider, slug, label string) (Tra
 		return TrackedBoard{}, err
 	}
 
-	board := TrackedBoard{ID: trackedBoardID(provider, slug), Provider: provider, Slug: slug, Label: label}
+	board := TrackedBoard{ID: TrackedBoardID(provider, slug), Provider: provider, Slug: slug, Label: label}
 
 	replaced := false
 	for i, b := range boards {
