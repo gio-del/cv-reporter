@@ -16,6 +16,10 @@ func (f *fakeClient) SelectAndRewrite(ctx context.Context, req SelectionRequest)
 	return SelectionResult{}, nil
 }
 
+func (f *fakeClient) SelectOnly(ctx context.Context, req SelectionRequest) (SelectionResult, error) {
+	return SelectionResult{}, nil
+}
+
 func (f *fakeClient) DraftCoverLetter(ctx context.Context, req CoverLetterRequest) (CoverLetterResult, error) {
 	return CoverLetterResult{}, nil
 }

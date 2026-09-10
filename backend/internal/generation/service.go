@@ -83,6 +83,41 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	}, nil
 }
 
+// Preview runs Selection alone for req: no Rewrite, no Cover Letter
+// drafting, no RAL Range estimation, and (unlike Generate) never persisted
+// against an Application — a cheap sanity check of what Selection would
+// pick before committing to a full Generation (see the "Dry-run Selection
+// preview" PRD). Default Mode behaves exactly as in Generate: every Entry
+// included, unmodified, no Client call.
+func Preview(ctx context.Context, dataDir string, client Client, req GenerateRequest) (GenerateResult, error) {
+	entries, err := masterdata.ListEntries(dataDir)
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("loading master data: %w", err)
+	}
+
+	jobDescription, err := ResolveJobDescription(ctx, req.JobDescription, req.JobDescriptionURL)
+	if err != nil {
+		return GenerateResult{}, err
+	}
+
+	if jobDescription == "" {
+		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries)}, nil
+	}
+
+	selection, err := client.SelectOnly(ctx, SelectionRequest{
+		JobDescription: jobDescription,
+		Candidates:     toCandidates(entries),
+	})
+	if err != nil {
+		return GenerateResult{}, fmt.Errorf("selecting: %w", err)
+	}
+	if err := validateSelection(selection, entries); err != nil {
+		return GenerateResult{}, err
+	}
+
+	return GenerateResult{Mode: ModeTailored, JobDescription: jobDescription, Selection: selection}, nil
+}
+
 // ResolveRAL implements the PRD's RAL Range lookup, now against two
 // sources: the Job Description text and, for a LinkedIn capture, the
 // listing's own dedicated salary-badge text (listingSalaryText — empty for

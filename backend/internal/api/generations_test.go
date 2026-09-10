@@ -20,6 +20,7 @@ import (
 // PRD's Testing Decisions.
 type fakeGenerationClient struct {
 	selectAndRewrite       func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error)
+	selectOnly             func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error)
 	draftCoverLetter       func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error)
 	estimateRAL            func(ctx context.Context, jobDescription string) (generation.RALRange, error)
 	inferApplicationMethod func(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error)
@@ -28,6 +29,13 @@ type fakeGenerationClient struct {
 
 func (f *fakeGenerationClient) SelectAndRewrite(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
 	return f.selectAndRewrite(ctx, req)
+}
+
+func (f *fakeGenerationClient) SelectOnly(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+	if f.selectOnly == nil {
+		return generation.SelectionResult{}, nil
+	}
+	return f.selectOnly(ctx, req)
 }
 
 func (f *fakeGenerationClient) DraftCoverLetter(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {

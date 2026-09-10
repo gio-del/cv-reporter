@@ -118,6 +118,102 @@ func (c *Client) SelectAndRewrite(ctx context.Context, req generation.SelectionR
 	return generation.SelectionResult{}, fmt.Errorf("Claude response had no %s tool call", selectAndRewriteToolName)
 }
 
+const selectOnlySystemPrompt = `You are previewing Selection for one specific Job Description, with no Rewrite step. Choose which Entries, and which of their bullets, are relevant to the Job Description, and in what order, the same way Selection normally would (trimmable enough to fit one page, so err on the side of cutting a marginal Entry or bullet rather than keeping everything). Do not reword any bullet: report each kept bullet's exact original text as "source", verbatim.
+
+Call the select_only tool with your result. Every "entryId" you return must be one of the candidate ids given to you. Every "sourceIndex" must be that bullet's position (0-based) in that Entry's bullet list, and "source" must match that bullet's text exactly.`
+
+const selectOnlyToolName = "select_only"
+
+func selectOnlyTool() anthropic.ToolUnionParam {
+	schema := anthropic.ToolInputSchemaParam{
+		Properties: map[string]any{
+			"entries": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"entryId": map[string]any{"type": "string", "description": "Must match one of the candidate Entry ids."},
+						"reason":  map[string]any{"type": "string", "description": "Why this Entry was selected, for the preview."},
+						"bullets": map[string]any{
+							"type": "array",
+							"items": map[string]any{
+								"type": "object",
+								"properties": map[string]any{
+									"sourceIndex": map[string]any{"type": "integer"},
+									"source":      map[string]any{"type": "string"},
+								},
+								"required": []string{"sourceIndex", "source"},
+							},
+						},
+					},
+					"required": []string{"entryId", "reason", "bullets"},
+				},
+			},
+		},
+		Required: []string{"entries"},
+	}
+	return anthropic.ToolUnionParamOfTool(schema, selectOnlyToolName)
+}
+
+type selectOnlyResult struct {
+	Entries []struct {
+		EntryID string `json:"entryId"`
+		Reason  string `json:"reason"`
+		Bullets []struct {
+			SourceIndex int    `json:"sourceIndex"`
+			Source      string `json:"source"`
+		} `json:"bullets"`
+	} `json:"entries"`
+}
+
+// SelectOnly asks Claude to select, without rewriting, Entries for req, via
+// a forced call to the select_only tool. This is a dedicated, smaller
+// Claude call than SelectAndRewrite — not a filtered view of its response —
+// per the "Dry-run Selection preview" PRD: discarding SelectAndRewrite's
+// Rewritten field would still incur Rewrite's full cost and latency.
+// Rewritten mirrors Source in the result since no rewrite occurred, so
+// callers can reuse SelectionResult's existing shape.
+func (c *Client) SelectOnly(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+	candidates, err := json.Marshal(req.Candidates)
+	if err != nil {
+		return generation.SelectionResult{}, fmt.Errorf("marshaling candidates: %w", err)
+	}
+
+	userPrompt := fmt.Sprintf("Job Description:\n%s\n\nCandidate Entries (JSON):\n%s", req.JobDescription, candidates)
+
+	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:      c.model,
+		MaxTokens:  4096,
+		System:     []anthropic.TextBlockParam{{Text: selectOnlySystemPrompt}},
+		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt))},
+		Tools:      []anthropic.ToolUnionParam{selectOnlyTool()},
+		ToolChoice: anthropic.ToolChoiceParamOfTool(selectOnlyToolName),
+	})
+	if err != nil {
+		return generation.SelectionResult{}, fmt.Errorf("calling Claude API: %w", err)
+	}
+
+	for _, block := range message.Content {
+		if block.Type != "tool_use" || block.Name != selectOnlyToolName {
+			continue
+		}
+		var raw selectOnlyResult
+		if err := json.Unmarshal(block.Input, &raw); err != nil {
+			return generation.SelectionResult{}, fmt.Errorf("decoding %s tool input: %w", selectOnlyToolName, err)
+		}
+		result := generation.SelectionResult{Entries: make([]generation.SelectedEntry, len(raw.Entries))}
+		for i, e := range raw.Entries {
+			bullets := make([]generation.SelectedBullet, len(e.Bullets))
+			for j, b := range e.Bullets {
+				bullets[j] = generation.SelectedBullet{SourceIndex: b.SourceIndex, Source: b.Source, Rewritten: b.Source}
+			}
+			result.Entries[i] = generation.SelectedEntry{EntryID: e.EntryID, Reason: e.Reason, Bullets: bullets}
+		}
+		return result, nil
+	}
+	return generation.SelectionResult{}, fmt.Errorf("Claude response had no %s tool call", selectOnlyToolName)
+}
+
 const draftCoverLetterSystemPrompt = `You draft a Cover Letter for one specific Job Description.
 
 If any Cover Letter Snippets are given, select and lightly adapt among them for this Job Description; list every Snippet id you drew from in "sourceSnippetIds". If none are given, or none fit, write fresh prose grounded only in the candidate Entries and the Job Description — leave "sourceSnippetIds" empty in that case.
