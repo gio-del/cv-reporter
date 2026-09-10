@@ -206,7 +206,7 @@ export interface JobListing {
   logo?: string
 }
 
-export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer'
+export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer' | 'withdrawn'
 
 export type ApplicationMethodKind = 'portal' | 'email' | 'easy_apply' | 'other' | 'unresolved'
 

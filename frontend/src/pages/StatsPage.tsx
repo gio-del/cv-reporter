@@ -9,6 +9,7 @@ const statusLabel: Record<ApplicationStatus, string> = {
   interviewing: 'Interviewing',
   rejected: 'Rejected',
   offer: 'Offer',
+  withdrawn: 'Withdrawn',
 }
 
 export default function StatsPage() {

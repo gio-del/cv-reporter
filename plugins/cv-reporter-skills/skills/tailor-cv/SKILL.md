@@ -82,7 +82,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
      -H 'Content-Type: application/json' \
      -d '{"status": "tailoring"}'
    ```
-   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`), skip this ask entirely — don't touch Status.
+   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`, `withdrawn`), skip this ask entirely — don't touch Status.
 
 ## Pipeline
 
