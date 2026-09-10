@@ -484,3 +484,56 @@ func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+func TestGetApplicationsStats_ReturnsAggregatedShape(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 1 {
+		t.Errorf("expected total 1, got %v", stats["total"])
+	}
+	if _, ok := stats["counts"].([]any); !ok {
+		t.Errorf("expected counts array in response, got %v", stats["counts"])
+	}
+}
+
+func TestGetApplicationsStats_NoApplications_Returns200WithZeroTotal(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 0 {
+		t.Errorf("expected total 0, got %v", stats["total"])
+	}
+}

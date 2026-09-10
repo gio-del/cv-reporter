@@ -169,3 +169,22 @@ func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, application)
 	}
 }
+
+// getApplicationsStatsHandler serves the Application funnel/stats view's
+// data (issue #36): counts per Status, stage-to-stage conversion rates,
+// and time-in-stage, computed from the same tracking.List every other
+// Application read already uses — no separate stats-only data store.
+func getApplicationsStatsHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		listings, err := tracking.List(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		applications := make([]tracking.Application, len(listings))
+		for i, l := range listings {
+			applications[i] = l.Application
+		}
+		writeJSON(w, http.StatusOK, tracking.ComputeStats(applications))
+	}
+}
