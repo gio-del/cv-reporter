@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition
@@ -70,6 +71,7 @@ func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error)
 		return Application{}, err
 	}
 	application.Status = newStatus
+	application.StatusHistory = append(application.StatusHistory, StatusChange{Status: newStatus, ChangedAt: time.Now().UTC()})
 
 	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err

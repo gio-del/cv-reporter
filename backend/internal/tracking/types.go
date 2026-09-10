@@ -4,7 +4,11 @@
 // (ADR-0008).
 package tracking
 
-import "github.com/gio-del/cv-reporter/backend/internal/generation"
+import (
+	"time"
+
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
+)
 
 // SourceManual is the only Source this PRD can produce — ATS feeds and the
 // browser extension (CONTEXT.md's other two Job Listing sources) are out of
@@ -87,6 +91,16 @@ type Contact struct {
 	Email string `json:"email"`
 }
 
+// StatusChange is one entry in an Application's StatusHistory: the Status
+// it moved to, and when. Appended on every successful Transition
+// (including Reopen), so aggregate views like the Application funnel/stats
+// page (issue #36) have a real data trail to compute time-in-stage from,
+// instead of only ever seeing the current Status.
+type StatusChange struct {
+	Status    Status    `json:"status"`
+	ChangedAt time.Time `json:"changedAt"`
+}
+
 // Application is the tracked record of one attempt to apply to a Job
 // Listing — exactly one per Job Listing, created at Status Saved the
 // moment it's saved (CONTEXT.md's Application entry, story 2). It shares
@@ -99,6 +113,11 @@ type Application struct {
 	Method       ApplicationMethod  `json:"method"`
 	Contact      *Contact           `json:"contact,omitempty"`
 	Generations  []GenerationRecord `json:"generations,omitempty"`
+	// StatusHistory is append-only: one entry per Status the Application has
+	// ever moved to (including its initial Saved entry at creation), oldest
+	// first. Applications saved before this field existed simply have an
+	// empty slice — there is nothing to backfill it from.
+	StatusHistory []StatusChange `json:"statusHistory,omitempty"`
 }
 
 // ListingWithApplication pairs a Job Listing with its 1:1 Application, the
