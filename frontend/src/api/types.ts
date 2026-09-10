@@ -246,6 +246,7 @@ export interface AtsListing {
   url: string
   description: string
   alreadySaved: boolean
+  new: boolean
 }
 
 export interface TrackedBoard {
@@ -253,6 +254,7 @@ export interface TrackedBoard {
   provider: AtsProvider
   slug: string
   label?: string
+  newCount: number
 }
 
 export interface AddTrackedBoardRequest {
