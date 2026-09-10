@@ -326,3 +326,22 @@ export interface AddTrackedBoardRequest {
   label?: string
 }
 
+export type TagLintConfidence = 'confident' | 'suggested'
+
+export interface TagLintOccurrence {
+  tag: string
+  entryId: string
+  entryType: EntryType
+}
+
+export interface TagLintGroup {
+  key: string
+  confidence: TagLintConfidence
+  occurrences: TagLintOccurrence[]
+}
+
+export interface TagLintReport {
+  groups: TagLintGroup[]
+  singletons: TagLintOccurrence[]
+}
+

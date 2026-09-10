@@ -22,6 +22,7 @@ import type {
   SaveJobListingResult,
   Snippet,
   SnippetInput,
+  TagLintReport,
   TrackedBoard,
 } from './types'
 
@@ -64,6 +65,10 @@ export async function deleteEntry(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getTagLint(): Promise<TagLintReport> {
+  return request('/api/master-data/tag-lint')
 }
 
 export function getProfile(): Promise<Profile> {

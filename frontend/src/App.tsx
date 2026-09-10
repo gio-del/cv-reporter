@@ -12,6 +12,7 @@ import SnippetCreatePage from '@/pages/SnippetCreatePage'
 import SnippetDetailPage from '@/pages/SnippetDetailPage'
 import SnippetsListPage from '@/pages/SnippetsListPage'
 import StatsPage from '@/pages/StatsPage'
+import TagLintPage from '@/pages/TagLintPage'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
           <Routes>
             <Route path="/" element={<EntriesListPage />} />
             <Route path="/entries/new" element={<EntryCreatePage />} />
+            <Route path="/tags" element={<TagLintPage />} />
             <Route path="/entries/*" element={<EntryDetailPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/generate" element={<GenerationPage />} />

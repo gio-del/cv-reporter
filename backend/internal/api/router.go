@@ -55,6 +55,7 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("DELETE /api/master-data/entries/{id...}", deleteEntryHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/profile", getProfileHandler(dataDir))
 	mux.HandleFunc("PUT /api/master-data/profile", putProfileHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/tag-lint", tagLintHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets", listSnippetsHandler(dataDir))
 	mux.HandleFunc("POST /api/master-data/cover-letter-snippets", createSnippetHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets/{id...}", getSnippetHandler(dataDir))
