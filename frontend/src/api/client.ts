@@ -116,6 +116,14 @@ export function createGeneration(req: GenerateRequest): Promise<GenerateResult> 
   })
 }
 
+export function previewGeneration(req: GenerateRequest): Promise<GenerateResult> {
+  return request('/api/generations/preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
 export function renderGeneration(req: RenderRequest): Promise<RenderResult> {
   return request('/api/generations/render', {
     method: 'POST',
