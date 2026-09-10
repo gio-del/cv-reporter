@@ -118,17 +118,63 @@ const (
 // Selection+Rewrite (and, in Tailored Mode, Cover Letter drafting) step.
 // CoverLetter is nil in Default Mode: there's no Job Description to ground
 // fresh prose in, mirroring Rewrite being skipped (see CONTEXT.md's Default
-// Mode entry).
+// Mode entry). Groundedness is nil in Default Mode too, for the same
+// reason: nothing was rewritten to check (see checkGroundedness).
 type GenerateResult struct {
-	Mode           GenerateMode       `json:"mode"`
-	JobDescription string             `json:"jobDescription,omitempty"`
-	Selection      SelectionResult    `json:"selection"`
-	CoverLetter    *CoverLetterResult `json:"coverLetter,omitempty"`
-	RAL            *RALRange          `json:"ral,omitempty"`
+	Mode           GenerateMode        `json:"mode"`
+	JobDescription string              `json:"jobDescription,omitempty"`
+	Selection      SelectionResult     `json:"selection"`
+	CoverLetter    *CoverLetterResult  `json:"coverLetter,omitempty"`
+	RAL            *RALRange           `json:"ral,omitempty"`
+	Groundedness   *GroundednessResult `json:"groundedness,omitempty"`
 
 	// Language is the final, normalized target language (NormalizeLanguage
 	// applied) the CV/Cover Letter were written in — DefaultLanguage in
 	// Default Mode, since there's no Job Description to detect one from.
 	// Editable at Text Review (see issue #41's PRD).
 	Language string `json:"language"`
+}
+
+// GroundednessReason explains why checkGroundedness flagged a sentence.
+type GroundednessReason string
+
+const (
+	// ReasonNoSourceMatch marks a sentence that shares too little overlap
+	// with its source text to plausibly trace back to it at all.
+	ReasonNoSourceMatch GroundednessReason = "no-source-match"
+	// ReasonNumericMismatch marks a sentence that otherwise traces back to
+	// its source, but states a number, date, or proper noun the source
+	// doesn't — weighted more heavily than general phrasing drift (PRD
+	// story 6), since a fabricated specific is the more concerning case.
+	ReasonNumericMismatch GroundednessReason = "numeric-mismatch"
+)
+
+// GroundednessFlag is one sentence from Rewrite or Cover Letter output whose
+// overlap with its source(s) fell below checkGroundedness's threshold — a
+// hint surfaced at Text Review, never a Generation-blocking error (ADR-0002
+// keeps the human review as the actual gate; see ADR-0010, which names this
+// exact gap for Rewrite).
+type GroundednessFlag struct {
+	Sentence string             `json:"sentence" yaml:"sentence"`
+	Reason   GroundednessReason `json:"reason" yaml:"reason"`
+}
+
+// BulletGroundedness is a SelectedBullet whose Rewritten text has at least
+// one GroundednessFlag.
+type BulletGroundedness struct {
+	EntryID     string             `json:"entryId" yaml:"entryId"`
+	SourceIndex int                `json:"sourceIndex" yaml:"sourceIndex"`
+	Flags       []GroundednessFlag `json:"flags" yaml:"flags"`
+}
+
+// GroundednessResult is checkGroundedness's verdict across one Generation's
+// Rewrite and Cover Letter output. Attached to GenerateResult so Text
+// Review can render it, and persisted on the GenerationRecord it's
+// eventually recorded against (tracking package) so it's visible after the
+// fact, not only in the live Text Review session (PRD story 9). Bullets and
+// CoverLetter are only populated for sentences that were actually flagged —
+// an empty GroundednessResult means the check ran and found nothing.
+type GroundednessResult struct {
+	Bullets     []BulletGroundedness `json:"bullets,omitempty" yaml:"bullets,omitempty"`
+	CoverLetter []GroundednessFlag   `json:"coverLetter,omitempty" yaml:"coverLetter,omitempty"`
 }

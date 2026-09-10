@@ -104,6 +104,111 @@ func TestListAtsListings_MarksAlreadySavedListingsByURL(t *testing.T) {
 	}
 }
 
+func TestListAtsListings_UntrackedBoard_NeverMarksNewOrCreatesSeenState(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	// Story 10: a one-off browse of a board never tracked shouldn't require
+	// or create seen-state.
+	resp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var listings []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&listings); err != nil {
+		t.Fatal(err)
+	}
+	if len(listings) != 1 || listings[0]["new"] != false {
+		t.Errorf("expected the untracked board's listing to not be flagged new, got %v", listings)
+	}
+}
+
+func TestListAtsListings_TrackedBoard_FirstFetch_SeedsBaselineNoneNew(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	trackResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})
+	trackResp.Body.Close()
+
+	// Story 5: tracking a board with an existing backlog shouldn't report
+	// that backlog as new on the very first fetch.
+	resp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var listings []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&listings); err != nil {
+		t.Fatal(err)
+	}
+	if len(listings) != 1 || listings[0]["new"] != false {
+		t.Errorf("expected no listings marked new on the first fetch of a freshly-tracked board, got %v", listings)
+	}
+}
+
+func TestListAtsListings_TrackedBoard_SecondFetch_OnlyFlagsGenuinelyNewListings(t *testing.T) {
+	dataDir := seedDataDir(t)
+	fetchCount := 0
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		fetchCount++
+		if fetchCount == 1 {
+			return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
+		}
+		return jsonATSResponse(http.StatusOK, `{
+		  "jobs": [
+		    {"id": 1, "title": "Backend Engineer", "location": {"name": "Remote"}, "absolute_url": "https://boards.greenhouse.io/acme/jobs/1", "content": "<p>Join us.</p>"},
+		    {"id": 2, "title": "New Role", "location": {"name": "Remote"}, "absolute_url": "https://boards.greenhouse.io/acme/jobs/2", "content": "<p>New.</p>"}
+		  ]
+		}`), nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	trackResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})
+	trackResp.Body.Close()
+
+	firstResp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstResp.Body.Close()
+
+	secondResp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer secondResp.Body.Close()
+
+	var listings []map[string]any
+	if err := json.NewDecoder(secondResp.Body).Decode(&listings); err != nil {
+		t.Fatal(err)
+	}
+	if len(listings) != 2 {
+		t.Fatalf("expected 2 listings, got %d", len(listings))
+	}
+	byURL := map[string]map[string]any{}
+	for _, l := range listings {
+		byURL[l["url"].(string)] = l
+	}
+	if byURL["https://boards.greenhouse.io/acme/jobs/1"]["new"] != false {
+		t.Errorf("expected the already-seen listing to not be flagged new, got %v", byURL["https://boards.greenhouse.io/acme/jobs/1"])
+	}
+	if byURL["https://boards.greenhouse.io/acme/jobs/2"]["new"] != true {
+		t.Errorf("expected the genuinely new listing to be flagged new, got %v", byURL["https://boards.greenhouse.io/acme/jobs/2"])
+	}
+}
+
 func TestListAtsListings_BoardNotFound_Returns404WithClearError(t *testing.T) {
 	dataDir := seedDataDir(t)
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {

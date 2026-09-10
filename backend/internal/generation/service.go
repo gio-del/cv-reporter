@@ -85,6 +85,8 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
 	}
 
+	groundedness := computeGroundedness(selection, coverLetter, snippets)
+
 	return GenerateResult{
 		Mode:           ModeTailored,
 		JobDescription: jobDescription,
@@ -92,6 +94,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		CoverLetter:    &coverLetter,
 		RAL:            &ral,
 		Language:       language,
+		Groundedness:   &groundedness,
 	}, nil
 }
 

@@ -10,7 +10,16 @@ import {
   recordApplicationGeneration,
   renderGeneration,
 } from '@/api/client'
-import type { Entry, JobListing, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '@/api/types'
+import type {
+  Entry,
+  GroundednessFlag,
+  GroundednessResult,
+  JobListing,
+  RALRange,
+  RenderResult,
+  SelectedBullet,
+  SelectedEntry,
+} from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -45,6 +54,37 @@ function toEditable(entries: SelectedEntry[]): EditableEntry[] {
   }))
 }
 
+function bulletFlags(groundedness: GroundednessResult | null, entryId: string, sourceIndex: number): GroundednessFlag[] {
+  return groundedness?.bullets?.find((b) => b.entryId === entryId && b.sourceIndex === sourceIndex)?.flags ?? []
+}
+
+const GROUNDEDNESS_REASON_LABEL: Record<GroundednessFlag['reason'], string> = {
+  'no-source-match': 'no matching source bullet found',
+  'numeric-mismatch': 'contains a number/detail not present in source',
+}
+
+function GroundednessBadge({ flags }: { flags: GroundednessFlag[] }) {
+  if (flags.length === 0) return null
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-2 cursor-help rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+          {flags.length} flagged
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="list-disc pl-4">
+          {flags.map((flag, i) => (
+            <li key={i}>
+              "{flag.sentence}" — {GROUNDEDNESS_REASON_LABEL[flag.reason]}
+            </li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function entryLabel(entry: Entry | undefined, entryId: string): string {
   if (!entry) return entryId
   if (entry.type === 'experience') {
@@ -67,6 +107,7 @@ export default function GenerationPage() {
   const [ral, setRal] = useState<RALRange | null>(null)
   const [language, setLanguage] = useState<string | null>(null)
   const [languageChanging, setLanguageChanging] = useState(false)
+  const [groundedness, setGroundedness] = useState<GroundednessResult | null>(null)
   const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -107,6 +148,7 @@ export default function GenerationPage() {
       setCoverLetter(result.coverLetter?.body ?? null)
       setRal(result.ral ?? null)
       setLanguage(result.language)
+      setGroundedness(result.groundedness ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -198,6 +240,7 @@ export default function GenerationPage() {
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
             language: language ?? undefined,
+            groundedness: groundedness ?? undefined,
           })
         } catch (err) {
           setLinkError(err instanceof Error ? err.message : String(err))
@@ -310,6 +353,7 @@ export default function GenerationPage() {
                           />
                           <span className={cn(bullet.included ? '' : 'line-through')}>
                             <BulletDiff source={bullet.source} rewritten={bullet.rewritten} />
+                            <GroundednessBadge flags={bulletFlags(groundedness, entry.entryId, bullet.sourceIndex)} />
                           </span>
                         </label>
                         {bullet.included && (
@@ -330,7 +374,10 @@ export default function GenerationPage() {
 
           {coverLetter !== null && (
             <div className="mb-4 rounded-xl border border-border bg-card p-5">
-              <h3>Cover Letter</h3>
+              <h3>
+                Cover Letter
+                <GroundednessBadge flags={groundedness?.coverLetter ?? []} />
+              </h3>
               <Textarea rows={12} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
             </div>
           )}

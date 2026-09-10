@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 )
@@ -73,6 +74,68 @@ func TestUpdateApplicationStatus_AllowedTransition_WritesFileAndReturns200(t *te
 	}
 	if !bytes.Contains(content, []byte("tailoring")) {
 		t.Errorf("expected application file to record status tailoring, got:\n%s", content)
+	}
+}
+
+func TestUpdateApplicationStatus_AllowedTransition_AppendsStatusHistory(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"})
+	defer resp.Body.Close()
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	history, ok := application["statusHistory"].([]any)
+	if !ok {
+		t.Fatalf("expected statusHistory array in response, got %v", application["statusHistory"])
+	}
+	if len(history) != 2 {
+		t.Fatalf("expected 2 statusHistory entries (saved, tailoring), got %d: %v", len(history), history)
+	}
+	first := history[0].(map[string]any)
+	second := history[1].(map[string]any)
+	if first["status"] != "saved" {
+		t.Errorf("expected first history entry status saved, got %v", first["status"])
+	}
+	if first["changedAt"] == "" || first["changedAt"] == nil {
+		t.Errorf("expected first history entry to carry a non-empty changedAt, got %v", first["changedAt"])
+	}
+	if second["status"] != "tailoring" {
+		t.Errorf("expected second history entry status tailoring, got %v", second["status"])
+	}
+	if second["changedAt"] == "" || second["changedAt"] == nil {
+		t.Errorf("expected second history entry to carry a non-empty changedAt, got %v", second["changedAt"])
+	}
+}
+
+func TestUpdateApplicationStatus_DisallowedTransition_DoesNotAppendStatusHistory(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "offer"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("statusHistory")) {
+		t.Fatalf("expected application file to still carry the initial statusHistory entry, got:\n%s", content)
+	}
+	if bytes.Contains(content, []byte("status: offer")) {
+		t.Errorf("did not expect a rejected transition to appear in the stored application, got:\n%s", content)
 	}
 }
 
@@ -156,6 +219,113 @@ func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *
 	}
 	if application["status"] != "interviewing" {
 		t.Errorf("expected status interviewing, got %v", application["status"])
+	}
+}
+
+func TestSaveJobListing_SetsStatusUpdatedAtOnApplicationCreation(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role. Salary: €40,000.",
+	})
+	defer resp.Body.Close()
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	application := result["application"].(map[string]any)
+	statusUpdatedAt, _ := application["statusUpdatedAt"].(string)
+	if statusUpdatedAt == "" {
+		t.Errorf("expected statusUpdatedAt to be set on Application creation, got %v", application["statusUpdatedAt"])
+	}
+}
+
+func TestUpdateApplicationStatus_UpdatesStatusUpdatedAtOnEachTransition(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp1 := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"})
+	var app1 map[string]any
+	if err := json.NewDecoder(resp1.Body).Decode(&app1); err != nil {
+		t.Fatal(err)
+	}
+	resp1.Body.Close()
+	firstUpdatedAt, _ := app1["statusUpdatedAt"].(string)
+	if firstUpdatedAt == "" {
+		t.Fatalf("expected statusUpdatedAt to be set after transition, got %v", app1["statusUpdatedAt"])
+	}
+
+	time.Sleep(2 * time.Millisecond)
+
+	resp2 := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "sent"})
+	var app2 map[string]any
+	if err := json.NewDecoder(resp2.Body).Decode(&app2); err != nil {
+		t.Fatal(err)
+	}
+	resp2.Body.Close()
+	secondUpdatedAt, _ := app2["statusUpdatedAt"].(string)
+	if secondUpdatedAt == "" || secondUpdatedAt == firstUpdatedAt {
+		t.Errorf("expected statusUpdatedAt to change on a second transition, first=%q second=%q", firstUpdatedAt, secondUpdatedAt)
+	}
+}
+
+func TestUpdateApplicationStatus_ReopenFromRejected_UpdatesStatusUpdatedAt(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	for _, status := range []string{"tailoring", "sent", "rejected"} {
+		patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": status}).Body.Close()
+	}
+
+	time.Sleep(2 * time.Millisecond)
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "interviewing"})
+	defer resp.Body.Close()
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	statusUpdatedAt, _ := application["statusUpdatedAt"].(string)
+	if statusUpdatedAt == "" {
+		t.Errorf("expected statusUpdatedAt to be set on Reopen, got %v", application["statusUpdatedAt"])
+	}
+}
+
+func TestListJobListings_IncludesIsStaleFalseForFreshApplication(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var results []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	application := results[0]["application"].(map[string]any)
+	isStale, ok := application["isStale"].(bool)
+	if !ok {
+		t.Fatalf("expected isStale to be present in the list response, got %v", application["isStale"])
+	}
+	if isStale {
+		t.Errorf("expected a freshly-saved Application (status saved) to not be stale")
 	}
 }
 
@@ -287,6 +457,49 @@ func TestRecordApplicationGeneration_PersistsLanguage(t *testing.T) {
 	latest := generations[len(generations)-1].(map[string]any)
 	if latest["language"] != "it" {
 		t.Errorf("expected the Generation record to persist the target language, got %v", latest)
+	}
+}
+
+func TestRecordApplicationGeneration_WithGroundedness_PersistsIt(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+		"groundedness": map[string]any{
+			"bullets": []map[string]any{
+				{
+					"entryId":     "experience/quantyca-amplifon",
+					"sourceIndex": 0,
+					"flags": []map[string]any{
+						{"sentence": "Fabricated claim.", "reason": "no-source-match"},
+					},
+				},
+			},
+		},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	record := generations[0].(map[string]any)
+	groundedness, ok := record["groundedness"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected groundedness to persist on the record, got %v", record)
+	}
+	bullets := groundedness["bullets"].([]any)
+	if len(bullets) != 1 {
+		t.Fatalf("expected 1 flagged bullet to round-trip, got %v", groundedness["bullets"])
 	}
 }
 
@@ -448,5 +661,58 @@ func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestGetApplicationsStats_ReturnsAggregatedShape(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 1 {
+		t.Errorf("expected total 1, got %v", stats["total"])
+	}
+	if _, ok := stats["counts"].([]any); !ok {
+		t.Errorf("expected counts array in response, got %v", stats["counts"])
+	}
+}
+
+func TestGetApplicationsStats_NoApplications_Returns200WithZeroTotal(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/applications/stats")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var stats map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		t.Fatal(err)
+	}
+	if stats["total"].(float64) != 0 {
+		t.Errorf("expected total 0, got %v", stats["total"])
 	}
 }
