@@ -219,17 +219,17 @@ export default function JobListingsListPage() {
           return (
             <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex items-center gap-2">
+                <span className="flex min-w-0 items-center gap-2">
                   {jobListing.logo && (
                     <img
                       src={jobListingLogoUrl(jobListing.id)}
                       alt=""
-                      className="h-8 w-8 rounded object-contain"
+                      className="h-8 w-8 shrink-0 rounded object-contain"
                     />
                   )}
-                  <strong className="font-semibold">{jobListingHeading(jobListing)}</strong>
+                  <strong className="break-words font-semibold">{jobListingHeading(jobListing)}</strong>
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {needsResolve && (
                     <Badge variant="outline" className="border-unresolved text-unresolved">
                       Needs attention
@@ -301,8 +301,8 @@ export default function JobListingsListPage() {
                   </Button>
                   {isDescriptionExpanded && (
                     <div
-                      className="mt-2 rounded-lg border border-border bg-muted/40 p-3 text-sm
-                        [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_p+ul]:mt-2
+                      className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 text-sm
+                        break-words [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_p+ul]:mt-2
                         [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
                     >
                       <ReactMarkdown remarkPlugins={[remarkBreaks]}>{jobListing.jobDescription}</ReactMarkdown>
