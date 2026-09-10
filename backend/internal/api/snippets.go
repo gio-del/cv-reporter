@@ -7,7 +7,18 @@ import (
 	"os"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
+
+// snippetWithUsage enriches a Snippet with when it was last used, per issue
+// #48 — computed from recorded Generations, not hand-maintained, so it can't
+// drift out of sync (see tracking.SnippetLastUsed). Absent/omitted means "no
+// usage signal", which covers both "never used" and "recorded before this
+// field existed" identically, per the PRD's retroactive-data story.
+type snippetWithUsage struct {
+	masterdata.Snippet
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
+}
 
 func listSnippetsHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +27,23 @@ func listSnippetsHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusOK, snippets)
+
+		listings, err := tracking.List(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		applications := make([]tracking.Application, len(listings))
+		for i, l := range listings {
+			applications[i] = l.Application
+		}
+		lastUsed := tracking.SnippetLastUsed(applications)
+
+		enriched := make([]snippetWithUsage, len(snippets))
+		for i, s := range snippets {
+			enriched[i] = snippetWithUsage{Snippet: s, LastUsedAt: lastUsed[s.ID]}
+		}
+		writeJSON(w, http.StatusOK, enriched)
 	}
 }
 

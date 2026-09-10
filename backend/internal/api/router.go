@@ -45,22 +45,42 @@ func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client
 
 // NewRouterFullWithATS is NewRouterFull plus an explicit atsboard.HTTPDoer.
 func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
+	return NewRouterFullWithATSAndAuth(dataDir, projectRoot, generationClient, atsHTTPDoer, "")
+}
+
+// NewRouterWithAuth builds the HTTP handler for the app's API, matching
+// NewRouter, but with LAN-reachable mode's auth gate applied when
+// lanAuthToken is non-empty (see issue #57 and lan_auth.go). An empty
+// lanAuthToken behaves exactly like NewRouter — no check is wired in at
+// all — so default (localhost-only) mode is unaffected.
+func NewRouterWithAuth(dataDir, lanAuthToken string) http.Handler {
+	return NewRouterFullWithATSAndAuth(dataDir, ".", claude.New(), http.DefaultClient, lanAuthToken)
+}
+
+// NewRouterFullWithATSAndAuth is NewRouterFullWithATS plus an explicit LAN
+// auth token. Every /api/* route requires the token (via the
+// X-CV-Reporter-Token header) once lanAuthToken is non-empty; an empty
+// lanAuthToken (the default) leaves every route unwrapped, matching
+// today's no-auth behavior exactly.
+func NewRouterFullWithATSAndAuth(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer, lanAuthToken string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
-	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir))
+	mux.HandleFunc("GET /api/export", exportDataHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir, projectRoot))
 	mux.HandleFunc("POST /api/master-data/entries", createEntryHandler(dataDir))
-	mux.HandleFunc("GET /api/master-data/entries/{id...}", getEntryHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/entries/{id...}", getEntryHandler(dataDir, projectRoot))
 	mux.HandleFunc("PUT /api/master-data/entries/{id...}", putEntryHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/entries/{id...}", deleteEntryHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/profile", getProfileHandler(dataDir))
 	mux.HandleFunc("PUT /api/master-data/profile", putProfileHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/tag-lint", tagLintHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets", listSnippetsHandler(dataDir))
 	mux.HandleFunc("POST /api/master-data/cover-letter-snippets", createSnippetHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/cover-letter-snippets/{id...}", getSnippetHandler(dataDir))
 	mux.HandleFunc("PUT /api/master-data/cover-letter-snippets/{id...}", putSnippetHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
 	mux.HandleFunc("GET /api/job-listings", listJobListingsHandler(dataDir))
-	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient))
+	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient, atsHTTPDoer))
 	mux.HandleFunc("POST /api/job-listings/from-extension", captureJobListingFromExtensionHandler(dataDir, generationClient, atsHTTPDoer))
 	mux.HandleFunc("OPTIONS /api/job-listings/from-extension", captureJobListingCORSPreflightHandler)
 	mux.HandleFunc("GET /api/job-listings/{id}", getJobListingHandler(dataDir))
@@ -69,19 +89,25 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", suggestContactHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/job-listings/{id}/resolve", resolveJobListingHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/job-listings/{id}/check-freshness", checkFreshnessHandler(dataDir, atsHTTPDoer))
+	mux.HandleFunc("GET /api/applications/stats", getApplicationsStatsHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/status", updateApplicationStatusHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/method", updateApplicationMethodHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/contact", updateApplicationContactHandler(dataDir))
 	mux.HandleFunc("GET /api/applications/{id}/mailto", getApplicationMailtoHandler(dataDir))
 	mux.HandleFunc("POST /api/applications/{id}/generations", recordApplicationGenerationHandler(dataDir))
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
+	mux.HandleFunc("POST /api/generations/preview", previewGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
 	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))
 	mux.HandleFunc("GET /api/ats/{provider}/{slug}/listings", listAtsListingsHandler(dataDir, atsHTTPDoer))
-	mux.HandleFunc("GET /api/ats/tracked-boards", listTrackedBoardsHandler(dataDir))
+	mux.HandleFunc("GET /api/ats/tracked-boards", listTrackedBoardsHandler(dataDir, atsHTTPDoer))
 	mux.HandleFunc("POST /api/ats/tracked-boards", createTrackedBoardHandler(dataDir))
 	mux.HandleFunc("DELETE /api/ats/tracked-boards/{id}", deleteTrackedBoardHandler(dataDir))
-	return mux
+	mux.HandleFunc("GET /api/usage", getUsageHandler(dataDir))
+	if lanAuthToken == "" {
+		return mux
+	}
+	return requireLANToken(lanAuthToken, mux)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

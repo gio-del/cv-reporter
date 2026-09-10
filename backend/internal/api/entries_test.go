@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -221,5 +222,113 @@ func TestGetEntry_UnknownID_Returns404(t *testing.T) {
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+// seedGitProjectRoot builds a temp project root containing Master Data (the
+// same fixtures seedDataDir provides), committed to a real git repo, so the
+// Entries endpoints' lastModified field has real history to look up.
+func seedGitProjectRoot(t *testing.T) (projectRoot, dataDir string) {
+	t.Helper()
+	root := t.TempDir()
+	dataDir = seedDataDirAt(t, filepath.Join(root, "data"))
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	run("add", "-A")
+	run("commit", "-q", "-m", "seed master data")
+
+	return root, dataDir
+}
+
+func TestListEntries_IncludesLastModifiedFromGitHistory(t *testing.T) {
+	projectRoot, dataDir := seedGitProjectRoot(t)
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/master-data/entries")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var entries []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		t.Fatal(err)
+	}
+
+	byID := map[string]map[string]any{}
+	for _, e := range entries {
+		byID[e["id"].(string)] = e
+	}
+
+	amplifon, ok := byID["experience/quantyca-amplifon"]
+	if !ok {
+		t.Fatalf("expected entry with id experience/quantyca-amplifon, got %v", byID)
+	}
+	lastModified, ok := amplifon["lastModified"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected lastModified object, got %v", amplifon["lastModified"])
+	}
+	if lastModified["subject"] != "seed master data" {
+		t.Errorf("expected subject 'seed master data', got %v", lastModified["subject"])
+	}
+	if lastModified["at"] == "" || lastModified["at"] == nil {
+		t.Errorf("expected a non-empty timestamp, got %v", lastModified["at"])
+	}
+}
+
+func TestGetEntry_IncludesLastModifiedFromGitHistory(t *testing.T) {
+	projectRoot, dataDir := seedGitProjectRoot(t)
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/quantyca-amplifon")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var entry map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&entry); err != nil {
+		t.Fatal(err)
+	}
+	lastModified, ok := entry["lastModified"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected lastModified object, got %v", entry["lastModified"])
+	}
+	if lastModified["subject"] != "seed master data" {
+		t.Errorf("expected subject 'seed master data', got %v", lastModified["subject"])
+	}
+}
+
+func TestListEntries_UncommittedEntry_OmitsLastModified(t *testing.T) {
+	dataDir := seedDataDir(t) // no git repo at all behind this dataDir
+	server := httptest.NewServer(api.NewRouter(dataDir))
+	defer server.Close()
+
+	resp, err := http.Get(server.URL + "/api/master-data/entries")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var entries []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if _, present := e["lastModified"]; present {
+			t.Errorf("expected no lastModified field with no git history, got %v on %v", e["lastModified"], e["id"])
+		}
 	}
 }

@@ -180,6 +180,10 @@ func (fakeFreshnessClient) SelectAndRewrite(ctx context.Context, req generation.
 	return generation.SelectionResult{}, nil
 }
 
+func (fakeFreshnessClient) SelectOnly(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+	return generation.SelectionResult{}, nil
+}
+
 func (fakeFreshnessClient) DraftCoverLetter(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
 	return generation.CoverLetterResult{}, nil
 }

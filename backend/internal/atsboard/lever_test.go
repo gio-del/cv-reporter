@@ -57,6 +57,25 @@ func TestFetchLeverListings_NormalizesFixtureResponse(t *testing.T) {
 	}
 }
 
+// Documents issue #42's finding: Lever's public postings API exposes no
+// logo field on a posting, so Listing.LogoURL stays empty given a
+// real-shaped fixture response with no such field.
+func TestFetchLeverListings_NoLogoFieldInResponse_LogoURLStaysEmpty(t *testing.T) {
+	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusOK, leverFixture), nil
+	}}
+
+	listings, err := atsboard.FetchLeverListings(context.Background(), doer, "acme")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i, l := range listings {
+		if l.LogoURL != "" {
+			t.Errorf("expected listing %d LogoURL to stay empty, got %q", i, l.LogoURL)
+		}
+	}
+}
+
 func TestFetchLeverListings_BoardNotFound_ReturnsErrBoardNotFound(t *testing.T) {
 	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusNotFound, `{"ok":false,"error":"Document not found"}`), nil
