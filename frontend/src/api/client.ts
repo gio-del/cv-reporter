@@ -130,6 +130,10 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
+export function exportDataUrl(): string {
+  return '/api/export'
+}
+
 export function listJobListings(): Promise<JobListingWithApplication[]> {
   return request('/api/job-listings')
 }
