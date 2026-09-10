@@ -108,6 +108,7 @@ docker-compose up
 | GET | `/api/ats/tracked-boards` | list tracked ATS boards |
 | POST | `/api/ats/tracked-boards` | track an ATS board |
 | DELETE | `/api/ats/tracked-boards/{id}` | stop tracking an ATS board |
+| GET | `/api/export` | download a zip archive of Job Listing/Application data (`data/jobs/`, `data/applications/`) — a manual backup, since that data is gitignored (ADR-0008) unlike Master Data |
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
