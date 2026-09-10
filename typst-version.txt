@@ -8,5 +8,8 @@
 #
 # Bumping the pinned version is a single edit here — don't hardcode the
 # version string anywhere else.
+#
+# This file is valid POSIX shell (both readers `source`/`.` it directly),
+# so keep multi-word values quoted.
 TYPST_VERSION=0.15.1
-TYPST_FONT_FAMILY=Liberation Sans
+TYPST_FONT_FAMILY="Liberation Sans"
