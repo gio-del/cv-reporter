@@ -262,6 +262,45 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 	}
 }
 
+func TestRecordApplicationGeneration_PersistsUsage(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+		"usage": map[string]any{
+			"inputTokens":      1000,
+			"outputTokens":     200,
+			"estimatedCostUsd": 0.012,
+			"calls": []map[string]any{
+				{"callType": "selection_rewrite", "inputTokens": 1000, "outputTokens": 200, "estimatedCostUsd": 0.012},
+			},
+		},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	record := generations[0].(map[string]any)
+	usage, ok := record["usage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected the persisted record to include usage, got %v", record)
+	}
+	if usage["estimatedCostUsd"] != 0.012 {
+		t.Errorf("usage.estimatedCostUsd = %v, want 0.012", usage["estimatedCostUsd"])
+	}
+}
+
 func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))

@@ -75,6 +75,13 @@ type GenerationRecord struct {
 	CreatedAt       string `json:"createdAt"`
 	CVPath          string `json:"cvPath"`
 	CoverLetterPath string `json:"coverLetterPath,omitempty"`
+	// Usage is the Claude API usage/cost the Generate call that produced this
+	// Generation caused, as returned in GenerateResult.Usage — passed through
+	// verbatim by the FE at record time (issue #39: cost/usage visibility
+	// persisted per-Generation, not just shown transiently at Generate time).
+	// Zero-value (omitted) for a Default Mode Generation, or one recorded
+	// before this field existed.
+	Usage generation.GenerationUsage `json:"usage,omitempty"`
 }
 
 // Contact is the recruiter/hiring-manager name and email for an
