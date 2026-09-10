@@ -38,6 +38,11 @@ const (
 	StatusInterviewing Status = "interviewing"
 	StatusRejected     Status = "rejected"
 	StatusOffer        Status = "offer"
+	// StatusWithdrawn records the user ending the process on their own
+	// initiative — distinct from StatusRejected, which means the employer
+	// ended it. Terminal-but-reopenable back to StatusInterviewing, mirroring
+	// StatusRejected's Reopen precedent exactly (see transition.go).
+	StatusWithdrawn Status = "withdrawn"
 )
 
 // ApplicationMethodKind is how a Job Listing says to apply, per CONTEXT.md's
