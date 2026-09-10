@@ -55,7 +55,7 @@ export default function ApplicationMethodEditor({
 
   if (!editing) {
     return (
-      <p className="mb-0 text-sm">
+      <p className="mb-0 text-sm break-words">
         Apply via{' '}
         <strong className={cn('font-semibold', method.kind === 'unresolved' && 'text-unresolved')}>
           {methodKindLabel[method.kind]}
