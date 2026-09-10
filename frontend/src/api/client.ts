@@ -2,6 +2,7 @@ import type {
   AddTrackedBoardRequest,
   Application,
   ApplicationMethod,
+  ApplicationStats,
   ApplicationStatus,
   AtsListing,
   AtsProvider,
@@ -130,6 +131,10 @@ export function generationFileUrl(slug: string, file: string): string {
 
 export function listJobListings(): Promise<JobListingWithApplication[]> {
   return request('/api/job-listings')
+}
+
+export function getApplicationsStats(): Promise<ApplicationStats> {
+  return request('/api/applications/stats')
 }
 
 export function getJobListing(id: string): Promise<JobListing> {
