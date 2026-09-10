@@ -126,7 +126,7 @@ export default function AtsBrowsePage() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
-        <FieldGroup className="flex-row flex-wrap gap-3">
+        <FieldGroup className="flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Field>
             <FieldLabel htmlFor="ats-provider">Provider</FieldLabel>
             <Select value={provider} onValueChange={(value) => setProvider(value as AtsProvider)}>
@@ -186,7 +186,7 @@ export default function AtsBrowsePage() {
             return (
               <li key={listing.url} className="rounded-xl border border-border bg-card px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong className="font-semibold">{listing.title}</strong>
+                  <strong className="min-w-0 break-words font-semibold">{listing.title}</strong>
                   {alreadySaved ? (
                     <Badge variant="secondary">
                       <Link to="/jobs" className="no-underline hover:underline">
