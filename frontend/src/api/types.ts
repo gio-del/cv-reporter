@@ -121,6 +121,27 @@ export interface RALRange {
   listingStated?: RALFigure
 }
 
+export interface CallUsage {
+  callType: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+}
+
+export interface GenerationUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+  calls?: CallUsage[]
+}
+
 export type GroundednessReason = 'no-source-match' | 'numeric-mismatch'
 
 export interface GroundednessFlag {
@@ -145,6 +166,7 @@ export interface GenerateResult {
   selection: SelectionResult
   coverLetter?: CoverLetterResult
   ral?: RALRange
+  usage: GenerationUsage
   groundedness?: GroundednessResult
   language: string
 }
@@ -197,6 +219,7 @@ export interface GenerationRecord {
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  usage?: GenerationUsage
 }
 
 export interface Contact {
@@ -243,6 +266,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  usage?: GenerationUsage
   language?: string
   groundedness?: GroundednessResult
 }

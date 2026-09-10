@@ -87,6 +87,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 
 	ral := resolveRALBestEffort(ctx, jobDescription, req.ListingSalaryText, client)
 	method := resolveApplicationMethodBestEffort(ctx, jobDescription, client)
+	recordStandaloneUsage(dataDir, client)
 
 	jobsFullDir := filepath.Join(dataDir, jobsDir)
 	if err := os.MkdirAll(jobsFullDir, 0o755); err != nil {

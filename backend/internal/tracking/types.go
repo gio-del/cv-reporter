@@ -81,6 +81,14 @@ type GenerationRecord struct {
 	CoverLetterPath string                         `json:"coverLetterPath,omitempty"`
 	Groundedness    *generation.GroundednessResult `json:"groundedness,omitempty" yaml:"groundedness,omitempty"`
 
+	// Usage is the Claude API usage/cost the Generate call that produced this
+	// Generation caused, as returned in GenerateResult.Usage — passed through
+	// verbatim by the FE at record time (issue #39: cost/usage visibility
+	// persisted per-Generation, not just shown transiently at Generate time).
+	// Zero-value (omitted) for a Default Mode Generation, or one recorded
+	// before this field existed.
+	Usage generation.GenerationUsage `json:"usage,omitempty"`
+
 	// Language is the final, normalized target language the CV/Cover
 	// Letter were written in (generation.GenerateResult.Language) — kept
 	// on the record so the Application's Generation history shows it

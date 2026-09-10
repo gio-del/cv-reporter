@@ -653,6 +653,38 @@ func TestSuggestContact_UnknownJobListing_Returns404(t *testing.T) {
 	}
 }
 
+func TestCreateJobListing_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClientWithUsage{
+		usage: []generation.CallUsage{
+			{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role.",
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	logged := tracking.ReadUsageLog(dataDir)
+	if len(logged) != 1 || logged[0].CallType != "ral_estimation" {
+		t.Fatalf("expected the standalone usage log to contain the RAL-estimation call, got %+v", logged)
+	}
+}
+
+func TestReadUsageLog_NoLogYet_ReturnsNil(t *testing.T) {
+	dataDir := t.TempDir()
+	if got := tracking.ReadUsageLog(dataDir); got != nil {
+		t.Errorf("ReadUsageLog() on a fresh dataDir = %+v, want nil", got)
+	}
+}
+
 func assertNoFilesIn(t *testing.T, dir string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

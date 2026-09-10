@@ -12,6 +12,7 @@ import {
 } from '@/api/client'
 import type {
   Entry,
+  GenerationUsage,
   GroundednessFlag,
   GroundednessResult,
   JobListing,
@@ -105,6 +106,7 @@ export default function GenerationPage() {
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
+  const [usage, setUsage] = useState<GenerationUsage | null>(null)
   const [language, setLanguage] = useState<string | null>(null)
   const [languageChanging, setLanguageChanging] = useState(false)
   const [groundedness, setGroundedness] = useState<GroundednessResult | null>(null)
@@ -147,6 +149,7 @@ export default function GenerationPage() {
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
       setRal(result.ral ?? null)
+      setUsage(result.usage ?? null)
       setLanguage(result.language)
       setGroundedness(result.groundedness ?? null)
     } catch (err) {
@@ -239,6 +242,7 @@ export default function GenerationPage() {
             slug: result.slug,
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
+            usage: usage ?? undefined,
             language: language ?? undefined,
             groundedness: groundedness ?? undefined,
           })
@@ -300,6 +304,14 @@ export default function GenerationPage() {
           <p>Review Selection and Rewrite before anything is rendered. Edit any bullet, or exclude one entirely.</p>
 
           {ral && <RALBadge ral={ral} />}
+          {usage && usage.estimatedCostUsd > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Estimated Claude API cost for this Generation: ${usage.estimatedCostUsd.toFixed(4)} (
+              {usage.inputTokens + usage.outputTokens} tokens
+              {usage.webSearchUses ? `, ${usage.webSearchUses} web search${usage.webSearchUses === 1 ? '' : 'es'}` : ''}
+              )
+            </p>
+          )}
 
           {language && (
             <Field className="mb-4 max-w-64">

@@ -128,6 +128,12 @@ type GenerateResult struct {
 	RAL            *RALRange           `json:"ral,omitempty"`
 	Groundedness   *GroundednessResult `json:"groundedness,omitempty"`
 
+	// Usage is the Claude API usage/cost this Generate call caused, drained
+	// from client if it implements UsageRecorder (PRD story 3: per-Generation
+	// visibility). Zero-value (no Calls) in Default Mode, which never calls
+	// client.
+	Usage GenerationUsage `json:"usage"`
+
 	// Language is the final, normalized target language (NormalizeLanguage
 	// applied) the CV/Cover Letter were written in — DefaultLanguage in
 	// Default Mode, since there's no Job Description to detect one from.

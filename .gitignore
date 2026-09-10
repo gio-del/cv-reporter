@@ -7,6 +7,7 @@ skills-lock.json
 # personal tracked data (ADR-0008: flat files, not meant to be version-controlled)
 data/jobs/
 data/applications/
+data/usage-log.json
 
 # frontend
 frontend/node_modules/

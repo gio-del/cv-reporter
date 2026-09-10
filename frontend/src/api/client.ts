@@ -11,6 +11,7 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  GenerationUsage,
   JobListing,
   JobListingWithApplication,
   Profile,
@@ -227,4 +228,8 @@ export async function removeTrackedBoard(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getUsageSummary(): Promise<GenerationUsage> {
+  return request('/api/usage')
 }

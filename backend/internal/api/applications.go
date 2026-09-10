@@ -47,6 +47,7 @@ type recordGenerationRequest struct {
 	Slug            string                         `json:"slug"`
 	CVPath          string                         `json:"cvPath"`
 	CoverLetterPath string                         `json:"coverLetterPath"`
+	Usage           generation.GenerationUsage     `json:"usage"`
 	Language        string                         `json:"language"`
 	Groundedness    *generation.GroundednessResult `json:"groundedness"`
 }
@@ -74,6 +75,7 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
 			CVPath:          req.CVPath,
 			CoverLetterPath: req.CoverLetterPath,
+			Usage:           req.Usage,
 			Language:        req.Language,
 			Groundedness:    req.Groundedness,
 		}
