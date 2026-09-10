@@ -38,11 +38,12 @@ Note: Firefox unloads temporary add-ons when the browser restarts — you'll nee
 - The captured URL: on a direct `/jobs/view/<id>/` page, it's the stripped `window.location.href`. On the search-results split-pane view, clicking between postings only changes the `currentJobId` query param — `window.location` itself stays on the generic search page — so `content.js` reads `currentJobId` and builds `https://www.linkedin.com/jobs/view/<id>/` instead.
 - The backend URL is hardcoded to `http://localhost:8080` in `background.js` — edit it there if your backend runs elsewhere.
 - `turndown.js` is [Turndown](https://github.com/mixmark-io/turndown) vendored as a plain browser-global script (no npm/build step) and loaded as a `content_scripts` entry ahead of `content.js`/`content-indeed.js`, which use the `TurndownService` global it defines.
+- `validate-capture.js` is a small, DOM-free content script (loaded ahead of `content.js`, LinkedIn only for now) defining the `validateCapture` global: per-field sanity checks (non-empty title, plausible company, minimum-length description) run on the captured payload before it's ever sent to `background.js`, so a plausible-but-wrong capture (stale nav element, truncated description) surfaces as a specific error instead of silently saving a broken Job Listing. Being pure and DOM-free, it's unit-tested directly alongside the board extraction tests below.
 - `content-indeed.js` reads the job title from `[data-testid="jobsearch-JobInfoHeader-title"]` (falling back to `document.title`), the company from `[data-testid="inlineHeader-companyName"]`, the description from `#jobDescriptionText`, the Company Logo from the header's `<img>`, and a salary line from `#salaryInfoAndJobType` when present — otherwise the same short-element currency-pattern scan LinkedIn's `listingSalaryText` uses. The canonical URL is rebuilt from the `jk` query param (`https://<host>/viewjob?jk=<id>`), dropping tracking params, the same way `content.js` rebuilds LinkedIn's `currentJobId`. **These selectors were written from Indeed's commonly-documented markup, not verified against a live page** (no browser access in the environment that wrote this) — re-confirm against a real Indeed job-view page before relying on this, and update `extension/fixtures/indeed-job-view.html` + `content-indeed.test.js` together if they've drifted.
 
 ## Tests
 
-Each board's field-extraction logic (title/company/description/etc.) is written as a pure `(document) => payload` function so it can run against a static HTML fixture in Node, without a live page or the `chrome.*` extension APIs:
+Each board's field-extraction logic (title/company/description/etc.) is written as a pure `(document) => payload` function, and `validate-capture.js`'s `validateCapture` is pure and DOM-free — all covered by fixture-based tests that run against a static HTML fixture in Node, without a live page or the `chrome.*` extension APIs:
 
 ```
 cd extension
@@ -50,7 +51,7 @@ npm install
 npm test
 ```
 
-Only the pure extraction functions are covered this way — button injection, click handling, and message-passing to `background.js` stay untested, exercised manually via "Loading it" above instead. `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
+Only the pure extraction/validation functions are covered this way — button injection, click handling, and message-passing to `background.js` stay untested, exercised manually via "Loading it" above instead. `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
 
 ### If capture breaks again
 

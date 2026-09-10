@@ -66,7 +66,7 @@
     }, 5000);
   }
 
-  function onCaptureClick(captureJobPosting, button, statusEl) {
+  function onCaptureClick(captureJobPosting, button, statusEl, validate) {
     console.log("[CVReporter] button clicked");
     let payload;
     try {
@@ -78,7 +78,19 @@
     }
     console.log("[CVReporter] captured payload", payload);
 
-    if (!payload.company || !payload.description) {
+    // validate (extension/validate-capture.js, when loaded ahead of a given
+    // board's content script — see manifest.json) replaces the bare
+    // emptiness check below with per-field sanity checks (issue #58), so a
+    // plausible-but-wrong capture (stale nav element, truncated
+    // description) is caught instead of silently saved. Boards that don't
+    // load it yet fall back to the original bare check.
+    if (validate) {
+      const problems = validate(payload);
+      if (problems.length > 0) {
+        showStatus(statusEl, false, "Capture looks wrong: " + problems.join(", "));
+        return;
+      }
+    } else if (!payload.company || !payload.description) {
       showStatus(statusEl, false, "Couldn't find a job posting on this page — open a specific listing and try again.");
       return;
     }
@@ -104,7 +116,7 @@
     });
   }
 
-  function ensureUI(doc, captureJobPosting) {
+  function ensureUI(doc, captureJobPosting, validate) {
     if (doc.getElementById("cv-reporter-capture-btn")) return;
 
     const button = doc.createElement("button");
@@ -118,19 +130,19 @@
     statusEl.className = "cv-reporter-capture-status";
     statusEl.hidden = true;
 
-    button.addEventListener("click", () => onCaptureClick(captureJobPosting, button, statusEl));
+    button.addEventListener("click", () => onCaptureClick(captureJobPosting, button, statusEl, validate));
 
     doc.body.appendChild(button);
     doc.body.appendChild(statusEl);
   }
 
-  function initCaptureUI(captureJobPosting) {
+  function initCaptureUI(captureJobPosting, validate) {
     console.log("[CVReporter] content script loaded", root.location.href);
-    ensureUI(document, captureJobPosting);
+    ensureUI(document, captureJobPosting, validate);
     // Job boards are typically single-page apps; guard against our injected
     // elements being removed by their own re-renders on client-side
     // navigation between postings.
-    new MutationObserver(() => ensureUI(document, captureJobPosting)).observe(document.body, { childList: true, subtree: false });
+    new MutationObserver(() => ensureUI(document, captureJobPosting, validate)).observe(document.body, { childList: true, subtree: false });
   }
 
   const CVReporterCommon = {

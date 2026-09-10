@@ -90,5 +90,11 @@
     };
   }
 
-  initCaptureUI(captureJobPosting);
+  // validateCapture (extension/validate-capture.js, loaded as a content
+  // script ahead of this one — see manifest.json) is the single place that
+  // decides whether a capture is good enough to send: it replaces the old
+  // bare-emptiness check with per-field sanity checks (see PRD for issue
+  // #58), so a plausible-but-wrong capture (stale nav element, truncated
+  // description) is caught instead of silently saved.
+  initCaptureUI(captureJobPosting, validateCapture);
 })();
