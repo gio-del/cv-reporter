@@ -229,6 +229,7 @@ export interface SaveJobListingRequest {
   url?: string
   jobDescription?: string
   jobDescriptionUrl?: string
+  logoUrl?: string
 }
 
 export interface DuplicateMatch {
@@ -256,6 +257,7 @@ export interface AtsListing {
   url: string
   description: string
   alreadySaved: boolean
+  logoUrl?: string
   new: boolean
 }
 
