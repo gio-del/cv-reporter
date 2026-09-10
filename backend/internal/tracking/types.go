@@ -71,10 +71,11 @@ type ApplicationMethod struct {
 // regenerate (stories 12, 13) — the most recent is what the user would
 // actually send.
 type GenerationRecord struct {
-	Slug            string `json:"slug"`
-	CreatedAt       string `json:"createdAt"`
-	CVPath          string `json:"cvPath"`
-	CoverLetterPath string `json:"coverLetterPath,omitempty"`
+	Slug            string                         `json:"slug"`
+	CreatedAt       string                         `json:"createdAt"`
+	CVPath          string                         `json:"cvPath"`
+	CoverLetterPath string                         `json:"coverLetterPath,omitempty"`
+	Groundedness    *generation.GroundednessResult `json:"groundedness,omitempty" yaml:"groundedness,omitempty"`
 }
 
 // Contact is the recruiter/hiring-manager name and email for an
