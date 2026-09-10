@@ -972,3 +972,10 @@ var TurndownService = (function () {
   return TurndownService;
 
 }());
+
+// Node-only export so the extension's test suite (extension/*.test.js) can
+// `require` this vendored file directly — browser content scripts still
+// load it as a plain global var, unaffected by this.
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = TurndownService;
+}

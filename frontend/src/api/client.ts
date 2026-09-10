@@ -2,6 +2,7 @@ import type {
   AddTrackedBoardRequest,
   Application,
   ApplicationMethod,
+  ApplicationStats,
   ApplicationStatus,
   AtsListing,
   AtsProvider,
@@ -10,6 +11,7 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
+  GenerationUsage,
   JobListing,
   JobListingWithApplication,
   Profile,
@@ -136,6 +138,10 @@ export function listJobListings(): Promise<JobListingWithApplication[]> {
   return request('/api/job-listings')
 }
 
+export function getApplicationsStats(): Promise<ApplicationStats> {
+  return request('/api/applications/stats')
+}
+
 export function getJobListing(id: string): Promise<JobListing> {
   return request(`/api/job-listings/${encodeURIComponent(id)}`)
 }
@@ -226,4 +232,8 @@ export async function removeTrackedBoard(id: string): Promise<void> {
     const body = await res.text().catch(() => '')
     throw new Error(body || `Delete failed (${res.status})`)
   }
+}
+
+export function getUsageSummary(): Promise<GenerationUsage> {
+  return request('/api/usage')
 }

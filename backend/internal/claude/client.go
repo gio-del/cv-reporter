@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -22,9 +23,21 @@ import (
 // environment (via the SDK's default option), so constructing one never
 // fails — only a call that actually reaches the API can, if the key is
 // missing or invalid.
+//
+// Client also implements generation.UsageRecorder: every method appends
+// the usage/cost of its own Claude API call(s) to usageMu-guarded
+// usageCalls, drained via DrainUsage. This accumulator is per-Client, not
+// per-request — correct for this app's single-user, sequential call
+// pattern, but two overlapping Generate calls sharing the same *Client
+// could interleave each other's usage into whichever drains first. Not a
+// concern in practice for a localhost, no-auth personal tool (ADR
+// context), but worth knowing if that assumption ever changes.
 type Client struct {
 	api   anthropic.Client
 	model anthropic.Model
+
+	usageMu    sync.Mutex
+	usageCalls []generation.CallUsage
 }
 
 // New builds a Client using ANTHROPIC_API_KEY from the environment.
@@ -40,6 +53,35 @@ func NewWithOptions(opts ...option.RequestOption) *Client {
 
 var _ generation.Client = (*Client)(nil)
 var _ tracking.Client = (*Client)(nil)
+var _ generation.UsageRecorder = (*Client)(nil)
+
+// DrainUsage implements generation.UsageRecorder.
+func (c *Client) DrainUsage() []generation.CallUsage {
+	c.usageMu.Lock()
+	defer c.usageMu.Unlock()
+	drained := c.usageCalls
+	c.usageCalls = nil
+	return drained
+}
+
+// recordUsage best-effort appends one call's usage to the accumulator —
+// usage capture must never fail or block the call it's recording (PRD
+// story 9), so this cannot error.
+func (c *Client) recordUsage(callType string, model anthropic.Model, usage anthropic.Usage, webSearchUses int64) {
+	call := generation.CallUsage{
+		CallType:         callType,
+		Model:            string(model),
+		InputTokens:      usage.InputTokens,
+		OutputTokens:     usage.OutputTokens,
+		CacheReadTokens:  usage.CacheReadInputTokens,
+		CacheWriteTokens: usage.CacheCreationInputTokens,
+		WebSearchUses:    int(webSearchUses),
+		EstimatedCostUSD: estimateCost(model, usage, webSearchUses),
+	}
+	c.usageMu.Lock()
+	c.usageCalls = append(c.usageCalls, call)
+	c.usageMu.Unlock()
+}
 
 const selectAndRewriteSystemPrompt = `You are Tailoring a CV for one specific Job Description, following the "Tailor CV" process described below.
 
@@ -104,6 +146,7 @@ func (c *Client) SelectAndRewrite(ctx context.Context, req generation.SelectionR
 	if err != nil {
 		return generation.SelectionResult{}, fmt.Errorf("calling Claude API: %w", err)
 	}
+	c.recordUsage("selection_rewrite", message.Model, message.Usage, 0)
 
 	for _, block := range message.Content {
 		if block.Type != "tool_use" || block.Name != selectAndRewriteToolName {
@@ -171,6 +214,7 @@ func (c *Client) DraftCoverLetter(ctx context.Context, req generation.CoverLette
 	if err != nil {
 		return generation.CoverLetterResult{}, fmt.Errorf("calling Claude API: %w", err)
 	}
+	c.recordUsage("cover_letter", message.Model, message.Usage, 0)
 
 	for _, block := range message.Content {
 		if block.Type != "tool_use" || block.Name != draftCoverLetterToolName {
@@ -225,6 +269,7 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 	if err != nil {
 		return generation.RALRange{}, fmt.Errorf("researching RAL range: %w", err)
 	}
+	c.recordUsage("ral_estimation", research.Model, research.Usage, research.Usage.ServerToolUse.WebSearchRequests)
 
 	var notes strings.Builder
 	for _, block := range research.Content {
@@ -244,6 +289,7 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 	if err != nil {
 		return generation.RALRange{}, fmt.Errorf("extracting RAL range: %w", err)
 	}
+	c.recordUsage("ral_estimation", extraction.Model, extraction.Usage, 0)
 
 	for _, block := range extraction.Content {
 		if block.Type != "tool_use" || block.Name != extractRALToolName {
@@ -318,6 +364,7 @@ func (c *Client) InferApplicationMethod(ctx context.Context, jobDescription stri
 	if err != nil {
 		return tracking.ApplicationMethod{}, fmt.Errorf("calling Claude API: %w", err)
 	}
+	c.recordUsage("application_method_inference", message.Model, message.Usage, 0)
 
 	for _, block := range message.Content {
 		if block.Type != "tool_use" || block.Name != inferApplicationMethodToolName {
@@ -375,6 +422,7 @@ func (c *Client) SuggestContact(ctx context.Context, company, jobDescription str
 	if err != nil {
 		return tracking.Contact{}, fmt.Errorf("researching contact: %w", err)
 	}
+	c.recordUsage("contact_suggestion", research.Model, research.Usage, research.Usage.ServerToolUse.WebSearchRequests)
 
 	var notes strings.Builder
 	for _, block := range research.Content {
@@ -394,6 +442,7 @@ func (c *Client) SuggestContact(ctx context.Context, company, jobDescription str
 	if err != nil {
 		return tracking.Contact{}, fmt.Errorf("extracting contact: %w", err)
 	}
+	c.recordUsage("contact_suggestion", extraction.Model, extraction.Usage, 0)
 
 	for _, block := range extraction.Content {
 		if block.Type != "tool_use" || block.Name != extractContactToolName {

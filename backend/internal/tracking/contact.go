@@ -18,7 +18,9 @@ func SuggestContact(ctx context.Context, dataDir string, client Client, id strin
 	if err != nil {
 		return Contact{}, err
 	}
-	return client.SuggestContact(ctx, listing.Company, listing.JobDescription)
+	contact, err := client.SuggestContact(ctx, listing.Company, listing.JobDescription)
+	recordStandaloneUsage(dataDir, client)
+	return contact, err
 }
 
 // UpdateApplicationContact validates and saves a Contact to the
