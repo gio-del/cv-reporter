@@ -159,6 +159,73 @@ func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *
 	}
 }
 
+func TestUpdateApplicationStatus_WithdrawnThenReopenToInterviewing_RoundTrips(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "withdrawn"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("withdrawing: expected 200, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	if application["status"] != "withdrawn" {
+		t.Errorf("expected status withdrawn, got %v", application["status"])
+	}
+
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("withdrawn")) {
+		t.Errorf("expected application file to record status withdrawn, got:\n%s", content)
+	}
+
+	reopenResp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "interviewing"})
+	defer reopenResp.Body.Close()
+
+	if reopenResp.StatusCode != http.StatusOK {
+		t.Fatalf("reopening from withdrawn: expected 200, got %d", reopenResp.StatusCode)
+	}
+
+	var reopened map[string]any
+	if err := json.NewDecoder(reopenResp.Body).Decode(&reopened); err != nil {
+		t.Fatal(err)
+	}
+	if reopened["status"] != "interviewing" {
+		t.Errorf("expected status interviewing, got %v", reopened["status"])
+	}
+}
+
+func TestUpdateApplicationStatus_WithdrawnToOffer_Returns400(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "withdrawn"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("withdrawing: expected 200, got %d", resp.StatusCode)
+	}
+
+	invalidResp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "offer"})
+	defer invalidResp.Body.Close()
+
+	if invalidResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 moving Withdrawn directly to offer, got %d", invalidResp.StatusCode)
+	}
+}
+
 func TestUpdateApplicationMethod_ValidCorrection_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
