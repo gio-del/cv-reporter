@@ -2,6 +2,7 @@ package generation
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 )
 
@@ -163,4 +164,38 @@ func firstNonEmptyLine(s string) string {
 		}
 	}
 	return ""
+}
+
+// extractPDFText shells out to `pdftotext -layout <pdfPath> -`, printing
+// the PDF's text layer to stdout, exactly the way renderTypst shells out
+// to `typst compile` (see its godoc and ADR-0012): a pinned external tool
+// invoked via os/exec rather than a Go-native PDF text-layer decoder (per
+// the PRD's Implementation Decisions — reimplementing that decoding was
+// judged a much larger, more fragile undertaking than shelling out to
+// Poppler). -layout preserves the PDF's visual column/row layout as
+// whitespace, which keeps multi-column or absolutely-positioned content —
+// the exact failure mode this check exists to catch — from being silently
+// re-flowed into a different reading order than what an ATS parser would
+// actually see.
+func extractPDFText(pdfPath string) (string, error) {
+	cmd := exec.Command("pdftotext", "-layout", pdfPath, "-")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("pdftotext failed: %w", err)
+	}
+	return string(out), nil
+}
+
+// checkPDFParsability runs the full ATS-parsability check against a
+// rendered PDF: extract its text layer with pdftotext, then compare that
+// text against fields with checkParsability. If pdftotext is missing or
+// exits non-zero, it degrades to ParsabilityUnavailable with Reason set
+// (PRD story 10) rather than returning an error — a tooling problem here
+// must never fail Render, which already has its PDF.
+func checkPDFParsability(pdfPath string, fields []expectedField) ParsabilityResult {
+	text, err := extractPDFText(pdfPath)
+	if err != nil {
+		return ParsabilityResult{Status: ParsabilityUnavailable, Reason: err.Error()}
+	}
+	return checkParsability(text, fields)
 }

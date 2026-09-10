@@ -1,6 +1,7 @@
 package generation
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -155,6 +156,23 @@ func TestCoverLetterExpectedFields(t *testing.T) {
 	}
 	if !reflect.DeepEqual(fields, want) {
 		t.Errorf("fields = %+v, want %+v", fields, want)
+	}
+}
+
+func TestCheckPDFParsability_ExtractionFails_ReportsUnavailable(t *testing.T) {
+	requireBinary(t, "pdftotext")
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist.pdf")
+	result := checkPDFParsability(missing, []expectedField{{label: "Name", text: "Jane Doe"}})
+
+	if result.Status != ParsabilityUnavailable {
+		t.Errorf("Status = %v, want %v", result.Status, ParsabilityUnavailable)
+	}
+	if result.Reason == "" {
+		t.Error("expected a non-empty Reason explaining the Unavailable status")
+	}
+	if result.MissingFields != nil || result.OrderingViolations != nil {
+		t.Errorf("expected no MissingFields/OrderingViolations on an unavailable result, got %+v", result)
 	}
 }
 
