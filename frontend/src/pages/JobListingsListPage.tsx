@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { jobListingHeading } from '@/lib/utils'
@@ -71,6 +72,14 @@ interface PendingDelete {
   heading: string
 }
 
+type RALSortChoice = 'none' | 'asc' | 'desc'
+
+interface AppliedRALFilter {
+  min: number
+  max: number
+  currency: string
+}
+
 export default function JobListingsListPage() {
   const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -84,11 +93,67 @@ export default function JobListingsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // RAL Range sort/filter (issue #51): appliedRALFilter/ralSort together
+  // drive the fetch below, so applying a filter or sort doesn't get
+  // silently reset by anything else on the page (story 9). knownCurrencies
+  // is (re)derived only from an *unfiltered* fetch, so it keeps reflecting
+  // every currency actually in use even while a currency-scoped filter is
+  // active (story 8, currency-handling decision).
+  const [ralSort, setRalSort] = useState<RALSortChoice>('none')
+  const [ralMinInput, setRalMinInput] = useState('')
+  const [ralMaxInput, setRalMaxInput] = useState('')
+  const [ralCurrency, setRalCurrency] = useState('EUR')
+  const [knownCurrencies, setKnownCurrencies] = useState<string[]>([])
+  const [appliedRALFilter, setAppliedRALFilter] = useState<AppliedRALFilter | null>(null)
+  const [ralFilterError, setRalFilterError] = useState<string | null>(null)
+
   useEffect(() => {
-    listJobListings()
-      .then((l) => setListings(l ?? []))
+    listJobListings({
+      sortByRAL: ralSort === 'none' ? undefined : ralSort,
+      ralMin: appliedRALFilter?.min,
+      ralMax: appliedRALFilter?.max,
+      ralCurrency: appliedRALFilter?.currency,
+    })
+      .then((l) => {
+        setListings(l ?? [])
+        if (!appliedRALFilter) {
+          const currencies = Array.from(
+            new Set(
+              (l ?? [])
+                .map((x) => x.jobListing.ral)
+                .filter((ral) => ral.source === 'stated' || ral.source === 'estimated')
+                .map((ral) => ral.currency)
+                .filter((currency): currency is string => Boolean(currency)),
+            ),
+          ).sort()
+          setKnownCurrencies(currencies)
+          if (currencies.length === 1) setRalCurrency(currencies[0])
+        }
+      })
       .catch((e) => setError(e.message))
-  }, [])
+  }, [ralSort, appliedRALFilter])
+
+  function handleApplyRALFilter() {
+    setRalFilterError(null)
+    const min = ralMinInput.trim() === '' ? 0 : Number(ralMinInput)
+    const max = ralMaxInput.trim() === '' ? Number.MAX_SAFE_INTEGER : Number(ralMaxInput)
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      setRalFilterError('Min/Max RAL must be numbers.')
+      return
+    }
+    if (min > max) {
+      setRalFilterError('Min RAL must not exceed Max RAL.')
+      return
+    }
+    setAppliedRALFilter({ min, max, currency: ralCurrency || knownCurrencies[0] || 'EUR' })
+  }
+
+  function handleClearRALFilter() {
+    setRalMinInput('')
+    setRalMaxInput('')
+    setRalFilterError(null)
+    setAppliedRALFilter(null)
+  }
 
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
     setStatusError(null)
@@ -209,7 +274,98 @@ export default function JobListingsListPage() {
         </p>
       )}
 
-      {listings.length === 0 && <p>No Job Listings saved yet.</p>}
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="ral-sort" className="text-xs font-medium text-muted-foreground">
+            Sort by RAL Range
+          </label>
+          <Select value={ralSort} onValueChange={(value) => setRalSort(value as RALSortChoice)}>
+            <SelectTrigger id="ral-sort" size="sm" className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Default (newest first)</SelectItem>
+              <SelectItem value="desc">RAL: high to low</SelectItem>
+              <SelectItem value="asc">RAL: low to high</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="ral-min" className="text-xs font-medium text-muted-foreground">
+            Min RAL
+          </label>
+          <Input
+            id="ral-min"
+            type="number"
+            inputMode="numeric"
+            className="w-28"
+            placeholder="e.g. 40000"
+            value={ralMinInput}
+            onChange={(e) => setRalMinInput(e.target.value)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="ral-max" className="text-xs font-medium text-muted-foreground">
+            Max RAL
+          </label>
+          <Input
+            id="ral-max"
+            type="number"
+            inputMode="numeric"
+            className="w-28"
+            placeholder="e.g. 60000"
+            value={ralMaxInput}
+            onChange={(e) => setRalMaxInput(e.target.value)}
+          />
+        </div>
+
+        {knownCurrencies.length > 1 && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor="ral-currency" className="text-xs font-medium text-muted-foreground">
+              Currency
+            </label>
+            <Select value={ralCurrency} onValueChange={setRalCurrency}>
+              <SelectTrigger id="ral-currency" size="sm" className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {knownCurrencies.map((currency) => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleApplyRALFilter}
+          disabled={ralMinInput.trim() === '' && ralMaxInput.trim() === ''}
+        >
+          Apply RAL filter
+        </Button>
+
+        {appliedRALFilter && (
+          <Button size="sm" variant="ghost" onClick={handleClearRALFilter}>
+            Clear RAL filter
+          </Button>
+        )}
+
+        {ralFilterError && (
+          <p role="alert" className="text-sm font-medium text-destructive">
+            {ralFilterError}
+          </p>
+        )}
+      </div>
+
+      {listings.length === 0 && (
+        <p>{appliedRALFilter ? 'No Job Listings match this RAL filter.' : 'No Job Listings saved yet.'}</p>
+      )}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {

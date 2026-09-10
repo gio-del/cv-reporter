@@ -13,6 +13,7 @@ import type {
   JobListing,
   JobListingWithApplication,
   Profile,
+  RALListQuery,
   RecordGenerationRequest,
   RenderRequest,
   RenderResult,
@@ -128,8 +129,21 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
-export function listJobListings(): Promise<JobListingWithApplication[]> {
-  return request('/api/job-listings')
+// listJobListings passes query.sortByRAL/ralMin/ralMax/ralCurrency through
+// to GET /api/job-listings's optional sort=ral&order=…&ral_min=…&ral_max=…
+// &ral_currency=… params (issue #51) — omitted entirely when query isn't
+// given, matching the endpoint's own unfiltered/unsorted default.
+export function listJobListings(query?: RALListQuery): Promise<JobListingWithApplication[]> {
+  const params = new URLSearchParams()
+  if (query?.sortByRAL) {
+    params.set('sort', 'ral')
+    params.set('order', query.sortByRAL)
+  }
+  if (query?.ralMin != null) params.set('ral_min', String(query.ralMin))
+  if (query?.ralMax != null) params.set('ral_max', String(query.ralMax))
+  if (query?.ralCurrency) params.set('ral_currency', query.ralCurrency)
+  const qs = params.toString()
+  return request(`/api/job-listings${qs ? `?${qs}` : ''}`)
 }
 
 export function getJobListing(id: string): Promise<JobListing> {
