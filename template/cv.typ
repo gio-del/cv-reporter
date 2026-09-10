@@ -12,7 +12,7 @@
 #let data = json("/" + sys.inputs.data)
 
 #set page(paper: "a4", margin: (x: 1.8cm, y: 1.2cm))
-#set text(font: "Liberation Sans", size: 9.5pt, lang: "en")
+#set text(font: "Liberation Sans", size: 9.5pt, lang: data.at("lang", default: "en"))
 #set par(justify: false, leading: 0.5em, spacing: 0.5em)
 #set list(marker: [•], indent: 0.4em)
 

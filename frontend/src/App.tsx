@@ -11,6 +11,7 @@ import ProfilePage from '@/pages/ProfilePage'
 import SnippetCreatePage from '@/pages/SnippetCreatePage'
 import SnippetDetailPage from '@/pages/SnippetDetailPage'
 import SnippetsListPage from '@/pages/SnippetsListPage'
+import StatsPage from '@/pages/StatsPage'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/generate" element={<GenerationPage />} />
             <Route path="/jobs" element={<JobListingsListPage />} />
+            <Route path="/stats" element={<StatsPage />} />
             <Route path="/jobs/new" element={<JobListingCreatePage />} />
             <Route path="/ats" element={<AtsBrowsePage />} />
             <Route path="/jobs/:id/generate" element={<GenerationPage />} />

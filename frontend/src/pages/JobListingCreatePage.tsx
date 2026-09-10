@@ -17,6 +17,7 @@ export default function JobListingCreatePage() {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState<SaveJobListingResult | null>(null)
+  const [warningDismissed, setWarningDismissed] = useState(false)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -35,6 +36,7 @@ export default function JobListingCreatePage() {
         jobDescriptionUrl: form.jobDescriptionUrl.trim() || undefined,
       })
       setSaved(result)
+      setWarningDismissed(false)
       setForm(blankForm)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -95,6 +97,23 @@ export default function JobListingCreatePage() {
           </Button>
         </div>
       </form>
+
+      {saved?.duplicateWarning && !warningDismissed && (
+        <section role="alert" className="mt-6 flex items-start justify-between gap-4 rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
+          <p className="m-0">
+            This looks like one you already have:{' '}
+            <strong>{jobListingHeading(saved.duplicateWarning)}</strong>, saved{' '}
+            {new Date(saved.duplicateWarning.savedAt).toLocaleDateString()}. Check the{' '}
+            <Link to="/jobs" className="font-medium underline">
+              Job Listings list
+            </Link>{' '}
+            before deciding — you can still keep both, this is just a heads-up.
+          </p>
+          <Button type="button" variant="ghost" onClick={() => setWarningDismissed(true)}>
+            Dismiss
+          </Button>
+        </section>
+      )}
 
       {saved && (
         <section className="mt-6 rounded-xl border border-border bg-card p-5">

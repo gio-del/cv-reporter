@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -43,9 +44,12 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 }
 
 type recordGenerationRequest struct {
-	Slug            string `json:"slug"`
-	CVPath          string `json:"cvPath"`
-	CoverLetterPath string `json:"coverLetterPath"`
+	Slug            string                         `json:"slug"`
+	CVPath          string                         `json:"cvPath"`
+	CoverLetterPath string                         `json:"coverLetterPath"`
+	Usage           generation.GenerationUsage     `json:"usage"`
+	Language        string                         `json:"language"`
+	Groundedness    *generation.GroundednessResult `json:"groundedness"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -71,6 +75,9 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
 			CVPath:          req.CVPath,
 			CoverLetterPath: req.CoverLetterPath,
+			Usage:           req.Usage,
+			Language:        req.Language,
+			Groundedness:    req.Groundedness,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {
@@ -167,5 +174,24 @@ func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, application)
+	}
+}
+
+// getApplicationsStatsHandler serves the Application funnel/stats view's
+// data (issue #36): counts per Status, stage-to-stage conversion rates,
+// and time-in-stage, computed from the same tracking.List every other
+// Application read already uses — no separate stats-only data store.
+func getApplicationsStatsHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		listings, err := tracking.List(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		applications := make([]tracking.Application, len(listings))
+		for i, l := range listings {
+			applications[i] = l.Application
+		}
+		writeJSON(w, http.StatusOK, tracking.ComputeStats(applications))
 	}
 }

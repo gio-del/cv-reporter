@@ -79,6 +79,25 @@ func TestFetchGreenhouseListings_NormalizesFixtureResponse(t *testing.T) {
 	}
 }
 
+// Documents issue #42's finding: Greenhouse's public job board API exposes
+// no logo field (per-job or board-level), so Listing.LogoURL stays empty
+// given a real-shaped fixture response with no such field.
+func TestFetchGreenhouseListings_NoLogoFieldInResponse_LogoURLStaysEmpty(t *testing.T) {
+	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusOK, greenhouseFixture), nil
+	}}
+
+	listings, err := atsboard.FetchGreenhouseListings(context.Background(), doer, "acme")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for i, l := range listings {
+		if l.LogoURL != "" {
+			t.Errorf("expected listing %d LogoURL to stay empty, got %q", i, l.LogoURL)
+		}
+	}
+}
+
 func TestFetchGreenhouseListings_BoardNotFound_ReturnsErrBoardNotFound(t *testing.T) {
 	doer := fakeDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusNotFound, `{}`), nil
