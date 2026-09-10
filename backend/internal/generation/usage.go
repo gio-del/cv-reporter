@@ -46,6 +46,14 @@ type GenerationUsage struct {
 	Calls            []CallUsage `json:"calls,omitempty"`
 }
 
+// NewGenerationUsage sums calls into one GenerationUsage — exported so
+// packages outside generation (e.g. tracking, aggregating usage across
+// every persisted Generation plus the standalone usage log) can build one
+// without duplicating aggregateUsage's summation logic.
+func NewGenerationUsage(calls []CallUsage) GenerationUsage {
+	return aggregateUsage(calls)
+}
+
 // aggregateUsage sums calls into one GenerationUsage, keeping the
 // individual calls as the by-call-type breakdown.
 func aggregateUsage(calls []CallUsage) GenerationUsage {

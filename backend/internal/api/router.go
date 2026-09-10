@@ -80,6 +80,7 @@ func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking
 	mux.HandleFunc("GET /api/ats/tracked-boards", listTrackedBoardsHandler(dataDir))
 	mux.HandleFunc("POST /api/ats/tracked-boards", createTrackedBoardHandler(dataDir))
 	mux.HandleFunc("DELETE /api/ats/tracked-boards/{id}", deleteTrackedBoardHandler(dataDir))
+	mux.HandleFunc("GET /api/usage", getUsageHandler(dataDir))
 	return mux
 }
 

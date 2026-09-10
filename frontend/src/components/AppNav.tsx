@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import UsageIndicator from '@/components/UsageIndicator'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -34,6 +35,7 @@ export default function AppNav() {
           {item.label}
         </NavLink>
       ))}
+      <UsageIndicator />
     </nav>
   )
 }
