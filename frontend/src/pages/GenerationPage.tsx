@@ -7,11 +7,13 @@ import {
   generationFileUrl,
   getJobListing,
   listEntries,
+  previewGeneration,
   recordApplicationGeneration,
   renderGeneration,
 } from '@/api/client'
 import type {
   Entry,
+  GenerateResult,
   GenerationUsage,
   GroundednessFlag,
   GroundednessResult,
@@ -115,6 +117,9 @@ export default function GenerationPage() {
   const [renderError, setRenderError] = useState<string | null>(null)
   const [render, setRender] = useState<RenderResult | null>(null)
   const [linkError, setLinkError] = useState<string | null>(null)
+  const [previewResult, setPreviewResult] = useState<GenerateResult | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   useEffect(() => {
     listEntries()
@@ -139,6 +144,7 @@ export default function GenerationPage() {
     setLoading(true)
     setRender(null)
     setRenderError(null)
+    setPreviewResult(null)
     try {
       const result = await createGeneration({
         jobDescription: jobDescription.trim() || undefined,
@@ -156,6 +162,23 @@ export default function GenerationPage() {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handlePreview() {
+    setPreviewError(null)
+    setPreviewLoading(true)
+    setPreviewResult(null)
+    try {
+      const result = await previewGeneration({
+        jobDescription: jobDescription.trim() || undefined,
+        jobDescriptionUrl: jobDescriptionUrl.trim() || undefined,
+      })
+      setPreviewResult(result)
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -289,6 +312,9 @@ export default function GenerationPage() {
           <Button onClick={() => handleStart()} disabled={loading}>
             {loading ? 'Generating…' : 'Start Generation'}
           </Button>
+          <Button variant="outline" onClick={handlePreview} disabled={previewLoading}>
+            {previewLoading ? 'Previewing…' : 'Preview Selection'}
+          </Button>
         </div>
       </section>
 
@@ -296,6 +322,44 @@ export default function GenerationPage() {
         <p role="alert" className="font-medium text-destructive">
           {error}
         </p>
+      )}
+
+      {previewError && (
+        <p role="alert" className="font-medium text-destructive">
+          {previewError}
+        </p>
+      )}
+
+      {previewResult && (
+        <section className="rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 p-5">
+          <h2 className="flex items-center gap-2">
+            Selection Preview
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+              Preview only — nothing saved
+            </span>
+          </h2>
+          <p className="text-muted-foreground">
+            A cheap, read-only look at which Entries and bullets Selection would pick — no Rewrite, no Cover
+            Letter, no RAL Range, and nothing recorded against this Application. Start a real Generation above
+            to act on it.
+          </p>
+          {previewResult.selection.entries.map((entry) => {
+            const label = entryLabel(entriesById.get(entry.entryId), entry.entryId)
+            return (
+              <div key={entry.entryId} className="mt-4 rounded-lg border border-border bg-card p-4">
+                <h3 className="mb-0">{label}</h3>
+                <p className="mt-1 text-muted-foreground italic">{entry.reason}</p>
+                <ul className="mt-2 flex flex-col gap-1">
+                  {entry.bullets.map((bullet) => (
+                    <li key={bullet.sourceIndex} className="border-t border-border pt-1 first:border-t-0 first:pt-0">
+                      {bullet.source}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })}
+        </section>
       )}
 
       {editable && (
