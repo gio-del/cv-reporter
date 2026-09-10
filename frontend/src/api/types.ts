@@ -120,17 +120,20 @@ export interface GenerateResult {
   selection: SelectionResult
   coverLetter?: CoverLetterResult
   ral?: RALRange
+  language: string
 }
 
 export interface GenerateRequest {
   jobDescription?: string
   jobDescriptionUrl?: string
+  languageOverride?: string
 }
 
 export interface RenderRequest {
   slug: string
   selection: SelectionResult
   coverLetter?: { body: string }
+  language?: string
 }
 
 export interface RenderResult {
@@ -188,6 +191,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  language?: string
 }
 
 export interface SaveJobListingRequest {
