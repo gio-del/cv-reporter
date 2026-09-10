@@ -398,3 +398,113 @@ func TestCreateGeneration_JobDescriptionOmitsRAL_AsksClientAndReportsEstimated(t
 		t.Errorf("expected source estimated, got %v", ral["source"])
 	}
 }
+
+func TestPreviewGeneration_WithJobDescription_CallsSelectOnlyNotSelectAndRewrite(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			t.Fatal("expected preview to call SelectOnly, not SelectAndRewrite")
+			return generation.SelectionResult{}, nil
+		},
+		selectOnly: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			if req.JobDescription != "Looking for a Go backend engineer." {
+				t.Errorf("expected job description to reach the client, got %q", req.JobDescription)
+			}
+			return generation.SelectionResult{
+				Entries: []generation.SelectedEntry{
+					{
+						EntryID: "experience/quantyca-amplifon",
+						Reason:  "Directly relevant AI platform experience.",
+						Bullets: []generation.SelectedBullet{
+							{SourceIndex: 0, Source: "Designed and built an AI Platform.", Rewritten: "Designed and built an AI Platform."},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	payload := map[string]any{"jobDescription": "Looking for a Go backend engineer."}
+	resp := postJSON(t, server.URL+"/api/generations/preview", payload)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["mode"] != "tailored" {
+		t.Errorf("expected mode tailored, got %v", result["mode"])
+	}
+	selection, ok := result["selection"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a selection object, got %v", result["selection"])
+	}
+	entries, ok := selection["entries"].([]any)
+	if !ok || len(entries) != 1 {
+		t.Fatalf("expected 1 selected entry, got %v", selection["entries"])
+	}
+	if _, ok := result["coverLetter"]; ok {
+		t.Errorf("expected no coverLetter in a preview, got %v", result["coverLetter"])
+	}
+	if _, ok := result["ral"]; ok {
+		t.Errorf("expected no ral in a preview, got %v", result["ral"])
+	}
+}
+
+func TestPreviewGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClient(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectOnly: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			t.Fatal("expected Default Mode preview not to call the Client for Selection")
+			return generation.SelectionResult{}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations/preview", map[string]any{})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["mode"] != "default" {
+		t.Errorf("expected mode default, got %v", result["mode"])
+	}
+	selection := result["selection"].(map[string]any)
+	entries, ok := selection["entries"].([]any)
+	if !ok || len(entries) != 2 {
+		t.Fatalf("expected all 2 seeded entries in Default Mode, got %v", selection["entries"])
+	}
+}
+
+func TestPreviewGeneration_ClientInventsUnknownEntry_Returns502(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectOnly: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{
+				Entries: []generation.SelectedEntry{
+					{EntryID: "experience/does-not-exist", Bullets: []generation.SelectedBullet{{SourceIndex: 0, Source: "made up", Rewritten: "made up"}}},
+				},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations/preview", map[string]any{"jobDescription": "Anything"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("expected 502 when the Client's preview selection isn't traceable to Master Data, got %d", resp.StatusCode)
+	}
+}
