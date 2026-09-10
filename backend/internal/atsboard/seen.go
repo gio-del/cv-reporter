@@ -36,6 +36,30 @@ func MarkNewSinceLastCheck(listings []Listing, seenURLs []string) []ListingWithN
 	return result
 }
 
+// ListingDigest combines the AlreadySaved and New annotations onto one
+// Listing (story 7: the two signals are independent, so a Listing can be
+// new-and-unsaved, old-and-unsaved, or already-saved).
+type ListingDigest struct {
+	Listing
+	AlreadySaved bool `json:"alreadySaved"`
+	New          bool `json:"new"`
+}
+
+// CombineDigest zips MarkAlreadySaved's and MarkNewSinceLastCheck's output
+// into ListingDigest, assuming both were computed from the same listings
+// slice in the same order (so they're the same length, index-aligned).
+func CombineDigest(withSaved []ListingWithSaved, withNew []ListingWithNew) []ListingDigest {
+	result := make([]ListingDigest, len(withSaved))
+	for i := range withSaved {
+		result[i] = ListingDigest{
+			Listing:      withSaved[i].Listing,
+			AlreadySaved: withSaved[i].AlreadySaved,
+			New:          withNew[i].New,
+		}
+	}
+	return result
+}
+
 type seenRecord struct {
 	BoardID string   `yaml:"boardId"`
 	URLs    []string `yaml:"urls"`
