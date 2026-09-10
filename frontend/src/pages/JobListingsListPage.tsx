@@ -5,6 +5,7 @@ import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
 import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
+import StaleEntriesNotice from '@/components/StaleEntriesNotice'
 import {
   checkJobListingFreshness,
   deleteJobListing,
@@ -723,6 +724,7 @@ export default function JobListingsListPage() {
                   Delete
                 </Button>
               </div>
+              <StaleEntriesNotice generations={application.generations} />
             </li>
           )
         })}
