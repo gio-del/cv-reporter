@@ -1,5 +1,10 @@
 export type EntryType = 'experience' | 'project'
 
+export interface EntryLastModified {
+  at?: string
+  subject?: string
+}
+
 export interface Entry {
   id: string
   type: EntryType
@@ -14,6 +19,8 @@ export interface Entry {
   tags: string[]
   repo?: string
   bullets?: string[]
+  /** Absent when the Entry has no git history yet (freshly added, uncommitted). */
+  lastModified?: EntryLastModified
 }
 
 export type EntryInput = Omit<Entry, 'id'>
@@ -179,8 +186,10 @@ export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
+  statusUpdatedAt?: string
   method: ApplicationMethod
   contact?: Contact
+  isStale: boolean
   generations?: GenerationRecord[]
 }
 

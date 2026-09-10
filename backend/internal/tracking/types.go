@@ -107,12 +107,21 @@ type StatusChange struct {
 // its id with the Job Listing it belongs to, since the relationship is
 // strictly 1:1 for this PRD.
 type Application struct {
-	ID           string             `json:"id"`
-	JobListingID string             `json:"jobListingId"`
-	Status       Status             `json:"status"`
-	Method       ApplicationMethod  `json:"method"`
-	Contact      *Contact           `json:"contact,omitempty"`
-	Generations  []GenerationRecord `json:"generations,omitempty"`
+	ID           string `json:"id"`
+	JobListingID string `json:"jobListingId"`
+	Status       Status `json:"status"`
+	// StatusUpdatedAt (RFC3339Nano) is when Status last changed — set at
+	// Application creation and on every successful Transition, including
+	// Reopen (story 1-3, 8). Empty for records written before this field
+	// existed; IsStale treats that as not stale rather than erroring.
+	StatusUpdatedAt string            `json:"statusUpdatedAt,omitempty"`
+	Method          ApplicationMethod `json:"method"`
+	Contact         *Contact          `json:"contact,omitempty"`
+	// IsStale is computed at read time (never persisted) from Status,
+	// StatusUpdatedAt and DefaultStaleThreshold (story 4, 10-11) — see
+	// IsStale in staleness.go.
+	IsStale     bool               `json:"isStale"`
+	Generations []GenerationRecord `json:"generations,omitempty"`
 	// StatusHistory is append-only: one entry per Status the Application has
 	// ever moved to (including its initial Saved entry at creation), oldest
 	// first. Applications saved before this field existed simply have an

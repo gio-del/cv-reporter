@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { formatRelativeTime } from '@/lib/utils'
 import EntryEditForm from './EntryEditForm'
 
 export default function EntryDetailPage() {
@@ -95,6 +96,11 @@ export default function EntryDetailPage() {
       <p>
         {entry.start} – {entry.end ?? 'present'}
       </p>
+      {entry.lastModified?.at && (
+        <p className="text-sm text-muted-foreground" title={entry.lastModified.subject}>
+          Last edited {formatRelativeTime(entry.lastModified.at)}
+        </p>
+      )}
       <div className="flex flex-wrap gap-1">
         {entry.tags.map((tag) => (
           <Badge variant="secondary" key={tag}>

@@ -72,6 +72,8 @@ func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error)
 	}
 	application.Status = newStatus
 	application.StatusHistory = append(application.StatusHistory, StatusChange{Status: newStatus, ChangedAt: time.Now().UTC()})
+	application.StatusUpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	application.IsStale = IsStale(application.Status, application.StatusUpdatedAt, time.Now(), DefaultStaleThreshold)
 
 	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err

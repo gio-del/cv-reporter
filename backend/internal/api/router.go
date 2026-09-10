@@ -47,9 +47,9 @@ func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client
 func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
-	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/entries", listEntriesHandler(dataDir, projectRoot))
 	mux.HandleFunc("POST /api/master-data/entries", createEntryHandler(dataDir))
-	mux.HandleFunc("GET /api/master-data/entries/{id...}", getEntryHandler(dataDir))
+	mux.HandleFunc("GET /api/master-data/entries/{id...}", getEntryHandler(dataDir, projectRoot))
 	mux.HandleFunc("PUT /api/master-data/entries/{id...}", putEntryHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/entries/{id...}", deleteEntryHandler(dataDir))
 	mux.HandleFunc("GET /api/master-data/profile", getProfileHandler(dataDir))

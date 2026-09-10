@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 )
@@ -218,6 +219,113 @@ func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *
 	}
 	if application["status"] != "interviewing" {
 		t.Errorf("expected status interviewing, got %v", application["status"])
+	}
+}
+
+func TestSaveJobListing_SetsStatusUpdatedAtOnApplicationCreation(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role. Salary: €40,000.",
+	})
+	defer resp.Body.Close()
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	application := result["application"].(map[string]any)
+	statusUpdatedAt, _ := application["statusUpdatedAt"].(string)
+	if statusUpdatedAt == "" {
+		t.Errorf("expected statusUpdatedAt to be set on Application creation, got %v", application["statusUpdatedAt"])
+	}
+}
+
+func TestUpdateApplicationStatus_UpdatesStatusUpdatedAtOnEachTransition(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp1 := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"})
+	var app1 map[string]any
+	if err := json.NewDecoder(resp1.Body).Decode(&app1); err != nil {
+		t.Fatal(err)
+	}
+	resp1.Body.Close()
+	firstUpdatedAt, _ := app1["statusUpdatedAt"].(string)
+	if firstUpdatedAt == "" {
+		t.Fatalf("expected statusUpdatedAt to be set after transition, got %v", app1["statusUpdatedAt"])
+	}
+
+	time.Sleep(2 * time.Millisecond)
+
+	resp2 := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "sent"})
+	var app2 map[string]any
+	if err := json.NewDecoder(resp2.Body).Decode(&app2); err != nil {
+		t.Fatal(err)
+	}
+	resp2.Body.Close()
+	secondUpdatedAt, _ := app2["statusUpdatedAt"].(string)
+	if secondUpdatedAt == "" || secondUpdatedAt == firstUpdatedAt {
+		t.Errorf("expected statusUpdatedAt to change on a second transition, first=%q second=%q", firstUpdatedAt, secondUpdatedAt)
+	}
+}
+
+func TestUpdateApplicationStatus_ReopenFromRejected_UpdatesStatusUpdatedAt(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	for _, status := range []string{"tailoring", "sent", "rejected"} {
+		patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": status}).Body.Close()
+	}
+
+	time.Sleep(2 * time.Millisecond)
+
+	resp := patchJSON(t, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "interviewing"})
+	defer resp.Body.Close()
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	statusUpdatedAt, _ := application["statusUpdatedAt"].(string)
+	if statusUpdatedAt == "" {
+		t.Errorf("expected statusUpdatedAt to be set on Reopen, got %v", application["statusUpdatedAt"])
+	}
+}
+
+func TestListJobListings_IncludesIsStaleFalseForFreshApplication(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var results []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	application := results[0]["application"].(map[string]any)
+	isStale, ok := application["isStale"].(bool)
+	if !ok {
+		t.Fatalf("expected isStale to be present in the list response, got %v", application["isStale"])
+	}
+	if isStale {
+		t.Errorf("expected a freshly-saved Application (status saved) to not be stale")
 	}
 }
 
