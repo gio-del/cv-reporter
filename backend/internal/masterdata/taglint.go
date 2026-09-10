@@ -50,6 +50,22 @@ type TagLintReport struct {
 // "suggested" (not "confident") group.
 const editDistanceThreshold = 2
 
+// minLengthForEditDistanceMatch is the shortest a normalized tag may be to
+// take part in edit-distance clustering at all. Short acronyms (AWS, GCP,
+// MCP, ...) are only 3-4 characters apart from many unrelated acronyms
+// within editDistanceThreshold, so without this gate they chain together
+// into noisy, unrelated "suggested" groups — observed against this repo's
+// own real Master Data during development. Case-only and alias-table
+// (confident) matching is unaffected by this gate.
+const minLengthForEditDistanceMatch = 5
+
+// eligibleForEditDistanceMatch reports whether a and b are both long enough
+// for a Levenshtein-distance match between them to be meaningful rather
+// than incidental.
+func eligibleForEditDistanceMatch(a, b string) bool {
+	return len([]rune(a)) >= minLengthForEditDistanceMatch && len([]rune(b)) >= minLengthForEditDistanceMatch
+}
+
 // tagAliases is a small, hardcoded seed of common tech-naming variants that
 // should be treated as the same tag even though they aren't a case-only
 // match. It is not user-editable Master Data (see the PRD's Implementation
@@ -181,6 +197,9 @@ func clusterByEditDistance(keys []string) (clusters [][]string, alone []string) 
 
 	for i := 0; i < len(keys); i++ {
 		for j := i + 1; j < len(keys); j++ {
+			if !eligibleForEditDistanceMatch(keys[i], keys[j]) {
+				continue
+			}
 			if levenshtein(keys[i], keys[j]) <= editDistanceThreshold {
 				union(keys[i], keys[j])
 			}

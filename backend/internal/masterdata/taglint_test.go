@@ -175,6 +175,28 @@ func TestDetectTagGroups_FullFixture_GroupsAndTiersAsExpected(t *testing.T) {
 	}
 }
 
+func TestDetectTagGroups_ShortAcronyms_DoNotChainByEditDistance(t *testing.T) {
+	// AWS/GCP/MCP/A2A/Java are all short enough to be within the
+	// edit-distance threshold of several unrelated acronyms — they must
+	// not be chained into bogus "suggested" groups.
+	occurrences := []masterdata.TagOccurrence{
+		occ("AWS", "experience/a"),
+		occ("GCP", "experience/b"),
+		occ("MCP", "experience/c"),
+		occ("A2A", "experience/d"),
+		occ("Java", "experience/e"),
+	}
+
+	report := masterdata.DetectTagGroups(occurrences)
+
+	if len(report.Groups) != 0 {
+		t.Fatalf("expected no groups for unrelated short acronyms, got %v", report.Groups)
+	}
+	if len(report.Singletons) != 5 {
+		t.Fatalf("expected all 5 tags as singletons, got %d: %v", len(report.Singletons), report.Singletons)
+	}
+}
+
 func TestDetectTagGroups_MultipleEntriesSameSpelling_NotAGroup(t *testing.T) {
 	// The same exact spelling used by several Entries is not fragmentation
 	// — it must not be reported as a duplicate group.
