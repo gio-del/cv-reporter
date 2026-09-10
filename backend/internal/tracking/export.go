@@ -23,6 +23,13 @@ func ExportData(dataDir string, w io.Writer) error {
 	for _, dir := range exportDirs {
 		fullDir := filepath.Join(dataDir, dir)
 		info, err := os.Stat(fullDir)
+		if os.IsNotExist(err) {
+			// Nothing has been saved under this directory yet (e.g. a
+			// brand-new install with zero Job Listings/Applications) —
+			// that's not a failure, it just contributes nothing to the
+			// archive.
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("export: reading %s: %w", dir, err)
 		}

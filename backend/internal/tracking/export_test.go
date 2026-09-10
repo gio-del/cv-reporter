@@ -100,12 +100,32 @@ func TestExportData_PopulatedDir_RoundTripsFilesUnderJobsAndApplications(t *test
 	}
 }
 
-func TestExportData_MissingDataDir_ReturnsError(t *testing.T) {
-	dataDir := filepath.Join(t.TempDir(), "does-not-exist")
+func TestExportData_NoJobsOrApplicationsYet_ProducesEmptyArchiveNotError(t *testing.T) {
+	// A brand-new install has no data/jobs or data/applications directory
+	// at all until the first Job Listing is saved (see .gitignore/ADR-0008)
+	// — exporting early must succeed with an empty archive, not error.
+	dataDir := t.TempDir()
+
+	var buf bytes.Buffer
+	if err := tracking.ExportData(dataDir, &buf); err != nil {
+		t.Fatalf("ExportData: %v", err)
+	}
+
+	files := readZip(t, buf.Bytes())
+	if len(files) != 0 {
+		t.Fatalf("expected an empty archive, got %v", files)
+	}
+}
+
+func TestExportData_JobsPathIsAFileNotDirectory_ReturnsError(t *testing.T) {
+	dataDir := t.TempDir()
+	// Simulate genuine on-disk corruption: something occupies data/jobs
+	// that isn't a directory at all.
+	writeFile(t, filepath.Join(dataDir, "jobs"), "not a directory")
 
 	var buf bytes.Buffer
 	err := tracking.ExportData(dataDir, &buf)
 	if err == nil {
-		t.Fatalf("expected an error for a missing data dir, got nil")
+		t.Fatalf("expected an error when data/jobs isn't a directory, got nil")
 	}
 }
