@@ -13,6 +13,8 @@ import {
 import type {
   Entry,
   GenerationUsage,
+  GroundednessFlag,
+  GroundednessResult,
   JobListing,
   RALRange,
   RenderResult,
@@ -23,11 +25,15 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn, jobListingHeading } from '@/lib/utils'
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+// Matches backend/internal/generation.SupportedLanguages (issue #41's PRD).
+const LANGUAGE_LABELS: Record<string, string> = { en: 'English', it: 'Italian' }
 
 interface EditableBullet extends SelectedBullet {
   included: boolean
@@ -47,6 +53,37 @@ function toEditable(entries: SelectedEntry[]): EditableEntry[] {
     included: true,
     bullets: e.bullets.map((b) => ({ ...b, included: true })),
   }))
+}
+
+function bulletFlags(groundedness: GroundednessResult | null, entryId: string, sourceIndex: number): GroundednessFlag[] {
+  return groundedness?.bullets?.find((b) => b.entryId === entryId && b.sourceIndex === sourceIndex)?.flags ?? []
+}
+
+const GROUNDEDNESS_REASON_LABEL: Record<GroundednessFlag['reason'], string> = {
+  'no-source-match': 'no matching source bullet found',
+  'numeric-mismatch': 'contains a number/detail not present in source',
+}
+
+function GroundednessBadge({ flags }: { flags: GroundednessFlag[] }) {
+  if (flags.length === 0) return null
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-2 cursor-help rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+          {flags.length} flagged
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <ul className="list-disc pl-4">
+          {flags.map((flag, i) => (
+            <li key={i}>
+              "{flag.sentence}" — {GROUNDEDNESS_REASON_LABEL[flag.reason]}
+            </li>
+          ))}
+        </ul>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 function entryLabel(entry: Entry | undefined, entryId: string): string {
@@ -70,6 +107,9 @@ export default function GenerationPage() {
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
   const [usage, setUsage] = useState<GenerationUsage | null>(null)
+  const [language, setLanguage] = useState<string | null>(null)
+  const [languageChanging, setLanguageChanging] = useState(false)
+  const [groundedness, setGroundedness] = useState<GroundednessResult | null>(null)
   const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -94,7 +134,7 @@ export default function GenerationPage() {
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [jobListingId])
 
-  async function handleStart() {
+  async function handleStart(languageOverride?: string) {
     setError(null)
     setLoading(true)
     setRender(null)
@@ -103,16 +143,31 @@ export default function GenerationPage() {
       const result = await createGeneration({
         jobDescription: jobDescription.trim() || undefined,
         jobDescriptionUrl: jobDescriptionUrl.trim() || undefined,
+        languageOverride,
       })
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
       setRal(result.ral ?? null)
       setUsage(result.usage ?? null)
+      setLanguage(result.language)
+      setGroundedness(result.groundedness ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Re-runs Selection+Rewrite (and the Cover Letter, if any) in the
+  // corrected language rather than translating the already-generated text
+  // in place, so phrasing stays natural (issue #41's PRD, stories 4-5).
+  async function handleLanguageChange(next: string) {
+    setLanguageChanging(true)
+    try {
+      await handleStart(next)
+    } finally {
+      setLanguageChanging(false)
     }
   }
 
@@ -177,6 +232,7 @@ export default function GenerationPage() {
         slug,
         selection: { entries: selection },
         coverLetter: coverLetter !== null ? { body: coverLetter } : undefined,
+        language: language ?? undefined,
       })
       setRender(result)
 
@@ -187,6 +243,8 @@ export default function GenerationPage() {
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
             usage: usage ?? undefined,
+            language: language ?? undefined,
+            groundedness: groundedness ?? undefined,
           })
         } catch (err) {
           setLinkError(err instanceof Error ? err.message : String(err))
@@ -228,7 +286,7 @@ export default function GenerationPage() {
         </FieldGroup>
         <p>Leave both blank to run Default Mode (a general-purpose CV from your most representative Entries).</p>
         <div className="mt-6 flex gap-3">
-          <Button onClick={handleStart} disabled={loading}>
+          <Button onClick={() => handleStart()} disabled={loading}>
             {loading ? 'Generating…' : 'Start Generation'}
           </Button>
         </div>
@@ -253,6 +311,29 @@ export default function GenerationPage() {
               {usage.webSearchUses ? `, ${usage.webSearchUses} web search${usage.webSearchUses === 1 ? '' : 'es'}` : ''}
               )
             </p>
+          )}
+
+          {language && (
+            <Field className="mb-4 max-w-64">
+              <FieldLabel htmlFor="generation-language">Language</FieldLabel>
+              <Select value={language} onValueChange={handleLanguageChange} disabled={languageChanging || loading}>
+                <SelectTrigger id="generation-language" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
+                    <SelectItem key={code} value={code}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                {languageChanging
+                  ? 'Regenerating Selection and Rewrite in the new language…'
+                  : 'Correct this if the detected language is wrong — Selection and Rewrite re-run in the chosen language.'}
+              </FieldDescription>
+            </Field>
           )}
 
           {editable.map((entry) => {
@@ -284,6 +365,7 @@ export default function GenerationPage() {
                           />
                           <span className={cn(bullet.included ? '' : 'line-through')}>
                             <BulletDiff source={bullet.source} rewritten={bullet.rewritten} />
+                            <GroundednessBadge flags={bulletFlags(groundedness, entry.entryId, bullet.sourceIndex)} />
                           </span>
                         </label>
                         {bullet.included && (
@@ -304,7 +386,10 @@ export default function GenerationPage() {
 
           {coverLetter !== null && (
             <div className="mb-4 rounded-xl border border-border bg-card p-5">
-              <h3>Cover Letter</h3>
+              <h3>
+                Cover Letter
+                <GroundednessBadge flags={groundedness?.coverLetter ?? []} />
+              </h3>
               <Textarea rows={12} value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} />
             </div>
           )}

@@ -114,6 +114,63 @@ func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing
 	}
 }
 
+func TestCreateGeneration_RewriteAddsUngroundedSentence_FlagsItInGroundedness(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{
+				Entries: []generation.SelectedEntry{
+					{
+						EntryID: "experience/quantyca-amplifon",
+						Reason:  "Directly relevant AI platform experience.",
+						Bullets: []generation.SelectedBullet{
+							{
+								SourceIndex: 0,
+								Source:      "Designed and built an AI Platform.",
+								Rewritten:   "Designed and built an AI Platform. Presented the quarterly roadmap to the executive leadership team.",
+							},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Looking for a Go backend engineer."})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	groundedness, ok := result["groundedness"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a groundedness object, got %v", result["groundedness"])
+	}
+	bullets, ok := groundedness["bullets"].([]any)
+	if !ok || len(bullets) != 1 {
+		t.Fatalf("expected exactly 1 flagged bullet, got %v", groundedness["bullets"])
+	}
+	bullet := bullets[0].(map[string]any)
+	if bullet["entryId"] != "experience/quantyca-amplifon" {
+		t.Errorf("expected the flagged bullet's entryId to round-trip, got %v", bullet["entryId"])
+	}
+	flags, ok := bullet["flags"].([]any)
+	if !ok || len(flags) != 1 {
+		t.Fatalf("expected exactly 1 flag on the bullet, got %v", bullet["flags"])
+	}
+	flag := flags[0].(map[string]any)
+	if flag["reason"] != "no-source-match" {
+		t.Errorf("expected reason no-source-match, got %v", flag["reason"])
+	}
+}
+
 func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClient(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{
@@ -152,6 +209,9 @@ func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClien
 	}
 	if _, ok := result["ral"]; ok {
 		t.Errorf("expected no ral in Default Mode, got %v", result["ral"])
+	}
+	if _, ok := result["groundedness"]; ok {
+		t.Errorf("expected no groundedness in Default Mode, got %v", result["groundedness"])
 	}
 	selection := result["selection"].(map[string]any)
 	entries, ok := selection["entries"].([]any)
@@ -391,9 +451,125 @@ func TestCreateGeneration_JobDescriptionOmitsRAL_AsksClientAndReportsEstimated(t
 	}
 }
 
-// fakeGenerationClientWithUsage additionally implements
-// generation.UsageRecorder, so createGenerationHandler's response should
-// surface the drained usage (issue #39: Claude API cost/usage visibility).
+func TestCreateGeneration_DetectedLanguageThreadsToCoverLetterAndResult(t *testing.T) {
+	dataDir := seedDataDir(t)
+	var coverLetterLanguage string
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			if req.LanguageOverride != "" {
+				t.Errorf("expected no language override, got %q", req.LanguageOverride)
+			}
+			return generation.SelectionResult{Language: "it"}, nil
+		},
+		draftCoverLetter: func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+			coverLetterLanguage = req.Language
+			return generation.CoverLetterResult{Body: "Gentile Selezionatore,"}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Cerchiamo un ingegnere backend Go."})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["language"] != "it" {
+		t.Errorf("expected top-level language it, got %v", result["language"])
+	}
+	if coverLetterLanguage != "it" {
+		t.Errorf("expected cover letter drafted in it, got %q", coverLetterLanguage)
+	}
+}
+
+func TestCreateGeneration_UnsupportedDetectedLanguage_FallsBackToEnglish(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{Language: "fr"}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Nous recherchons un ingénieur."})
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["language"] != "en" {
+		t.Errorf("expected fallback language en, got %v", result["language"])
+	}
+}
+
+func TestCreateGeneration_LanguageOverride_ForcesTargetLanguageOnClientAndCoverLetter(t *testing.T) {
+	dataDir := seedDataDir(t)
+	var sawOverride string
+	var coverLetterLanguage string
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			sawOverride = req.LanguageOverride
+			return generation.SelectionResult{Language: req.LanguageOverride}, nil
+		},
+		draftCoverLetter: func(ctx context.Context, req generation.CoverLetterRequest) (generation.CoverLetterResult, error) {
+			coverLetterLanguage = req.Language
+			return generation.CoverLetterResult{Body: "Gentile Selezionatore,"}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{
+		"jobDescription":   "Looking for a Go backend engineer.",
+		"languageOverride": "it",
+	})
+	defer resp.Body.Close()
+
+	if sawOverride != "it" {
+		t.Errorf("expected the client to see languageOverride it, got %q", sawOverride)
+	}
+	if coverLetterLanguage != "it" {
+		t.Errorf("expected cover letter drafted in it, got %q", coverLetterLanguage)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["language"] != "it" {
+		t.Errorf("expected top-level language it, got %v", result["language"])
+	}
+}
+
+func TestCreateGeneration_DefaultMode_LanguageIsEnglish(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			t.Fatal("expected Default Mode not to call the Client for Selection")
+			return generation.SelectionResult{}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{})
+	defer resp.Body.Close()
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result["language"] != "en" {
+		t.Errorf("expected Default Mode language en, got %v", result["language"])
+	}
+}
+
 type fakeGenerationClientWithUsage struct {
 	fakeGenerationClient
 	usage []generation.CallUsage

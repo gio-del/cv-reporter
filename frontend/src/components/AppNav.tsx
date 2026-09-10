@@ -9,6 +9,7 @@ const navItems = [
   { to: '/generate', label: 'Generate', end: false },
   { to: '/jobs', label: 'Job Listings', end: false },
   { to: '/ats', label: 'Browse ATS Boards', end: false },
+  { to: '/stats', label: 'Stats', end: false },
 ]
 
 export default function AppNav() {
