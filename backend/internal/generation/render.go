@@ -28,6 +28,12 @@ type RenderRequest struct {
 	Slug        string
 	Selection   SelectionResult
 	CoverLetter *CoverLetterResult
+
+	// Language is the confirmed target language from Text Review
+	// (GenerateResult.Language, possibly overridden). Empty is treated as
+	// DefaultLanguage, so requests from before this field existed still
+	// render correctly.
+	Language string
 }
 
 // RenderResult names the produced PDF(s), relative to outputDir, plus the
@@ -59,6 +65,7 @@ type cvProject struct {
 
 type cvData struct {
 	Name         string                   `json:"name"`
+	Lang         string                   `json:"lang"`
 	Location     string                   `json:"location"`
 	Email        string                   `json:"email"`
 	Phone        string                   `json:"phone"`
@@ -111,6 +118,7 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 	if err != nil {
 		return RenderResult{}, err
 	}
+	cv.Lang = NormalizeLanguage(req.Language)
 
 	outputDir := filepath.Join(projectRoot, "output", req.Slug)
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
