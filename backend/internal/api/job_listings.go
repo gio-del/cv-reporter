@@ -150,7 +150,7 @@ func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
 	return params, nil
 }
 
-func listJobListingsHandler(dataDir string) http.HandlerFunc {
+func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		filter, err := parseJobListingsFilter(r.URL.Query())
 		if err != nil {
@@ -181,6 +181,9 @@ func listJobListingsHandler(dataDir string) http.HandlerFunc {
 			listings = tracking.SortListingsByRAL(listings, order)
 		}
 
+		for i := range listings {
+			attachStaleEntries(&listings[i].Application, dataDir, projectRoot)
+		}
 		writeJSON(w, http.StatusOK, listings)
 	}
 }

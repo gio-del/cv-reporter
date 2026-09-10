@@ -132,6 +132,22 @@ type GenerationRecord struct {
 	// on the record so the Application's Generation history shows it
 	// without reopening the PDF (issue #41's PRD, story 9).
 	Language string `json:"language,omitempty"`
+
+	// EntryIDs are the Master Data Entry ids Selection chose for this
+	// Generation (issue #52), populated at record time from the Selection
+	// result the caller already has (RecordGeneration adds no new
+	// Selection logic of its own). Nil for GenerationRecords persisted
+	// before this field existed — the durable source of truth a later
+	// staleness check compares against, since the assembled per-Generation
+	// JSON under output/ is gitignored and not guaranteed to still exist
+	// (ADR-0008).
+	EntryIDs []string `json:"entryIds,omitempty"`
+	// StaleEntries names (by employer/client + role) which of EntryIDs have
+	// been modified since CreatedAt, per masterdata.EntryLastModified
+	// (issue #52). Computed read-time by the API layer for the Application
+	// detail response — never persisted (yaml:"-"), since it's a
+	// point-in-time mechanical comparison, not durable state.
+	StaleEntries []string `json:"staleEntries,omitempty" yaml:"-"`
 }
 
 // Contact is the recruiter/hiring-manager name and email for an

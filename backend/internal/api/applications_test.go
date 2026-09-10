@@ -499,6 +499,62 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 	}
 }
 
+func TestRecordApplicationGeneration_PersistsEntryIDsFromRequest(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":     "acme-corp",
+		"cvPath":   "output/acme-corp/cv.pdf",
+		"entryIds": []string{"experience/quantyca-amplifon", "projects/emall"},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations, ok := application["generations"].([]any)
+	if !ok || len(generations) != 1 {
+		t.Fatalf("expected 1 record, got %v", application["generations"])
+	}
+	record := generations[0].(map[string]any)
+	entryIDs, ok := record["entryIds"].([]any)
+	if !ok || len(entryIDs) != 2 || entryIDs[0] != "experience/quantyca-amplifon" || entryIDs[1] != "projects/emall" {
+		t.Fatalf("expected entryIds to persist as recorded, got %v", record["entryIds"])
+	}
+}
+
+func TestRecordApplicationGeneration_NoEntryIDs_OmitsField(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+	})
+	defer resp.Body.Close()
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	record := generations[0].(map[string]any)
+	if _, present := record["entryIds"]; present {
+		t.Errorf("expected no entryIds field for a request that supplied none, got %v", record["entryIds"])
+	}
+}
+
 func TestRecordApplicationGeneration_PersistsSourceSnippetIDs(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))

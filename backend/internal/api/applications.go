@@ -51,6 +51,7 @@ type recordGenerationRequest struct {
 	Usage            generation.GenerationUsage     `json:"usage"`
 	Language         string                         `json:"language"`
 	Groundedness     *generation.GroundednessResult `json:"groundedness"`
+	EntryIDs         []string                       `json:"entryIds"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -80,6 +81,7 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			Usage:            req.Usage,
 			Language:         req.Language,
 			Groundedness:     req.Groundedness,
+			EntryIDs:         req.EntryIDs,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {
