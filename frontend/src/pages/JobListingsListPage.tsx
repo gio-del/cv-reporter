@@ -236,6 +236,16 @@ export default function JobListingsListPage() {
                     </Badge>
                   )}
                   <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  {application.isStale && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="border-accent text-accent">
+                          Follow-up overdue
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>No Status change in over 14 days</TooltipContent>
+                    </Tooltip>
+                  )}
                   {needsResolve && (
                     <Tooltip>
                       <TooltipTrigger asChild>
