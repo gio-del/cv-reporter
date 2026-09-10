@@ -6,6 +6,7 @@ import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
 import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import {
+  checkJobListingFreshness,
   deleteJobListing,
   exportDataUrl,
   generationFileUrl,
@@ -16,7 +17,7 @@ import {
   updateApplicationMethod,
   updateApplicationStatus,
 } from '@/api/client'
-import type { ApplicationMethod, ApplicationStatus, Contact, JobListingWithApplication } from '@/api/types'
+import type { ApplicationMethod, ApplicationStatus, Contact, FreshnessStatus, JobListingWithApplication } from '@/api/types'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +45,23 @@ const statusLabel: Record<ApplicationStatus, string> = {
   rejected: 'Rejected',
   offer: 'Offer',
   withdrawn: 'Withdrawn',
+}
+
+const freshnessLabel: Record<FreshnessStatus, string> = {
+  'not-yet-checked': 'Not yet checked',
+  live: 'Live',
+  unreachable: 'Unreachable',
+  unknown: 'Unknown',
+}
+
+// 'destructive'/'outline'/'secondary' are the existing Badge variants
+// (see components/ui/badge.tsx) — reused as-is rather than inventing a new
+// color for "live" (issue #59).
+const freshnessBadgeVariant: Record<FreshnessStatus, 'secondary' | 'destructive' | 'outline'> = {
+  'not-yet-checked': 'outline',
+  live: 'secondary',
+  unreachable: 'destructive',
+  unknown: 'outline',
 }
 
 // Mirrors the backend's Status state machine (see tracking.allowedTransitions)
@@ -98,6 +116,8 @@ export default function JobListingsListPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [freshnessError, setFreshnessError] = useState<string | null>(null)
+  const [checkingFreshnessId, setCheckingFreshnessId] = useState<string | null>(null)
   const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -277,6 +297,21 @@ export default function JobListingsListPage() {
     }
   }
 
+  async function handleCheckFreshness(jobListingId: string) {
+    setFreshnessError(null)
+    setCheckingFreshnessId(jobListingId)
+    try {
+      const updated = await checkJobListingFreshness(jobListingId)
+      setListings((prev) =>
+        prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, jobListing: updated } : l)) : prev,
+      )
+    } catch (err) {
+      setFreshnessError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setCheckingFreshnessId(null)
+    }
+  }
+
   if (error)
     return (
       <p role="alert" className="font-medium text-destructive">
@@ -310,6 +345,12 @@ export default function JobListingsListPage() {
       {resolveError && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {resolveError}
+        </p>
+      )}
+
+      {freshnessError && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {freshnessError}
         </p>
       )}
 
@@ -572,6 +613,31 @@ export default function JobListingsListPage() {
                   </>
                 )}
               </p>
+              {jobListing.url && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant={freshnessBadgeVariant[jobListing.freshnessStatus]}>
+                    {freshnessLabel[jobListing.freshnessStatus]}
+                  </Badge>
+                  {jobListing.freshnessCheckedAt && (
+                    <span className="text-muted-foreground">
+                      Checked {new Date(jobListing.freshnessCheckedAt).toLocaleString()}
+                    </span>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCheckFreshness(jobListing.id)}
+                        disabled={checkingFreshnessId === jobListing.id}
+                      >
+                        {checkingFreshnessId === jobListing.id ? 'Checking…' : 'Check freshness'}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Re-fetches the source URL to see if the posting is still live</TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
               {jobListing.jobDescription && (
                 <div className="mt-2">
                   <Button

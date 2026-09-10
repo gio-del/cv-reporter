@@ -45,13 +45,15 @@ type SaveRequest struct {
 }
 
 type rawJobListingFrontmatter struct {
-	Title   string              `yaml:"title,omitempty"`
-	Company string              `yaml:"company"`
-	URL     string              `yaml:"url,omitempty"`
-	Source  string              `yaml:"source"`
-	SavedAt string              `yaml:"savedAt"`
-	RAL     generation.RALRange `yaml:"ral"`
-	Logo    string              `yaml:"logo,omitempty"`
+	Title              string              `yaml:"title,omitempty"`
+	Company            string              `yaml:"company"`
+	URL                string              `yaml:"url,omitempty"`
+	Source             string              `yaml:"source"`
+	SavedAt            string              `yaml:"savedAt"`
+	RAL                generation.RALRange `yaml:"ral"`
+	Logo               string              `yaml:"logo,omitempty"`
+	FreshnessStatus    FreshnessStatus     `yaml:"freshnessStatus,omitempty"`
+	FreshnessCheckedAt string              `yaml:"freshnessCheckedAt,omitempty"`
 }
 
 type rawApplication struct {
@@ -97,15 +99,16 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 	logo := downloadLogoBestEffort(ctx, doer, req.LogoURL, jobsFullDir, slug)
 
 	listing := JobListing{
-		ID:             slug,
-		Title:          req.Title,
-		Company:        req.Company,
-		URL:            req.URL,
-		Source:         SourceManual,
-		SavedAt:        time.Now().UTC().Format(time.RFC3339Nano),
-		JobDescription: jobDescription,
-		RAL:            ral,
-		Logo:           logo,
+		ID:              slug,
+		Title:           req.Title,
+		Company:         req.Company,
+		URL:             req.URL,
+		Source:          SourceManual,
+		SavedAt:         time.Now().UTC().Format(time.RFC3339Nano),
+		JobDescription:  jobDescription,
+		RAL:             ral,
+		Logo:            logo,
+		FreshnessStatus: FreshnessNotYetChecked,
 	}
 	if err := os.WriteFile(filepath.Join(jobsFullDir, slug+".md"), renderJobListing(listing), 0o644); err != nil {
 		return JobListing{}, Application{}, err
@@ -211,16 +214,26 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 	if err := yaml.Unmarshal(fm, &raw); err != nil {
 		return JobListing{}, err
 	}
+	// Existing Job Listing files predate FreshnessStatus (issue #59) and
+	// have no value for it in their frontmatter — default them (and any
+	// listing saved without ever being checked) to FreshnessNotYetChecked,
+	// distinct from FreshnessUnknown (story 9).
+	freshnessStatus := raw.FreshnessStatus
+	if freshnessStatus == "" {
+		freshnessStatus = FreshnessNotYetChecked
+	}
 	return JobListing{
-		ID:             slug,
-		Title:          raw.Title,
-		Company:        raw.Company,
-		URL:            raw.URL,
-		Source:         raw.Source,
-		SavedAt:        raw.SavedAt,
-		JobDescription: strings.TrimSpace(string(body)),
-		RAL:            raw.RAL,
-		Logo:           raw.Logo,
+		ID:                 slug,
+		Title:              raw.Title,
+		Company:            raw.Company,
+		URL:                raw.URL,
+		Source:             raw.Source,
+		SavedAt:            raw.SavedAt,
+		JobDescription:     strings.TrimSpace(string(body)),
+		RAL:                raw.RAL,
+		Logo:               raw.Logo,
+		FreshnessStatus:    freshnessStatus,
+		FreshnessCheckedAt: raw.FreshnessCheckedAt,
 	}, nil
 }
 
@@ -274,13 +287,15 @@ func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
 
 func renderJobListing(l JobListing) []byte {
 	raw := rawJobListingFrontmatter{
-		Title:   l.Title,
-		Company: l.Company,
-		URL:     l.URL,
-		Source:  l.Source,
-		SavedAt: l.SavedAt,
-		RAL:     l.RAL,
-		Logo:    l.Logo,
+		Title:              l.Title,
+		Company:            l.Company,
+		URL:                l.URL,
+		Source:             l.Source,
+		SavedAt:            l.SavedAt,
+		RAL:                l.RAL,
+		Logo:               l.Logo,
+		FreshnessStatus:    l.FreshnessStatus,
+		FreshnessCheckedAt: l.FreshnessCheckedAt,
 	}
 
 	var buf bytes.Buffer
