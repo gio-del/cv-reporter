@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "CV Reporter — LinkedIn Capture",
-  "version": "0.1.0",
-  "description": "Capture the LinkedIn job posting you're viewing into your local CV Reporter app as a Job Listing.",
+  "name": "CV Reporter — Job Capture",
+  "version": "0.2.0",
+  "description": "Capture the LinkedIn or Indeed job posting you're viewing into your local CV Reporter app as a Job Listing.",
   "host_permissions": [
     "http://localhost:8080/*",
     "http://127.0.0.1:8080/*"
@@ -19,7 +19,13 @@
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/jobs/*"],
-      "js": ["turndown.js", "validate-capture.js", "content.js"],
+      "js": ["turndown.js", "capture-common.js", "validate-capture.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.indeed.com/viewjob*"],
+      "js": ["turndown.js", "capture-common.js", "content-indeed.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

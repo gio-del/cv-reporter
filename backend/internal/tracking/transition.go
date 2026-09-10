@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition
@@ -21,13 +22,21 @@ var ErrInvalidTransition = errors.New("invalid status transition")
 // without an interview) as well as from Interviewing, and can itself move
 // back to Interviewing via Reopen for a premature rejection — Offer stays
 // the only fully terminal Status.
+//
+// Withdrawn records the user ending the process on their own initiative
+// (distinct from Rejected, which means the employer ended it) and is
+// reachable from any pre-terminal Status — Saved, Tailoring, Sent,
+// Interviewing — additively, alongside each Status's existing moves.
+// Withdrawn is itself terminal-but-reopenable, mirroring Rejected's Reopen
+// precedent exactly: its only outbound move is back to Interviewing.
 var allowedTransitions = map[Status][]Status{
-	StatusSaved:        {StatusTailoring},
-	StatusTailoring:    {StatusSent},
-	StatusSent:         {StatusInterviewing, StatusRejected},
-	StatusInterviewing: {StatusRejected, StatusOffer},
+	StatusSaved:        {StatusTailoring, StatusWithdrawn},
+	StatusTailoring:    {StatusSent, StatusWithdrawn},
+	StatusSent:         {StatusInterviewing, StatusRejected, StatusWithdrawn},
+	StatusInterviewing: {StatusRejected, StatusOffer, StatusWithdrawn},
 	StatusRejected:     {StatusInterviewing},
 	StatusOffer:        {},
+	StatusWithdrawn:    {StatusInterviewing},
 }
 
 // CanTransition reports whether an Application may move from `from` to
@@ -70,6 +79,9 @@ func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error)
 		return Application{}, err
 	}
 	application.Status = newStatus
+	application.StatusHistory = append(application.StatusHistory, StatusChange{Status: newStatus, ChangedAt: time.Now().UTC()})
+	application.StatusUpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	application.IsStale = IsStale(application.Status, application.StatusUpdatedAt, time.Now(), DefaultStaleThreshold)
 
 	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err

@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -77,6 +78,9 @@ func TestRenderGeneration_ApprovedSelection_ProducesOnePagePDF(t *testing.T) {
 	if result.CVPageCount != 1 {
 		t.Errorf("expected a one-page CV, got %d pages", result.CVPageCount)
 	}
+	if result.CVParsability.Status != generation.ParsabilityOK {
+		t.Errorf("expected ParsabilityOK for a clean render, got %+v", result.CVParsability)
+	}
 
 	pdfPath := filepath.Join(projectRoot, result.CVPath)
 	info, err := os.Stat(pdfPath)
@@ -116,6 +120,12 @@ func TestRenderGeneration_WithCoverLetter_AlsoProducesCoverLetterPDF(t *testing.
 	if _, err := os.Stat(filepath.Join(projectRoot, result.CoverLetterPath)); err != nil {
 		t.Fatalf("expected rendered cover letter PDF to exist: %v", err)
 	}
+	if result.CoverLetterParsability == nil {
+		t.Fatal("expected a coverLetterParsability result when a Cover Letter was rendered")
+	}
+	if result.CoverLetterParsability.Status != generation.ParsabilityOK {
+		t.Errorf("expected ParsabilityOK for a clean cover letter render, got %+v", result.CoverLetterParsability)
+	}
 
 	txt, err := os.ReadFile(filepath.Join(projectRoot, "output", "acme-corp", "cover-letter.txt"))
 	if err != nil {
@@ -123,6 +133,52 @@ func TestRenderGeneration_WithCoverLetter_AlsoProducesCoverLetterPDF(t *testing.
 	}
 	if string(txt) != "Dear Hiring Manager,\n\nI'm excited to apply.\n\nBest,\nCandidate" {
 		t.Errorf("expected cover-letter.txt to match the approved body, got %q", txt)
+	}
+}
+
+func TestRenderGeneration_LanguageThreadedIntoPDFLangMetadata(t *testing.T) {
+	tests := []struct {
+		name     string
+		language any
+		wantLang string
+	}{
+		{"explicit Italian", "it", "it"},
+		{"explicit English", "en", "en"},
+		{"omitted defaults to English", nil, "en"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectRoot, dataDir := seedProjectRoot(t)
+			server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+			defer server.Close()
+
+			payload := map[string]any{
+				"slug":      "acme-corp",
+				"selection": map[string]any{"entries": []map[string]any{}},
+			}
+			if tt.language != nil {
+				payload["language"] = tt.language
+			}
+			resp := postJSON(t, server.URL+"/api/generations/render", payload)
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				t.Fatalf("expected 200, got %d", resp.StatusCode)
+			}
+
+			var result generation.RenderResult
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+				t.Fatal(err)
+			}
+			pdf, err := os.ReadFile(filepath.Join(projectRoot, result.CVPath))
+			if err != nil {
+				t.Fatalf("reading rendered PDF: %v", err)
+			}
+			want := "/Lang(" + tt.wantLang + ")"
+			if !bytes.Contains(pdf, []byte(want)) {
+				t.Errorf("expected rendered PDF catalog to contain %q (the CV's actual document language), got none — the template may not be reading data.lang", want)
+			}
+		})
 	}
 }
 
