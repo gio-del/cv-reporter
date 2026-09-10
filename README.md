@@ -83,6 +83,7 @@ docker-compose up
 | GET | `/api/master-data/entries/{id}` | get an Entry |
 | PUT | `/api/master-data/entries/{id}` | update an Entry |
 | DELETE | `/api/master-data/entries/{id}` | delete an Entry |
+| GET | `/api/master-data/tag-lint` | scan every Entry's Tags for near-duplicate spellings (case/alias-table "confident" matches, edit-distance "suggested" matches) — read-only, never rewrites Master Data |
 | GET | `/api/master-data/profile` | get profile + Static Sections |
 | PUT | `/api/master-data/profile` | update profile + Static Sections |
 | GET | `/api/master-data/cover-letter-snippets` | list Cover Letter Snippets |
