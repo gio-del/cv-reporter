@@ -168,6 +168,7 @@ export interface GenerationRecord {
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
 }
 
 export interface Contact {
@@ -188,6 +189,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  sourceSnippetIds?: string[]
 }
 
 export interface SaveJobListingRequest {

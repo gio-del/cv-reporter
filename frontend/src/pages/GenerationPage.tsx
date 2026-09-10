@@ -60,6 +60,7 @@ export default function GenerationPage() {
   const [mode, setMode] = useState<'default' | 'tailored' | null>(null)
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
+  const [coverLetterSnippetIds, setCoverLetterSnippetIds] = useState<string[] | undefined>(undefined)
   const [ral, setRal] = useState<RALRange | null>(null)
   const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
@@ -98,6 +99,7 @@ export default function GenerationPage() {
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
+      setCoverLetterSnippetIds(result.coverLetter?.sourceSnippetIds)
       setRal(result.ral ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -176,6 +178,7 @@ export default function GenerationPage() {
             slug: result.slug,
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
+            sourceSnippetIds: result.coverLetterPath ? coverLetterSnippetIds : undefined,
           })
         } catch (err) {
           setLinkError(err instanceof Error ? err.message : String(err))

@@ -262,6 +262,36 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 	}
 }
 
+func TestRecordApplicationGeneration_PersistsSourceSnippetIDs(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":             "acme-corp",
+		"cvPath":           "output/acme-corp/cv.pdf",
+		"coverLetterPath":  "output/acme-corp/cover-letter.pdf",
+		"sourceSnippetIds": []string{"opener-1", "closer-2"},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	var application map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&application); err != nil {
+		t.Fatal(err)
+	}
+	generations := application["generations"].([]any)
+	latest := generations[len(generations)-1].(map[string]any)
+	ids, ok := latest["sourceSnippetIds"].([]any)
+	if !ok || len(ids) != 2 || ids[0] != "opener-1" || ids[1] != "closer-2" {
+		t.Fatalf("expected sourceSnippetIds [opener-1 closer-2] on the recorded Generation, got %v", latest["sourceSnippetIds"])
+	}
+}
+
 func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))

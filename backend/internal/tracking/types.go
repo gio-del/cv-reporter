@@ -75,6 +75,14 @@ type GenerationRecord struct {
 	CreatedAt       string `json:"createdAt"`
 	CVPath          string `json:"cvPath"`
 	CoverLetterPath string `json:"coverLetterPath,omitempty"`
+
+	// SourceSnippetIDs are the Cover Letter Snippet ids this Generation's
+	// Cover Letter drew from, as returned by POST /api/generations at
+	// generation time. Empty/absent means either no Snippet was used (fresh
+	// prose) or this record predates the field — the two are indistinguishable,
+	// and both must be treated as "no usage signal from this record" rather
+	// than "never used" (issue #48).
+	SourceSnippetIDs []string `json:"sourceSnippetIds,omitempty"`
 }
 
 // Contact is the recruiter/hiring-manager name and email for an

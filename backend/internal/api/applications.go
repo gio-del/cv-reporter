@@ -43,9 +43,10 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 }
 
 type recordGenerationRequest struct {
-	Slug            string `json:"slug"`
-	CVPath          string `json:"cvPath"`
-	CoverLetterPath string `json:"coverLetterPath"`
+	Slug             string   `json:"slug"`
+	CVPath           string   `json:"cvPath"`
+	CoverLetterPath  string   `json:"coverLetterPath"`
+	SourceSnippetIDs []string `json:"sourceSnippetIds"`
 }
 
 // recordApplicationGenerationHandler records a Generation the FE already
@@ -67,10 +68,11 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 		}
 
 		record := tracking.GenerationRecord{
-			Slug:            req.Slug,
-			CreatedAt:       time.Now().UTC().Format(time.RFC3339Nano),
-			CVPath:          req.CVPath,
-			CoverLetterPath: req.CoverLetterPath,
+			Slug:             req.Slug,
+			CreatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+			CVPath:           req.CVPath,
+			CoverLetterPath:  req.CoverLetterPath,
+			SourceSnippetIDs: req.SourceSnippetIDs,
 		}
 		application, err := tracking.RecordGeneration(dataDir, id, record)
 		if errors.Is(err, os.ErrNotExist) {
