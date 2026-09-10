@@ -1,8 +1,12 @@
+# Build context is the repo root (see docker-compose.yml), not backend/,
+# so this Dockerfile can also COPY the root-level typst-version.txt below
+# (single source of truth for the pinned typst version, see ADR-0012 and
+# issue #55) — hence the backend/ prefixes on these COPYs.
 FROM golang:1.26 AS build
 WORKDIR /src
-COPY go.mod ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
-COPY . .
+COPY backend/. .
 RUN CGO_ENABLED=0 go build -o /out/server ./cmd/server
 
 # Render (backend/internal/generation/render.go) shells out to the typst
@@ -11,15 +15,21 @@ RUN CGO_ENABLED=0 go build -o /out/server ./cmd/server
 # Liberation Sans font template/cv.typ and cover-letter.typ set. A plain
 # debian base with fonts-liberation trades distroless's minimalism for
 # that, deliberately (see ADR-0012).
+#
+# The pinned typst version comes from typst-version.txt (repo root), the
+# single source of truth the tailor-cv skill's preflight check also reads
+# (see issue #55) — bump the version there, not here.
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \
+COPY typst-version.txt /tmp/typst-version.txt
+RUN . /tmp/typst-version.txt \
+    && apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl xz-utils fonts-liberation \
-    && curl -fsSL https://github.com/typst/typst/releases/download/v0.15.1/typst-x86_64-unknown-linux-musl.tar.xz \
+    && curl -fsSL "https://github.com/typst/typst/releases/download/v${TYPST_VERSION}/typst-x86_64-unknown-linux-musl.tar.xz" \
       -o /tmp/typst.tar.xz \
     && tar -xf /tmp/typst.tar.xz -C /tmp \
-    && mv /tmp/typst-x86_64-unknown-linux-musl/typst /usr/local/bin/typst \
+    && mv "/tmp/typst-x86_64-unknown-linux-musl/typst" /usr/local/bin/typst \
     && apt-get purge -y curl xz-utils \
     && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* /tmp/typst*
+    && rm -rf /var/lib/apt/lists/* /tmp/typst* /tmp/typst-version.txt
 COPY --from=build /out/server /server
 ENTRYPOINT ["/server"]

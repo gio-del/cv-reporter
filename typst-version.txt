@@ -1,0 +1,12 @@
+# Single source of truth for the render path's pinned typst version and
+# required font (ADR-0012). Read by:
+#   - backend/Dockerfile, at image build time, to install this exact typst
+#     release and fail the build if it can't.
+#   - plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh,
+#     at skill Render time, to warn (non-blocking) if the host's typst/fonts
+#     don't match this file.
+#
+# Bumping the pinned version is a single edit here — don't hardcode the
+# version string anywhere else.
+TYPST_VERSION=0.15.1
+TYPST_FONT_FAMILY=Liberation Sans
