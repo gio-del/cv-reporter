@@ -114,12 +114,31 @@ export interface RALRange {
   listingStated?: RALFigure
 }
 
+export type GroundednessReason = 'no-source-match' | 'numeric-mismatch'
+
+export interface GroundednessFlag {
+  sentence: string
+  reason: GroundednessReason
+}
+
+export interface BulletGroundedness {
+  entryId: string
+  sourceIndex: number
+  flags: GroundednessFlag[]
+}
+
+export interface GroundednessResult {
+  bullets?: BulletGroundedness[]
+  coverLetter?: GroundednessFlag[]
+}
+
 export interface GenerateResult {
   mode: GenerateMode
   jobDescription?: string
   selection: SelectionResult
   coverLetter?: CoverLetterResult
   ral?: RALRange
+  groundedness?: GroundednessResult
 }
 
 export interface GenerateRequest {
@@ -188,6 +207,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  groundedness?: GroundednessResult
 }
 
 export interface SaveJobListingRequest {
