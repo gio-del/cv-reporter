@@ -46,6 +46,10 @@
      source/Method kind color, shared by RALBadge and
      ApplicationMethodEditor. */
   --color-unresolved: color-mix(in srgb, #dc2626 60%, transparent);
+  /* Withdrawn Application Status — neutral slate, distinct from Rejected's
+     plain secondary badge so the two read differently at a glance (the
+     user ended it vs. the employer did). */
+  --color-withdrawn: color-mix(in srgb, #64748b 60%, transparent);
 
   /* Swiss/minimal radius scale: crisp corners on controls, slightly
      rounder cards/overlays. */

@@ -41,7 +41,7 @@ The name of the role a Job Listing is for (e.g. "Senior Backend Engineer"), capt
 _Avoid_: role (ambiguous with Entry's role), position, job
 
 **Company Logo**:
-An optional image for a Job Listing, downloaded server-side from the source's logo URL at save time and stored alongside that Job Listing's record. Only ever populated from a browser-extension LinkedIn capture today — ATS feeds and manual entry have no logo source, so a Job Listing from either simply has none.
+An optional image for a Job Listing, downloaded server-side from the source's logo URL at save time and stored alongside that Job Listing's record. Only ever populated from a browser-extension capture (LinkedIn or Indeed) today — ATS feeds and manual entry have no logo source, so a Job Listing from either simply has none.
 _Avoid_: image, photo, icon
 
 **RAL Range**:
@@ -53,7 +53,7 @@ The tracked record of one attempt to apply to a Job Listing (exactly one Applica
 _Avoid_: submission
 
 **Status** (of an Application):
-Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer. Rejected is not fully terminal: it can be moved back to Interviewing via Reopen, for when a rejection turns out to be premature (e.g. a recruiter reaches back out). Both moving to Rejected and Reopening from it require explicit user confirmation, since each reverses the other. Offer remains fully terminal.
+Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer. Rejected is not fully terminal: it can be moved back to Interviewing via Reopen, for when a rejection turns out to be premature (e.g. a recruiter reaches back out). Both moving to Rejected and Reopening from it require explicit user confirmation, since each reverses the other. Offer remains fully terminal. Withdrawn is a separate Status, additively reachable from Saved, Tailoring, Sent, or Interviewing, recording the user ending the process on their own initiative — distinct from Rejected, which means the employer ended it. Withdrawn follows the same terminal-but-reopenable shape as Rejected: its only outbound move is back to Interviewing via Reopen, with the same explicit-confirmation requirement in both directions.
 _Avoid_: state, stage
 
 **Application Method**:

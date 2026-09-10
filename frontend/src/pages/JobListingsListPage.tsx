@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
@@ -7,6 +7,7 @@ import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import {
   deleteJobListing,
+  exportDataUrl,
   generationFileUrl,
   jobListingLogoUrl,
   listJobListings,
@@ -28,9 +29,12 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { jobListingHeading } from '@/lib/utils'
+
+const ALL_STATUSES_VALUE = 'all'
 
 const statusLabel: Record<ApplicationStatus, string> = {
   saved: 'Saved',
@@ -39,24 +43,31 @@ const statusLabel: Record<ApplicationStatus, string> = {
   interviewing: 'Interviewing',
   rejected: 'Rejected',
   offer: 'Offer',
+  withdrawn: 'Withdrawn',
 }
 
 // Mirrors the backend's Status state machine (see tracking.allowedTransitions)
 // so the FE only ever offers a valid next move — the backend remains the
 // source of truth and re-validates on PATCH regardless (story 4).
 const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
-  saved: ['tailoring'],
-  tailoring: ['sent'],
-  sent: ['interviewing', 'rejected'],
-  interviewing: ['rejected', 'offer'],
+  saved: ['tailoring', 'withdrawn'],
+  tailoring: ['sent', 'withdrawn'],
+  sent: ['interviewing', 'rejected', 'withdrawn'],
+  interviewing: ['rejected', 'offer', 'withdrawn'],
   rejected: ['interviewing'],
   offer: [],
+  withdrawn: ['interviewing'],
 }
 
-// Moving into Rejected, and Reopening out of it, each reverse the other and
-// need explicit confirmation before the PATCH fires (stories 2-4).
+// Moving into Rejected/Withdrawn, and Reopening out of either back to
+// Interviewing, each reverse the other and need explicit confirmation
+// before the PATCH fires (stories 2-4, PRD stories 3 and 5).
 function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return to === 'rejected' || (from === 'rejected' && to === 'interviewing')
+  return (
+    to === 'rejected' ||
+    to === 'withdrawn' ||
+    ((from === 'rejected' || from === 'withdrawn') && to === 'interviewing')
+  )
 }
 
 interface PendingStatusChange {
@@ -72,6 +83,7 @@ interface PendingDelete {
 }
 
 export default function JobListingsListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
@@ -84,11 +96,39 @@ export default function JobListingsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Filter state lives in the URL (story 7: bookmarkable/reload-safe views).
+  const statusFilter = (searchParams.get('status') as ApplicationStatus | null) ?? ''
+  const companyFilter = searchParams.get('company') ?? ''
+  const savedFromFilter = searchParams.get('savedFrom') ?? ''
+  const savedToFilter = searchParams.get('savedTo') ?? ''
+  const hasActiveFilter = Boolean(statusFilter || companyFilter || savedFromFilter || savedToFilter)
+
+  function setFilter(key: 'status' | 'company' | 'savedFrom' | 'savedTo', value: string) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value) {
+        next.set(key, value)
+      } else {
+        next.delete(key)
+      }
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setSearchParams(new URLSearchParams())
+  }
+
   useEffect(() => {
-    listJobListings()
+    listJobListings({
+      status: statusFilter || undefined,
+      company: companyFilter || undefined,
+      savedFrom: savedFromFilter || undefined,
+      savedTo: savedToFilter || undefined,
+    })
       .then((l) => setListings(l ?? []))
       .catch((e) => setError(e.message))
-  }, [])
+  }, [statusFilter, companyFilter, savedFromFilter, savedToFilter])
 
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
     setStatusError(null)
@@ -186,9 +226,16 @@ export default function JobListingsListPage() {
     <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="mb-0">Job Listings</h1>
-        <Button asChild>
-          <Link to="/jobs/new">+ Save Job Listing</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <a href={exportDataUrl()} download>
+              Export data
+            </a>
+          </Button>
+          <Button asChild>
+            <Link to="/jobs/new">+ Save Job Listing</Link>
+          </Button>
+        </div>
       </div>
 
       {statusError && (
@@ -209,7 +256,73 @@ export default function JobListingsListPage() {
         </p>
       )}
 
-      {listings.length === 0 && <p>No Job Listings saved yet.</p>}
+      <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card/95 p-3 backdrop-blur">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-status" className="text-xs font-medium text-muted-foreground">
+            Status
+          </label>
+          <Select
+            value={statusFilter || ALL_STATUSES_VALUE}
+            onValueChange={(value) => setFilter('status', value === ALL_STATUSES_VALUE ? '' : value)}
+          >
+            <SelectTrigger id="filter-status" size="sm" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_STATUSES_VALUE}>All statuses</SelectItem>
+              {(Object.keys(statusLabel) as ApplicationStatus[]).map((status) => (
+                <SelectItem key={status} value={status}>
+                  {statusLabel[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-company" className="text-xs font-medium text-muted-foreground">
+            Company
+          </label>
+          <Input
+            id="filter-company"
+            className="h-9 w-48"
+            placeholder="e.g. acme"
+            value={companyFilter}
+            onChange={(e) => setFilter('company', e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-saved-from" className="text-xs font-medium text-muted-foreground">
+            Saved from
+          </label>
+          <Input
+            id="filter-saved-from"
+            type="date"
+            className="h-9"
+            value={savedFromFilter}
+            onChange={(e) => setFilter('savedFrom', e.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-saved-to" className="text-xs font-medium text-muted-foreground">
+            Saved to
+          </label>
+          <Input
+            id="filter-saved-to"
+            type="date"
+            className="h-9"
+            value={savedToFilter}
+            onChange={(e) => setFilter('savedTo', e.target.value)}
+          />
+        </div>
+        {hasActiveFilter && (
+          <Button size="sm" variant="ghost" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
+      </div>
+
+      {listings.length === 0 && hasActiveFilter && <p>No Job Listings match the current filters.</p>}
+      {listings.length === 0 && !hasActiveFilter && <p>No Job Listings saved yet.</p>}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
@@ -235,7 +348,23 @@ export default function JobListingsListPage() {
                       Needs attention
                     </Badge>
                   )}
-                  <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  {application.status === 'withdrawn' ? (
+                    <Badge variant="outline" className="border-withdrawn text-withdrawn">
+                      {statusLabel[application.status]}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  )}
+                  {application.isStale && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="border-accent text-accent">
+                          Follow-up overdue
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>No Status change in over 14 days</TooltipContent>
+                    </Tooltip>
+                  )}
                   {needsResolve && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -385,12 +514,16 @@ export default function JobListingsListPage() {
             <AlertDialogTitle>
               {pendingChange?.to === 'rejected'
                 ? 'Mark this Application Rejected?'
-                : 'Reopen this Application to Interviewing?'}
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Mark this Application Withdrawn?'
+                  : 'Reopen this Application to Interviewing?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingChange?.to === 'rejected'
                 ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
-                : `${pendingChange?.company} will move back to Interviewing.`}
+                : pendingChange?.to === 'withdrawn'
+                  ? `${pendingChange.company} will be marked Withdrawn. You can Reopen it back to Interviewing later if you change your mind.`
+                  : `${pendingChange?.company} will move back to Interviewing.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -401,7 +534,11 @@ export default function JobListingsListPage() {
                 handleConfirmPendingChange()
               }}
             >
-              {pendingChange?.to === 'rejected' ? 'Yes, mark Rejected' : 'Yes, reopen'}
+              {pendingChange?.to === 'rejected'
+                ? 'Yes, mark Rejected'
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Yes, mark Withdrawn'
+                  : 'Yes, reopen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

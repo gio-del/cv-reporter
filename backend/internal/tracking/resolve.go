@@ -38,6 +38,7 @@ func Resolve(ctx context.Context, dataDir string, client Client, id string) (Job
 			return JobListing{}, Application{}, err
 		}
 	}
+	recordStandaloneUsage(dataDir, client)
 
 	return listing, application, nil
 }

@@ -32,6 +32,38 @@ This mode needs the backend running (`docker-compose up` — `http://127.0.0.1:8
 
    `jobListing` and `application` share the same `id` (they're 1:1) — keep it, it's needed in steps 4–5 below.
 
+### Optional actions on a matched Application
+
+Once an Application is matched (step 1 above), any of the four actions below can be run before, after, or instead of the Pipeline (steps 2–5) — none of them require running Selection/Rewrite/Render, so e.g. "retry resolution for the Acme application" is a complete request on its own, with no CV generation involved. Each uses the same `<id>` from step 1 and inherits the same hard rule as the rest of this mode: a connection error, non-2xx response, or unexpected shape means stop and report — never continue as if it succeeded.
+
+- **Retry resolution.** Offer this when checking an Application's status and either `jobListing.ral.source` or `application.method.kind` is `"unresolved"`. Bodyless — safe to call even if nothing is unresolved (it's a no-op):
+  ```
+  curl -sf -X POST http://127.0.0.1:8080/api/job-listings/<id>/resolve
+  ```
+  Returns the same `{"jobListing": {...}, "application": {...}}` shape as step 1 — re-read `jobListing.ral` and `application.method` off the response to see what changed. A field that still can't be resolved simply stays `"unresolved"`; that alone isn't an error.
+
+- **Suggest a Contact.** Offer this when the user asks about a contact for the matched Application and `application.contact` is absent. Bodyless:
+  ```
+  curl -sf -X POST http://127.0.0.1:8080/api/job-listings/<id>/suggest-contact
+  ```
+  Returns a Contact suggestion to show the user — `{"name": "...", "email": "..."}`. This is research only; it is never written to the Application. Only apply it if the user explicitly accepts, via the Contact-correction call below.
+
+- **Correct the Contact.** Use this to apply an accepted suggestion, or a manual correction, to the Application's Contact. Ask the user for `name` and `email` if you don't already have them (e.g. from a suggestion just shown) — never fabricate either field. `email` is required (a `400` response means it was missing or blank):
+  ```
+  curl -sf -X PATCH http://127.0.0.1:8080/api/applications/<id>/contact \
+    -H 'Content-Type: application/json' \
+    -d '{"name": "<name>", "email": "<email>"}'
+  ```
+  Returns the updated Application (`Content-Type: application/json`, same `application` shape as step 1).
+
+- **Correct the Method.** Use this to override `application.method` by hand. Ask the user which `kind` they mean — one of `"portal"`, `"email"`, `"easy_apply"`, `"other"` (`"unresolved"` is a system-set sentinel, not something a user can pick — a `400` response means an unknown `kind` was sent) — and, if applicable, `value` (the detected application URL or email address; leave it empty for `"other"` or when nothing applies):
+  ```
+  curl -sf -X PATCH http://127.0.0.1:8080/api/applications/<id>/method \
+    -H 'Content-Type: application/json' \
+    -d '{"kind": "<kind>", "value": "<value>"}'
+  ```
+  Returns the updated Application.
+
 2. **Use its Job Description.** The matched `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another.
 
 3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
@@ -50,7 +82,7 @@ This mode needs the backend running (`docker-compose up` — `http://127.0.0.1:8
      -H 'Content-Type: application/json' \
      -d '{"status": "tailoring"}'
    ```
-   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`), skip this ask entirely — don't touch Status.
+   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`, `withdrawn`), skip this ask entirely — don't touch Status.
 
 ## Pipeline
 
