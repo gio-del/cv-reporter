@@ -36,14 +36,15 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	}
 
 	if jobDescription == "" {
-		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries)}, nil
+		return GenerateResult{Mode: ModeDefault, Selection: defaultModeSelection(entries), Language: DefaultLanguage}, nil
 	}
 
 	candidates := toCandidates(entries)
 
 	selection, err := client.SelectAndRewrite(ctx, SelectionRequest{
-		JobDescription: jobDescription,
-		Candidates:     candidates,
+		JobDescription:   jobDescription,
+		Candidates:       candidates,
+		LanguageOverride: req.LanguageOverride,
 	})
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("selecting and rewriting: %w", err)
@@ -51,6 +52,15 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 	if err := validateSelection(selection, entries); err != nil {
 		return GenerateResult{}, err
 	}
+
+	// The override wins even if the Client echoed something else back, so
+	// a user-corrected language at Text Review is never second-guessed.
+	language := selection.Language
+	if req.LanguageOverride != "" {
+		language = req.LanguageOverride
+	}
+	language = NormalizeLanguage(language)
+	selection.Language = language
 
 	snippets, err := masterdata.ListSnippets(dataDir)
 	if err != nil {
@@ -61,6 +71,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		JobDescription: jobDescription,
 		Candidates:     candidates,
 		Snippets:       toCandidateSnippets(snippets),
+		Language:       language,
 	})
 	if err != nil {
 		return GenerateResult{}, fmt.Errorf("drafting cover letter: %w", err)
@@ -74,12 +85,17 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		return GenerateResult{}, fmt.Errorf("resolving RAL range: %w", err)
 	}
 
+	groundedness := computeGroundedness(selection, coverLetter, snippets)
+
 	return GenerateResult{
 		Mode:           ModeTailored,
 		JobDescription: jobDescription,
 		Selection:      selection,
 		CoverLetter:    &coverLetter,
 		RAL:            &ral,
+		Usage:          aggregateUsage(DrainUsage(client)),
+		Language:       language,
+		Groundedness:   &groundedness,
 	}, nil
 }
 
