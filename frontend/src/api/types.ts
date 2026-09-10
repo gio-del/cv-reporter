@@ -196,6 +196,7 @@ export interface SaveJobListingRequest {
   url?: string
   jobDescription?: string
   jobDescriptionUrl?: string
+  logoUrl?: string
 }
 
 export interface JobListingWithApplication {
@@ -213,6 +214,7 @@ export interface AtsListing {
   url: string
   description: string
   alreadySaved: boolean
+  logoUrl?: string
 }
 
 export interface TrackedBoard {

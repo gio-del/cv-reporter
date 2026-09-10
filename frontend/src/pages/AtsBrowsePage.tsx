@@ -96,6 +96,7 @@ export default function AtsBrowsePage() {
         company: titleCase(boardSlug.trim()),
         url: listing.url,
         jobDescription: listing.description,
+        logoUrl: listing.logoUrl,
       })
       setSavedByUrl((prev) => ({ ...prev, [listing.url]: result }))
     } catch (err) {
