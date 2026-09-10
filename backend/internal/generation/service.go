@@ -80,6 +80,7 @@ func Generate(ctx context.Context, dataDir string, client Client, req GenerateRe
 		Selection:      selection,
 		CoverLetter:    &coverLetter,
 		RAL:            &ral,
+		Usage:          aggregateUsage(DrainUsage(client)),
 	}, nil
 }
 

@@ -105,4 +105,9 @@ type GenerateResult struct {
 	Selection      SelectionResult    `json:"selection"`
 	CoverLetter    *CoverLetterResult `json:"coverLetter,omitempty"`
 	RAL            *RALRange          `json:"ral,omitempty"`
+	// Usage is the Claude API usage/cost this Generate call caused, drained
+	// from client if it implements UsageRecorder (PRD story 3: per-Generation
+	// visibility). Zero-value (no Calls) in Default Mode, which never calls
+	// client.
+	Usage GenerationUsage `json:"usage"`
 }

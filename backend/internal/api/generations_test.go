@@ -390,3 +390,87 @@ func TestCreateGeneration_JobDescriptionOmitsRAL_AsksClientAndReportsEstimated(t
 		t.Errorf("expected source estimated, got %v", ral["source"])
 	}
 }
+
+// fakeGenerationClientWithUsage additionally implements
+// generation.UsageRecorder, so createGenerationHandler's response should
+// surface the drained usage (issue #39: Claude API cost/usage visibility).
+type fakeGenerationClientWithUsage struct {
+	fakeGenerationClient
+	usage []generation.CallUsage
+}
+
+func (f *fakeGenerationClientWithUsage) DrainUsage() []generation.CallUsage {
+	drained := f.usage
+	f.usage = nil
+	return drained
+}
+
+func TestCreateGeneration_ClientRecordsUsage_ResponseIncludesUsage(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClientWithUsage{
+		fakeGenerationClient: fakeGenerationClient{
+			selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+				return generation.SelectionResult{}, nil
+			},
+		},
+		usage: []generation.CallUsage{
+			{CallType: "selection_rewrite", InputTokens: 1000, OutputTokens: 200, EstimatedCostUSD: 0.012},
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := result["usage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a usage object in the response, got %v", result["usage"])
+	}
+	if usage["inputTokens"] != float64(1000) {
+		t.Errorf("usage.inputTokens = %v, want 1000", usage["inputTokens"])
+	}
+	if usage["estimatedCostUsd"] != 0.012 {
+		t.Errorf("usage.estimatedCostUsd = %v, want 0.012", usage["estimatedCostUsd"])
+	}
+	calls, ok := usage["calls"].([]any)
+	if !ok || len(calls) != 1 {
+		t.Fatalf("expected 1 call in usage.calls breakdown, got %v", usage["calls"])
+	}
+}
+
+func TestCreateGeneration_ClientHasNoUsageRecorder_ResponseOmitsUsageCalls(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClient{
+		selectAndRewrite: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
+			return generation.SelectionResult{}, nil
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := result["usage"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a usage object (zero-value) in the response, got %v", result["usage"])
+	}
+	if _, hasCalls := usage["calls"]; hasCalls {
+		t.Errorf("expected no calls breakdown for a Client without UsageRecorder, got %v", usage["calls"])
+	}
+}
