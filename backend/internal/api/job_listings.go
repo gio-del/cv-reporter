@@ -3,12 +3,51 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
+
+// defaultRALCurrency mirrors generation.ParseStatedRAL's own default: RAL
+// is an Italian-market term, so a ral_min/ral_max filter with no explicit
+// ral_currency is assumed EUR rather than left ambiguous.
+const defaultRALCurrency = "EUR"
+
+// parseRALFilter reads the optional ral_min/ral_max/ral_currency query
+// params (issue #51). active is false when neither ral_min nor ral_max is
+// present, meaning no RAL filter should be applied at all — a listing
+// missing a comparable figure is only ever excluded by an active filter,
+// never by an absent one.
+func parseRALFilter(q url.Values) (min, max int, currency string, active bool, err error) {
+	minStr, maxStr := q.Get("ral_min"), q.Get("ral_max")
+	if minStr == "" && maxStr == "" {
+		return 0, 0, "", false, nil
+	}
+
+	min = 0
+	if minStr != "" {
+		if min, err = strconv.Atoi(minStr); err != nil {
+			return 0, 0, "", false, fmt.Errorf("invalid ral_min: %w", err)
+		}
+	}
+	max = math.MaxInt32
+	if maxStr != "" {
+		if max, err = strconv.Atoi(maxStr); err != nil {
+			return 0, 0, "", false, fmt.Errorf("invalid ral_max: %w", err)
+		}
+	}
+	currency = q.Get("ral_currency")
+	if currency == "" {
+		currency = defaultRALCurrency
+	}
+	return min, max, currency, true, nil
+}
 
 type saveJobListingRequest struct {
 	Title             string `json:"title"`
@@ -44,6 +83,12 @@ type captureJobListingRequest struct {
 	ListingSalaryText string `json:"listingSalaryText"`
 }
 
+// listJobListingsHandler additionally supports optional sort=ral&order=asc|
+// desc and ral_min/ral_max/ral_currency query params (issue #51), applied
+// on top of tracking.List's own newest-first ordering: filtering (if
+// active) runs before sorting, and an unrecognized sort value is ignored
+// (List's default order stands) rather than erroring, since only the RAL
+// filter's numeric params can be malformed.
 func listJobListingsHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		listings, err := tracking.List(dataDir)
@@ -51,6 +96,23 @@ func listJobListingsHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		q := r.URL.Query()
+		if min, max, currency, active, err := parseRALFilter(q); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		} else if active {
+			listings = tracking.FilterListingsByRAL(listings, min, max, currency)
+		}
+
+		if q.Get("sort") == "ral" {
+			order := tracking.SortOrderAsc
+			if q.Get("order") == "desc" {
+				order = tracking.SortOrderDesc
+			}
+			listings = tracking.SortListingsByRAL(listings, order)
+		}
+
 		writeJSON(w, http.StatusOK, listings)
 	}
 }
