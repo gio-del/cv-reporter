@@ -26,7 +26,32 @@ type JobListing struct {
 	// downloaded server-side at save time (ADR-0013), empty when none was
 	// captured or the download failed.
 	Logo string `json:"logo,omitempty"`
+	// FreshnessStatus is the URL's most recent on-demand liveness check
+	// result (issue #59), defaulting to FreshnessNotYetChecked until a
+	// check is run via CheckFreshness. Kept independent of Logo/ADR-0013 —
+	// a broken freshness check can never affect the stored logo file.
+	FreshnessStatus FreshnessStatus `json:"freshnessStatus"`
+	// FreshnessCheckedAt is when FreshnessStatus was last updated (UTC,
+	// RFC3339Nano), empty until the first completed check.
+	FreshnessCheckedAt string `json:"freshnessCheckedAt,omitempty"`
 }
+
+// FreshnessStatus is a Job Listing source URL's most recent on-demand
+// liveness check result (issue #59, "Job Description link-rot / staleness
+// check"). Unlike freshness.Status (the pure classification result), this
+// type also carries FreshnessNotYetChecked — a persisted-record concept
+// with no equivalent in a single check's outcome.
+type FreshnessStatus string
+
+const (
+	// FreshnessNotYetChecked is the default for every Job Listing until a
+	// freshness check is run (story 9) — distinct from FreshnessUnknown so
+	// "never checked" is never confused with "checked and inconclusive".
+	FreshnessNotYetChecked FreshnessStatus = "not-yet-checked"
+	FreshnessLive          FreshnessStatus = "live"
+	FreshnessUnreachable   FreshnessStatus = "unreachable"
+	FreshnessUnknown       FreshnessStatus = "unknown"
+)
 
 // Status is where an Application stands, per CONTEXT.md's Status entry.
 type Status string
