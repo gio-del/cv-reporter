@@ -70,6 +70,7 @@ export interface Snippet {
   kind: string
   tags: string[]
   body: string
+  lastUsedAt?: string
 }
 
 export type SnippetInput = Omit<Snippet, 'id'>
