@@ -24,11 +24,15 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn, jobListingHeading } from '@/lib/utils'
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+// Matches backend/internal/generation.SupportedLanguages (issue #41's PRD).
+const LANGUAGE_LABELS: Record<string, string> = { en: 'English', it: 'Italian' }
 
 interface EditableBullet extends SelectedBullet {
   included: boolean
@@ -101,6 +105,8 @@ export default function GenerationPage() {
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
+  const [language, setLanguage] = useState<string | null>(null)
+  const [languageChanging, setLanguageChanging] = useState(false)
   const [groundedness, setGroundedness] = useState<GroundednessResult | null>(null)
   const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
@@ -126,7 +132,7 @@ export default function GenerationPage() {
       .catch((err) => setError(err instanceof Error ? err.message : String(err)))
   }, [jobListingId])
 
-  async function handleStart() {
+  async function handleStart(languageOverride?: string) {
     setError(null)
     setLoading(true)
     setRender(null)
@@ -135,16 +141,30 @@ export default function GenerationPage() {
       const result = await createGeneration({
         jobDescription: jobDescription.trim() || undefined,
         jobDescriptionUrl: jobDescriptionUrl.trim() || undefined,
+        languageOverride,
       })
       setMode(result.mode)
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
       setRal(result.ral ?? null)
+      setLanguage(result.language)
       setGroundedness(result.groundedness ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Re-runs Selection+Rewrite (and the Cover Letter, if any) in the
+  // corrected language rather than translating the already-generated text
+  // in place, so phrasing stays natural (issue #41's PRD, stories 4-5).
+  async function handleLanguageChange(next: string) {
+    setLanguageChanging(true)
+    try {
+      await handleStart(next)
+    } finally {
+      setLanguageChanging(false)
     }
   }
 
@@ -209,6 +229,7 @@ export default function GenerationPage() {
         slug,
         selection: { entries: selection },
         coverLetter: coverLetter !== null ? { body: coverLetter } : undefined,
+        language: language ?? undefined,
       })
       setRender(result)
 
@@ -218,6 +239,7 @@ export default function GenerationPage() {
             slug: result.slug,
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
+            language: language ?? undefined,
             groundedness: groundedness ?? undefined,
           })
         } catch (err) {
@@ -260,7 +282,7 @@ export default function GenerationPage() {
         </FieldGroup>
         <p>Leave both blank to run Default Mode (a general-purpose CV from your most representative Entries).</p>
         <div className="mt-6 flex gap-3">
-          <Button onClick={handleStart} disabled={loading}>
+          <Button onClick={() => handleStart()} disabled={loading}>
             {loading ? 'Generating…' : 'Start Generation'}
           </Button>
         </div>
@@ -278,6 +300,29 @@ export default function GenerationPage() {
           <p>Review Selection and Rewrite before anything is rendered. Edit any bullet, or exclude one entirely.</p>
 
           {ral && <RALBadge ral={ral} />}
+
+          {language && (
+            <Field className="mb-4 max-w-64">
+              <FieldLabel htmlFor="generation-language">Language</FieldLabel>
+              <Select value={language} onValueChange={handleLanguageChange} disabled={languageChanging || loading}>
+                <SelectTrigger id="generation-language" size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
+                    <SelectItem key={code} value={code}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                {languageChanging
+                  ? 'Regenerating Selection and Rewrite in the new language…'
+                  : 'Correct this if the detected language is wrong — Selection and Rewrite re-run in the chosen language.'}
+              </FieldDescription>
+            </Field>
+          )}
 
           {editable.map((entry) => {
             const label = entryLabel(entriesById.get(entry.entryId), entry.entryId)

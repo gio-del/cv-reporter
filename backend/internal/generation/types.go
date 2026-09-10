@@ -26,6 +26,12 @@ type CandidateEntry struct {
 type SelectionRequest struct {
 	JobDescription string
 	Candidates     []CandidateEntry
+
+	// LanguageOverride, when non-empty, tells the Client to write the
+	// rewritten bullets in this language instead of detecting one from
+	// JobDescription — set when the user corrects a wrong detection at
+	// Text Review (issue #41's PRD, story 4).
+	LanguageOverride string
 }
 
 // SelectedBullet is one bullet Selection chose for a Generation. Source is
@@ -47,8 +53,12 @@ type SelectedEntry struct {
 }
 
 // SelectionResult is a Client's Selection+Rewrite output for one Generation.
+// Language is the Client's detected (or, with LanguageOverride set,
+// echoed-back) ISO 639-1 language code — Generate normalizes it via
+// NormalizeLanguage before it reaches GenerateResult.
 type SelectionResult struct {
-	Entries []SelectedEntry `json:"entries"`
+	Entries  []SelectedEntry `json:"entries"`
+	Language string          `json:"language,omitempty"`
 }
 
 // CandidateSnippet is a Cover Letter Snippet made available to the Client
@@ -67,6 +77,10 @@ type CoverLetterRequest struct {
 	JobDescription string
 	Candidates     []CandidateEntry
 	Snippets       []CandidateSnippet
+
+	// Language is the target language (already resolved/normalized by
+	// Generate) to draft the Cover Letter in.
+	Language string
 }
 
 // CoverLetterResult is a Client's Cover Letter draft. SourceSnippetIDs
@@ -83,6 +97,12 @@ type CoverLetterResult struct {
 type GenerateRequest struct {
 	JobDescription    string `json:"jobDescription"`
 	JobDescriptionURL string `json:"jobDescriptionUrl"`
+
+	// LanguageOverride, when set, forces the target language instead of
+	// letting the Client detect one — used to re-run Selection+Rewrite
+	// and the Cover Letter after the user corrects a wrong detection at
+	// Text Review (issue #41's PRD, story 4).
+	LanguageOverride string `json:"languageOverride,omitempty"`
 }
 
 // GenerateMode distinguishes a Tailoring run from Default Mode (see
@@ -107,6 +127,12 @@ type GenerateResult struct {
 	CoverLetter    *CoverLetterResult  `json:"coverLetter,omitempty"`
 	RAL            *RALRange           `json:"ral,omitempty"`
 	Groundedness   *GroundednessResult `json:"groundedness,omitempty"`
+
+	// Language is the final, normalized target language (NormalizeLanguage
+	// applied) the CV/Cover Letter were written in — DefaultLanguage in
+	// Default Mode, since there's no Job Description to detect one from.
+	// Editable at Text Review (see issue #41's PRD).
+	Language string `json:"language"`
 }
 
 // GroundednessReason explains why checkGroundedness flagged a sentence.

@@ -80,6 +80,12 @@ type GenerationRecord struct {
 	CVPath          string                         `json:"cvPath"`
 	CoverLetterPath string                         `json:"coverLetterPath,omitempty"`
 	Groundedness    *generation.GroundednessResult `json:"groundedness,omitempty" yaml:"groundedness,omitempty"`
+
+	// Language is the final, normalized target language the CV/Cover
+	// Letter were written in (generation.GenerateResult.Language) — kept
+	// on the record so the Application's Generation history shows it
+	// without reopening the PDF (issue #41's PRD, story 9).
+	Language string `json:"language,omitempty"`
 }
 
 // Contact is the recruiter/hiring-manager name and email for an
