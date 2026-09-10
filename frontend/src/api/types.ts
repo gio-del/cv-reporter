@@ -114,12 +114,34 @@ export interface RALRange {
   listingStated?: RALFigure
 }
 
+export interface CallUsage {
+  callType: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+}
+
+export interface GenerationUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
+  webSearchUses?: number
+  estimatedCostUsd: number
+  calls?: CallUsage[]
+}
+
 export interface GenerateResult {
   mode: GenerateMode
   jobDescription?: string
   selection: SelectionResult
   coverLetter?: CoverLetterResult
   ral?: RALRange
+  usage: GenerationUsage
 }
 
 export interface GenerateRequest {
@@ -168,6 +190,7 @@ export interface GenerationRecord {
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  usage?: GenerationUsage
 }
 
 export interface Contact {
@@ -188,6 +211,7 @@ export interface RecordGenerationRequest {
   slug: string
   cvPath: string
   coverLetterPath?: string
+  usage?: GenerationUsage
 }
 
 export interface SaveJobListingRequest {

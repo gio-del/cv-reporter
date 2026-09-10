@@ -10,7 +10,15 @@ import {
   recordApplicationGeneration,
   renderGeneration,
 } from '@/api/client'
-import type { Entry, JobListing, RALRange, RenderResult, SelectedBullet, SelectedEntry } from '@/api/types'
+import type {
+  Entry,
+  GenerationUsage,
+  JobListing,
+  RALRange,
+  RenderResult,
+  SelectedBullet,
+  SelectedEntry,
+} from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -61,6 +69,7 @@ export default function GenerationPage() {
   const [editable, setEditable] = useState<EditableEntry[] | null>(null)
   const [coverLetter, setCoverLetter] = useState<string | null>(null)
   const [ral, setRal] = useState<RALRange | null>(null)
+  const [usage, setUsage] = useState<GenerationUsage | null>(null)
   const [slug, setSlug] = useState(jobListingId ?? 'default')
   const [rendering, setRendering] = useState(false)
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -99,6 +108,7 @@ export default function GenerationPage() {
       setEditable(toEditable(result.selection.entries))
       setCoverLetter(result.coverLetter?.body ?? null)
       setRal(result.ral ?? null)
+      setUsage(result.usage ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -176,6 +186,7 @@ export default function GenerationPage() {
             slug: result.slug,
             cvPath: result.cvPath,
             coverLetterPath: result.coverLetterPath,
+            usage: usage ?? undefined,
           })
         } catch (err) {
           setLinkError(err instanceof Error ? err.message : String(err))
@@ -235,6 +246,14 @@ export default function GenerationPage() {
           <p>Review Selection and Rewrite before anything is rendered. Edit any bullet, or exclude one entirely.</p>
 
           {ral && <RALBadge ral={ral} />}
+          {usage && usage.estimatedCostUsd > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Estimated Claude API cost for this Generation: ${usage.estimatedCostUsd.toFixed(4)} (
+              {usage.inputTokens + usage.outputTokens} tokens
+              {usage.webSearchUses ? `, ${usage.webSearchUses} web search${usage.webSearchUses === 1 ? '' : 'es'}` : ''}
+              )
+            </p>
+          )}
 
           {editable.map((entry) => {
             const label = entryLabel(entriesById.get(entry.entryId), entry.entryId)
