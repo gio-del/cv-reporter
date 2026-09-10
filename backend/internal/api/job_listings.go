@@ -3,9 +3,12 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
@@ -73,14 +76,57 @@ type captureJobListingRequest struct {
 	ListingSalaryText string `json:"listingSalaryText"`
 }
 
+// parseJobListingsFilter reads the optional status/company/savedFrom/savedTo
+// query parameters (issue #45), returning a descriptive error for any value
+// that can't be parsed rather than silently ignoring it.
+func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
+	var params tracking.FilterParams
+
+	if status := query.Get("status"); status != "" {
+		switch tracking.Status(status) {
+		case tracking.StatusSaved, tracking.StatusTailoring, tracking.StatusSent,
+			tracking.StatusInterviewing, tracking.StatusRejected, tracking.StatusOffer:
+			params.Status = tracking.Status(status)
+		default:
+			return params, fmt.Errorf("invalid status: %q", status)
+		}
+	}
+
+	params.Company = query.Get("company")
+
+	if raw := query.Get("savedFrom"); raw != "" {
+		from, err := time.Parse("2006-01-02", raw)
+		if err != nil {
+			return params, fmt.Errorf("invalid savedFrom date: %q", raw)
+		}
+		params.SavedFrom = &from
+	}
+
+	if raw := query.Get("savedTo"); raw != "" {
+		to, err := time.Parse("2006-01-02", raw)
+		if err != nil {
+			return params, fmt.Errorf("invalid savedTo date: %q", raw)
+		}
+		params.SavedTo = &to
+	}
+
+	return params, nil
+}
+
 func listJobListingsHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		filter, err := parseJobListingsFilter(r.URL.Query())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		listings, err := tracking.List(dataDir)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, http.StatusOK, listings)
+		writeJSON(w, http.StatusOK, tracking.FilterListings(listings, filter))
 	}
 }
 
