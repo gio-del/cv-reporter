@@ -55,11 +55,12 @@ type rawJobListingFrontmatter struct {
 }
 
 type rawApplication struct {
-	JobListingID string             `yaml:"jobListingId"`
-	Status       Status             `yaml:"status"`
-	Method       ApplicationMethod  `yaml:"method"`
-	Contact      *Contact           `yaml:"contact,omitempty"`
-	Generations  []GenerationRecord `yaml:"generations,omitempty"`
+	JobListingID    string             `yaml:"jobListingId"`
+	Status          Status             `yaml:"status"`
+	StatusUpdatedAt string             `yaml:"statusUpdatedAt,omitempty"`
+	Method          ApplicationMethod  `yaml:"method"`
+	Contact         *Contact           `yaml:"contact,omitempty"`
+	Generations     []GenerationRecord `yaml:"generations,omitempty"`
 }
 
 // Save resolves req's Job Description (required — its absence blocks the
@@ -112,7 +113,13 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 	if err := os.MkdirAll(applicationsFullDir, 0o755); err != nil {
 		return JobListing{}, Application{}, err
 	}
-	application := Application{ID: slug, JobListingID: slug, Status: StatusSaved, Method: method}
+	application := Application{
+		ID:              slug,
+		JobListingID:    slug,
+		Status:          StatusSaved,
+		StatusUpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		Method:          method,
+	}
 	if err := os.WriteFile(filepath.Join(applicationsFullDir, slug+".md"), renderApplication(application), 0o644); err != nil {
 		return JobListing{}, Application{}, err
 	}
@@ -224,12 +231,14 @@ func getApplication(dataDir, slug string) (Application, error) {
 		return Application{}, err
 	}
 	return Application{
-		ID:           slug,
-		JobListingID: raw.JobListingID,
-		Status:       raw.Status,
-		Method:       raw.Method,
-		Contact:      raw.Contact,
-		Generations:  raw.Generations,
+		ID:              slug,
+		JobListingID:    raw.JobListingID,
+		Status:          raw.Status,
+		StatusUpdatedAt: raw.StatusUpdatedAt,
+		Method:          raw.Method,
+		Contact:         raw.Contact,
+		IsStale:         IsStale(raw.Status, raw.StatusUpdatedAt, time.Now(), DefaultStaleThreshold),
+		Generations:     raw.Generations,
 	}, nil
 }
 
@@ -282,11 +291,12 @@ func renderJobListing(l JobListing) []byte {
 
 func renderApplication(a Application) []byte {
 	raw := rawApplication{
-		JobListingID: a.JobListingID,
-		Status:       a.Status,
-		Method:       a.Method,
-		Contact:      a.Contact,
-		Generations:  a.Generations,
+		JobListingID:    a.JobListingID,
+		Status:          a.Status,
+		StatusUpdatedAt: a.StatusUpdatedAt,
+		Method:          a.Method,
+		Contact:         a.Contact,
+		Generations:     a.Generations,
 	}
 	out, _ := yaml.Marshal(raw)
 	return out

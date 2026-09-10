@@ -186,8 +186,10 @@ export interface Application {
   id: string
   jobListingId: string
   status: ApplicationStatus
+  statusUpdatedAt?: string
   method: ApplicationMethod
   contact?: Contact
+  isStale: boolean
   generations?: GenerationRecord[]
 }
 
