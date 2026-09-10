@@ -12,5 +12,8 @@ data/applications/
 frontend/node_modules/
 frontend/dist/
 
+# extension (test tooling only — the extension itself ships unbundled)
+extension/node_modules/
+
 # backend
 backend/server
