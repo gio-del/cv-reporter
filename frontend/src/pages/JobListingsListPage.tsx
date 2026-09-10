@@ -39,24 +39,31 @@ const statusLabel: Record<ApplicationStatus, string> = {
   interviewing: 'Interviewing',
   rejected: 'Rejected',
   offer: 'Offer',
+  withdrawn: 'Withdrawn',
 }
 
 // Mirrors the backend's Status state machine (see tracking.allowedTransitions)
 // so the FE only ever offers a valid next move — the backend remains the
 // source of truth and re-validates on PATCH regardless (story 4).
 const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
-  saved: ['tailoring'],
-  tailoring: ['sent'],
-  sent: ['interviewing', 'rejected'],
-  interviewing: ['rejected', 'offer'],
+  saved: ['tailoring', 'withdrawn'],
+  tailoring: ['sent', 'withdrawn'],
+  sent: ['interviewing', 'rejected', 'withdrawn'],
+  interviewing: ['rejected', 'offer', 'withdrawn'],
   rejected: ['interviewing'],
   offer: [],
+  withdrawn: ['interviewing'],
 }
 
-// Moving into Rejected, and Reopening out of it, each reverse the other and
-// need explicit confirmation before the PATCH fires (stories 2-4).
+// Moving into Rejected/Withdrawn, and Reopening out of either back to
+// Interviewing, each reverse the other and need explicit confirmation
+// before the PATCH fires (stories 2-4, PRD stories 3 and 5).
 function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return to === 'rejected' || (from === 'rejected' && to === 'interviewing')
+  return (
+    to === 'rejected' ||
+    to === 'withdrawn' ||
+    ((from === 'rejected' || from === 'withdrawn') && to === 'interviewing')
+  )
 }
 
 interface PendingStatusChange {
@@ -235,7 +242,13 @@ export default function JobListingsListPage() {
                       Needs attention
                     </Badge>
                   )}
-                  <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  {application.status === 'withdrawn' ? (
+                    <Badge variant="outline" className="border-withdrawn text-withdrawn">
+                      {statusLabel[application.status]}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">{statusLabel[application.status]}</Badge>
+                  )}
                   {needsResolve && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -385,12 +398,16 @@ export default function JobListingsListPage() {
             <AlertDialogTitle>
               {pendingChange?.to === 'rejected'
                 ? 'Mark this Application Rejected?'
-                : 'Reopen this Application to Interviewing?'}
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Mark this Application Withdrawn?'
+                  : 'Reopen this Application to Interviewing?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingChange?.to === 'rejected'
                 ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
-                : `${pendingChange?.company} will move back to Interviewing.`}
+                : pendingChange?.to === 'withdrawn'
+                  ? `${pendingChange.company} will be marked Withdrawn. You can Reopen it back to Interviewing later if you change your mind.`
+                  : `${pendingChange?.company} will move back to Interviewing.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -401,7 +418,11 @@ export default function JobListingsListPage() {
                 handleConfirmPendingChange()
               }}
             >
-              {pendingChange?.to === 'rejected' ? 'Yes, mark Rejected' : 'Yes, reopen'}
+              {pendingChange?.to === 'rejected'
+                ? 'Yes, mark Rejected'
+                : pendingChange?.to === 'withdrawn'
+                  ? 'Yes, mark Withdrawn'
+                  : 'Yes, reopen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

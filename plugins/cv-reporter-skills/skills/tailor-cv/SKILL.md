@@ -50,7 +50,7 @@ This mode needs the backend running (`docker-compose up` — `http://127.0.0.1:8
      -H 'Content-Type: application/json' \
      -d '{"status": "tailoring"}'
    ```
-   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`), skip this ask entirely — don't touch Status.
+   If `application.status` was already past `"saved"` (`tailoring`, `sent`, `interviewing`, `rejected`, `offer`, `withdrawn`), skip this ask entirely — don't touch Status.
 
 ## Pipeline
 
