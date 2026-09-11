@@ -116,5 +116,11 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = { captureJobPosting, titleFromPage, companyName, locationText, captureUrl, logoUrl, description, salaryText };
 } else {
   console.log("[CVReporter] content script loaded (indeed)", window.location.href);
-  CVReporterCommon.initCaptureUI(() => captureJobPosting(document));
+  // validateCapture (extension/validate-capture.js, loaded as a content
+  // script ahead of this one — see manifest.json) applies issue #58's
+  // per-field sanity checks instead of capture-common.js's bare emptiness
+  // fallback, so a plausible-but-wrong Indeed capture (a stale nav element
+  // read as the company, a truncated Job Description) is refused with a
+  // specific reason rather than silently saved.
+  CVReporterCommon.initCaptureUI(() => captureJobPosting(document), validateCapture);
 }
