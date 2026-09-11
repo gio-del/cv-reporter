@@ -1,0 +1,30 @@
+# golangci-lint configuration for backend/ (the repo's only Go module).
+#
+# This file is the single source of truth for the Go lint gate: the command
+# documented in README.md and the CI step in .github/workflows/ci.yml run the
+# same `golangci-lint run ./...` against this config, so a CI failure is
+# reproducible locally without pushing a commit.
+#
+# The enabled set is a deliberate, explicit allowlist (`default: none`) rather
+# than "the defaults minus some". A golangci-lint upgrade therefore cannot
+# silently enlarge the gate.
+version: "2"
+
+linters:
+  default: none
+
+issues:
+  # Report every finding rather than golangci-lint's default per-linter and
+  # per-message caps: the gate is small enough that a truncated list would only
+  # hide work from whoever is fixing it.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  # gofmt only. gofumpt and friends are deliberately not used: gofmt is the
+  # standard, and the measured drift when this gate landed was a single file.
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
