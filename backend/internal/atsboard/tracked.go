@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -100,5 +101,5 @@ func writeTrackedBoards(dataDir string, boards []TrackedBoard) error {
 	if err != nil {
 		return fmt.Errorf("marshaling tracked boards: %w", err)
 	}
-	return os.WriteFile(filepath.Join(dataDir, trackedBoardsFile), content, 0o644)
+	return atomicfile.WriteFile(filepath.Join(dataDir, trackedBoardsFile), content, 0o644)
 }

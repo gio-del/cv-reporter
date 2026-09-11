@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -141,7 +142,7 @@ func writeSeenState(dataDir string, records []seenRecord) error {
 	if err != nil {
 		return fmt.Errorf("marshaling tracked board seen-state: %w", err)
 	}
-	return os.WriteFile(filepath.Join(dataDir, seenStateFile), content, 0o644)
+	return atomicfile.WriteFile(filepath.Join(dataDir, seenStateFile), content, 0o644)
 }
 
 func unionStrings(a, b []string) []string {
