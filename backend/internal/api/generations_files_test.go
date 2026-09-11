@@ -22,7 +22,7 @@ func TestGetGenerationFile_ServesRenderedPDF(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/generations/acme-corp/cv.pdf")
@@ -56,7 +56,7 @@ func TestGetGenerationFile_ServesCoverLetterText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/generations/acme-corp/cover-letter.txt")
@@ -76,7 +76,7 @@ func TestGetGenerationFile_ServesCoverLetterText(t *testing.T) {
 
 func TestGetGenerationFile_UnknownFilename_Returns404(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/generations/acme-corp/secrets.env")
@@ -91,7 +91,7 @@ func TestGetGenerationFile_UnknownFilename_Returns404(t *testing.T) {
 
 func TestGetGenerationFile_PathTraversalAttempt_Returns404(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/generations/..%2f..%2fetc/cv.pdf")
@@ -106,7 +106,7 @@ func TestGetGenerationFile_PathTraversalAttempt_Returns404(t *testing.T) {
 
 func TestGetGenerationFile_MissingFile_Returns404(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/generations/never-rendered/cv.pdf")

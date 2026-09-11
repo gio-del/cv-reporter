@@ -14,7 +14,7 @@ import (
 
 func TestCreateSnippet_ValidPayload_WritesFileAndReturns201(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -54,7 +54,7 @@ func TestCreateSnippet_ValidPayload_WritesFileAndReturns201(t *testing.T) {
 
 func TestCreateSnippet_MissingKind_Returns400AndNoFileCreated(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	before, err := os.ReadDir(filepath.Join(dataDir, "cover-letter-snippets"))

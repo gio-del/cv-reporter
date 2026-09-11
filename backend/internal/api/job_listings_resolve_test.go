@@ -21,7 +21,7 @@ func TestResolveJobListing_RALUnresolved_RetrySucceeds_UpdatesRALLeavesMethodUnt
 			return generation.RALRange{}, errors.New("claude api unreachable")
 		},
 	}
-	setupServer := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, failingClient))
+	setupServer := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: failingClient}))
 	resp := postJSON(t, setupServer.URL+"/api/job-listings", map[string]any{
 		"company":        "Acme Corp",
 		"jobDescription": "Go backend engineer, remote.",
@@ -45,7 +45,7 @@ func TestResolveJobListing_RALUnresolved_RetrySucceeds_UpdatesRALLeavesMethodUnt
 			return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, succeedingClient))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: succeedingClient}))
 	defer server.Close()
 
 	resolveResp := postJSON(t, server.URL+"/api/job-listings/"+id+"/resolve", nil)
@@ -82,7 +82,7 @@ func TestResolveJobListing_BothAlreadyResolved_IsNoOp(t *testing.T) {
 			return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -111,7 +111,7 @@ func TestResolveJobListing_BothAlreadyResolved_IsNoOp(t *testing.T) {
 
 func TestResolveJobListing_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings/does-not-exist/resolve", nil)
@@ -129,7 +129,7 @@ func TestResolveJobListing_FailsAgain_StaysUnresolvedWithout500(t *testing.T) {
 			return generation.RALRange{}, errors.New("claude api unreachable")
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{

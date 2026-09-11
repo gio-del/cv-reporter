@@ -28,7 +28,7 @@ func deleteRequest(t *testing.T, url string) *http.Response {
 
 func TestDeleteJobListing_RemovesFilesAndReturns204(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -59,7 +59,7 @@ func TestDeleteJobListing_RemovesFilesAndReturns204(t *testing.T) {
 
 func TestDeleteJobListing_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := deleteRequest(t, server.URL+"/api/job-listings/does-not-exist")
@@ -79,7 +79,7 @@ func TestDeleteJobListing_RemovesLogoFile(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
 		}, nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	saveResp := postJSON(t, server.URL+"/api/job-listings/from-extension", map[string]any{
@@ -116,7 +116,7 @@ func TestDeleteJobListing_RemovesLogoFile(t *testing.T) {
 
 func TestDeleteJobListing_WithGenerationHistory_StillSucceeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")

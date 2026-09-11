@@ -39,7 +39,7 @@ func gitCommitFile(t *testing.T, root, relPath, content, message string, at time
 
 func TestListJobListings_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *testing.T) {
 	projectRoot, dataDir := seedGitProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -106,7 +106,7 @@ tags:
 
 func TestListJobListings_NoEntriesChangedSinceGeneration_NoStaleEntries(t *testing.T) {
 	projectRoot, dataDir := seedGitProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -137,7 +137,7 @@ func TestListJobListings_NoEntriesChangedSinceGeneration_NoStaleEntries(t *testi
 
 func TestListJobListings_GenerationWithNoStoredEntryIDs_NoStaleEntries(t *testing.T) {
 	projectRoot, dataDir := seedGitProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")

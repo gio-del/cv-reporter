@@ -90,7 +90,7 @@ func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"jobDescription": "Looking for a Go backend engineer."}
@@ -143,7 +143,7 @@ func TestCreateGeneration_RewriteAddsUngroundedSentence_FlagsItInGroundedness(t 
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Looking for a Go backend engineer."})
@@ -195,7 +195,7 @@ func TestCreateGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClien
 			return generation.RALRange{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{})
@@ -248,7 +248,7 @@ func TestCreateGeneration_ClientInventsUnknownEntry_Returns502(t *testing.T) {
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
@@ -275,7 +275,7 @@ func TestCreateGeneration_ClientAltersSourceBulletText_Returns502(t *testing.T) 
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
@@ -300,7 +300,7 @@ func TestCreateGeneration_JobDescriptionURL_FetchesAndPassesTextToClient(t *test
 			return generation.SelectionResult{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescriptionUrl": jdServer.URL})
@@ -336,7 +336,7 @@ func TestCreateGeneration_WithJobDescription_DraftsCoverLetterFromSnippets(t *te
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Looking for a Go backend engineer."})
@@ -376,7 +376,7 @@ func TestCreateGeneration_CoverLetterReferencesUnknownSnippet_Returns502(t *test
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
@@ -398,7 +398,7 @@ func TestCreateGeneration_JobDescriptionStatesRAL_SkipsClientAndReportsStated(t 
 			return generation.RALRange{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	jd := "Go backend engineer. RAL: €45,000 - €55,000."
@@ -437,7 +437,7 @@ func TestCreateGeneration_JobDescriptionOmitsRAL_AsksClientAndReportsEstimated(t
 			return generation.RALRange{Min: &min, Max: &max, Currency: "EUR", Source: generation.RALSourceEstimated}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Go backend engineer in Milan."})
@@ -474,7 +474,7 @@ func TestCreateGeneration_DetectedLanguageThreadsToCoverLetterAndResult(t *testi
 			return generation.CoverLetterResult{Body: "Gentile Selezionatore,"}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Cerchiamo un ingegnere backend Go."})
@@ -502,7 +502,7 @@ func TestCreateGeneration_UnsupportedDetectedLanguage_FallsBackToEnglish(t *test
 			return generation.SelectionResult{Language: "fr"}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Nous recherchons un ingénieur."})
@@ -531,7 +531,7 @@ func TestCreateGeneration_LanguageOverride_ForcesTargetLanguageOnClientAndCoverL
 			return generation.CoverLetterResult{Body: "Gentile Selezionatore,"}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{
@@ -563,7 +563,7 @@ func TestCreateGeneration_DefaultMode_LanguageIsEnglish(t *testing.T) {
 			return generation.SelectionResult{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{})
@@ -601,7 +601,7 @@ func TestCreateGeneration_ClientRecordsUsage_ResponseIncludesUsage(t *testing.T)
 			{CallType: "selection_rewrite", InputTokens: 1000, OutputTokens: 200, EstimatedCostUSD: 0.012},
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
@@ -637,7 +637,7 @@ func TestCreateGeneration_ClientHasNoUsageRecorder_ResponseOmitsUsageCalls(t *te
 			return generation.SelectionResult{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations", map[string]any{"jobDescription": "Anything"})
@@ -683,7 +683,7 @@ func TestPreviewGeneration_WithJobDescription_CallsSelectOnlyNotSelectAndRewrite
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"jobDescription": "Looking for a Go backend engineer."}
@@ -724,7 +724,7 @@ func TestPreviewGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClie
 			return generation.SelectionResult{}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations/preview", map[string]any{})
@@ -758,7 +758,7 @@ func TestPreviewGeneration_ClientInventsUnknownEntry_Returns502(t *testing.T) {
 			}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/generations/preview", map[string]any{"jobDescription": "Anything"})

@@ -48,7 +48,7 @@ func saveJobListing(t *testing.T, serverURL, company string) string {
 
 func TestUpdateApplicationStatus_AllowedTransition_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -79,7 +79,7 @@ func TestUpdateApplicationStatus_AllowedTransition_WritesFileAndReturns200(t *te
 
 func TestUpdateApplicationStatus_AllowedTransition_AppendsStatusHistory(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -116,7 +116,7 @@ func TestUpdateApplicationStatus_AllowedTransition_AppendsStatusHistory(t *testi
 
 func TestUpdateApplicationStatus_DisallowedTransition_DoesNotAppendStatusHistory(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -141,7 +141,7 @@ func TestUpdateApplicationStatus_DisallowedTransition_DoesNotAppendStatusHistory
 
 func TestUpdateApplicationStatus_DisallowedTransition_Returns400AndLeavesFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -164,7 +164,7 @@ func TestUpdateApplicationStatus_DisallowedTransition_Returns400AndLeavesFileUnc
 
 func TestUpdateApplicationStatus_UnknownApplication_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := patchJSON(t, server.URL+"/api/applications/does-not-exist/status", map[string]any{"status": "tailoring"})
@@ -177,7 +177,7 @@ func TestUpdateApplicationStatus_UnknownApplication_Returns404(t *testing.T) {
 
 func TestUpdateApplicationStatus_FullHappyPathToOffer(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -193,7 +193,7 @@ func TestUpdateApplicationStatus_FullHappyPathToOffer(t *testing.T) {
 
 func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -224,7 +224,7 @@ func TestUpdateApplicationStatus_ReopenFromRejectedToInterviewing_Returns200(t *
 
 func TestUpdateApplicationStatus_WithdrawnThenReopenToInterviewing_RoundTrips(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -270,7 +270,7 @@ func TestUpdateApplicationStatus_WithdrawnThenReopenToInterviewing_RoundTrips(t 
 
 func TestUpdateApplicationStatus_WithdrawnToOffer_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -291,7 +291,7 @@ func TestUpdateApplicationStatus_WithdrawnToOffer_Returns400(t *testing.T) {
 
 func TestSaveJobListing_SetsStatusUpdatedAtOnApplicationCreation(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -312,7 +312,7 @@ func TestSaveJobListing_SetsStatusUpdatedAtOnApplicationCreation(t *testing.T) {
 
 func TestUpdateApplicationStatus_UpdatesStatusUpdatedAtOnEachTransition(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -344,7 +344,7 @@ func TestUpdateApplicationStatus_UpdatesStatusUpdatedAtOnEachTransition(t *testi
 
 func TestUpdateApplicationStatus_ReopenFromRejected_UpdatesStatusUpdatedAt(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -368,7 +368,7 @@ func TestUpdateApplicationStatus_ReopenFromRejected_UpdatesStatusUpdatedAt(t *te
 
 func TestListJobListings_IncludesIsStaleFalseForFreshApplication(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Acme Corp")
@@ -398,7 +398,7 @@ func TestListJobListings_IncludesIsStaleFalseForFreshApplication(t *testing.T) {
 
 func TestUpdateApplicationMethod_ValidCorrection_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -433,7 +433,7 @@ func TestUpdateApplicationMethod_ValidCorrection_WritesFileAndReturns200(t *test
 
 func TestUpdateApplicationMethod_UnknownKind_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -448,7 +448,7 @@ func TestUpdateApplicationMethod_UnknownKind_Returns400(t *testing.T) {
 
 func TestUpdateApplicationMethod_UnknownApplication_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := patchJSON(t, server.URL+"/api/applications/does-not-exist/method", map[string]any{"kind": "portal"})
@@ -461,7 +461,7 @@ func TestUpdateApplicationMethod_UnknownApplication_Returns404(t *testing.T) {
 
 func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -501,7 +501,7 @@ func TestRecordApplicationGeneration_AppendsHistoryAcrossRegenerates(t *testing.
 
 func TestRecordApplicationGeneration_PersistsEntryIDsFromRequest(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -533,7 +533,7 @@ func TestRecordApplicationGeneration_PersistsEntryIDsFromRequest(t *testing.T) {
 
 func TestRecordApplicationGeneration_NoEntryIDs_OmitsField(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -557,7 +557,7 @@ func TestRecordApplicationGeneration_NoEntryIDs_OmitsField(t *testing.T) {
 
 func TestRecordApplicationGeneration_PersistsSourceSnippetIDs(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -587,7 +587,7 @@ func TestRecordApplicationGeneration_PersistsSourceSnippetIDs(t *testing.T) {
 
 func TestRecordApplicationGeneration_PersistsUsage(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -626,7 +626,7 @@ func TestRecordApplicationGeneration_PersistsUsage(t *testing.T) {
 
 func TestRecordApplicationGeneration_PersistsLanguage(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -654,7 +654,7 @@ func TestRecordApplicationGeneration_PersistsLanguage(t *testing.T) {
 
 func TestRecordApplicationGeneration_WithGroundedness_PersistsIt(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -697,7 +697,7 @@ func TestRecordApplicationGeneration_WithGroundedness_PersistsIt(t *testing.T) {
 
 func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -712,7 +712,7 @@ func TestRecordApplicationGeneration_MissingSlug_Returns400(t *testing.T) {
 
 func TestRecordApplicationGeneration_UnknownApplication_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/applications/does-not-exist/generations", map[string]any{
@@ -728,7 +728,7 @@ func TestRecordApplicationGeneration_UnknownApplication_Returns404(t *testing.T)
 
 func TestUpdateApplicationContact_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -763,7 +763,7 @@ func TestUpdateApplicationContact_ValidPayload_WritesFileAndReturns200(t *testin
 
 func TestUpdateApplicationContact_MissingEmail_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -778,7 +778,7 @@ func TestUpdateApplicationContact_MissingEmail_Returns400(t *testing.T) {
 
 func TestUpdateApplicationContact_UnknownApplication_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := patchJSON(t, server.URL+"/api/applications/does-not-exist/contact", map[string]any{
@@ -794,7 +794,7 @@ func TestUpdateApplicationContact_UnknownApplication_Returns404(t *testing.T) {
 
 func TestGetApplicationMailto_WithConfirmedContact_ReturnsURI(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -824,7 +824,7 @@ func TestGetApplicationMailto_WithConfirmedContact_ReturnsURI(t *testing.T) {
 
 func TestGetApplicationMailto_NoConfirmedContact_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -842,7 +842,7 @@ func TestGetApplicationMailto_NoConfirmedContact_Returns400(t *testing.T) {
 
 func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/applications/does-not-exist/mailto")
@@ -858,7 +858,7 @@ func TestGetApplicationMailto_UnknownApplication_Returns404(t *testing.T) {
 
 func TestGetApplicationsStats_ReturnsAggregatedShape(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Acme Corp")
@@ -887,7 +887,7 @@ func TestGetApplicationsStats_ReturnsAggregatedShape(t *testing.T) {
 
 func TestGetApplicationsStats_NoApplications_Returns200WithZeroTotal(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/applications/stats")

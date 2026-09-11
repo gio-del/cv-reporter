@@ -11,7 +11,7 @@ import (
 
 func TestCreateJobListing_LikelyDuplicate_SavesAnywayAndWarns(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	first := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -62,7 +62,7 @@ func TestCreateJobListing_LikelyDuplicate_SavesAnywayAndWarns(t *testing.T) {
 
 func TestCreateJobListing_NoSimilarExistingListing_NoWarning(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{

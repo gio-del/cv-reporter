@@ -49,7 +49,7 @@ tags:
 
 func TestTagLint_GroupsNearDuplicatesAcrossEntries(t *testing.T) {
 	dataDir := seedTagLintDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/tag-lint")
@@ -135,7 +135,7 @@ func TestTagLint_GroupsNearDuplicatesAcrossEntries(t *testing.T) {
 
 func TestTagLint_NoEntries_ReturnsEmptyReport(t *testing.T) {
 	dataDir := t.TempDir()
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/tag-lint")

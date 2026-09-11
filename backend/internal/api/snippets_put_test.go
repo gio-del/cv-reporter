@@ -13,7 +13,7 @@ import (
 
 func TestUpdateSnippet_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -40,7 +40,7 @@ func TestUpdateSnippet_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 
 func TestUpdateSnippet_MissingKind_Returns400AndFileUnchanged(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	original, err := os.ReadFile(filepath.Join(dataDir, "cover-letter-snippets", "closing-standard.md"))
@@ -68,7 +68,7 @@ func TestUpdateSnippet_MissingKind_Returns400AndFileUnchanged(t *testing.T) {
 
 func TestUpdateSnippet_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -86,7 +86,7 @@ func TestUpdateSnippet_UnknownID_Returns404(t *testing.T) {
 
 func TestDeleteSnippet_RemovesFileAndReturns204(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	path := filepath.Join(dataDir, "cover-letter-snippets", "closing-standard.md")
@@ -114,7 +114,7 @@ func TestDeleteSnippet_RemovesFileAndReturns204(t *testing.T) {
 
 func TestDeleteSnippet_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodDelete, server.URL+"/api/master-data/cover-letter-snippets/does-not-exist", nil)

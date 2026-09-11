@@ -27,7 +27,7 @@ func postJSON(t *testing.T, url string, payload any) *http.Response {
 
 func TestCreateEntry_ValidExperiencePayload_WritesFileAndReturns201(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -77,7 +77,7 @@ func TestCreateEntry_ValidExperiencePayload_WritesFileAndReturns201(t *testing.T
 
 func TestCreateEntry_ValidProjectPayload_WritesFileAndReturns201(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -111,7 +111,7 @@ func TestCreateEntry_ValidProjectPayload_WritesFileAndReturns201(t *testing.T) {
 
 func TestCreateEntry_MissingRequiredField_Returns400AndNoFileCreated(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	before, err := os.ReadDir(filepath.Join(dataDir, "experience"))
@@ -143,7 +143,7 @@ func TestCreateEntry_MissingRequiredField_Returns400AndNoFileCreated(t *testing.
 
 func TestCreateEntry_UnknownType_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
