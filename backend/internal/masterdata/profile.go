@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -86,7 +87,7 @@ func UpdateProfile(dataDir string, profile Profile) (Profile, error) {
 	if err != nil {
 		return Profile{}, err
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "profile.yaml"), content, 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, "profile.yaml"), content, 0o644); err != nil {
 		return Profile{}, err
 	}
 	return profile, nil
