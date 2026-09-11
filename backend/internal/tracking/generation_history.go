@@ -1,8 +1,9 @@
 package tracking
 
 import (
-	"os"
 	"path/filepath"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // RecordGeneration appends record to the Application identified by id's
@@ -16,7 +17,7 @@ func RecordGeneration(dataDir, id string, record GenerationRecord) (Application,
 	}
 	application.Generations = append(application.Generations, record)
 
-	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err
 	}
 	return application, nil

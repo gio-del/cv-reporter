@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -38,7 +39,7 @@ func recordStandaloneUsage(dataDir string, client any) {
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(path, data, 0o644)
+	_ = atomicfile.WriteFile(path, data, 0o644)
 }
 
 // TotalUsage aggregates every Claude API call this dataDir has ever
