@@ -122,9 +122,13 @@ func putEntryHandler(dataDir string) http.HandlerFunc {
 func deleteEntryHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := masterdata.DeleteEntry(dataDir, id)
+		err := masterdata.DeleteEntryIfMatch(dataDir, id, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "entry not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Entry")
 			return
 		}
 		if err != nil {

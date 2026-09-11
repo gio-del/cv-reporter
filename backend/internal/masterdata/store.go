@@ -214,6 +214,15 @@ func uniqueSlug(fullDir, base string) string {
 
 // DeleteEntry removes the file GetEntry would read for id.
 func DeleteEntry(dataDir, id string) error {
+	return DeleteEntryIfMatch(dataDir, id, "")
+}
+
+// DeleteEntryIfMatch is DeleteEntry, refusing with
+// recordversion.ErrMismatch when version no longer matches the file on
+// disk: acting destructively on content the caller is no longer seeing is
+// the same hazard as overwriting it (issue #89, story 18). An empty
+// version deletes unconditionally.
+func DeleteEntryIfMatch(dataDir, id, version string) error {
 	dir, slug, ok := splitID(id)
 	if !ok {
 		return fmt.Errorf("invalid entry id %q", id)
@@ -221,7 +230,11 @@ func DeleteEntry(dataDir, id string) error {
 	if _, ok := entryDirs[dir]; !ok {
 		return fmt.Errorf("invalid entry id %q", id)
 	}
-	return os.Remove(filepath.Join(dataDir, dir, slug+".md"))
+	path := filepath.Join(dataDir, dir, slug+".md")
+	if err := recordversion.Check(path, version); err != nil {
+		return err
+	}
+	return os.Remove(path)
 }
 
 func renderEntry(e Entry) []byte {
