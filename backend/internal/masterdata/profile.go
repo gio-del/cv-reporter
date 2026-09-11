@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 
@@ -61,6 +62,12 @@ type Profile struct {
 	Awards       []Award       `yaml:"awards,omitempty" json:"awards"`
 	Activities   []Activity    `yaml:"activities,omitempty" json:"activities"`
 	Languages    []Language    `yaml:"languages,omitempty" json:"languages"`
+
+	// Version is profile.yaml's version token, populated by the API layer
+	// (via ProfileVersion) on reads. yaml:"-" keeps it out of the file
+	// itself — UpdateProfile marshals this struct straight to disk, and a
+	// read-time field must never be persisted (issue #89).
+	Version string `yaml:"-" json:"version,omitempty"`
 }
 
 // GetProfile reads and parses dataDir/profile.yaml.
@@ -79,6 +86,13 @@ func GetProfile(dataDir string) (Profile, error) {
 // UpdateProfile validates profile and, if valid, writes it to
 // dataDir/profile.yaml. On validation failure the file is left untouched.
 func UpdateProfile(dataDir string, profile Profile) (Profile, error) {
+	return UpdateProfileIfMatch(dataDir, profile, "")
+}
+
+// UpdateProfileIfMatch is UpdateProfile, refusing the write with
+// recordversion.ErrMismatch when version no longer matches profile.yaml on
+// disk (issue #89, story 14). An empty version writes unconditionally.
+func UpdateProfileIfMatch(dataDir string, profile Profile, version string) (Profile, error) {
 	if err := ValidateProfile(profile); err != nil {
 		return Profile{}, fmt.Errorf("%w: %v", ErrValidation, err)
 	}
@@ -87,10 +101,22 @@ func UpdateProfile(dataDir string, profile Profile) (Profile, error) {
 	if err != nil {
 		return Profile{}, err
 	}
-	if err := atomicfile.WriteFile(filepath.Join(dataDir, "profile.yaml"), content, 0o644); err != nil {
+
+	path := filepath.Join(dataDir, "profile.yaml")
+	if err := recordversion.Check(path, version); err != nil {
+		return Profile{}, err
+	}
+
+	if err := atomicfile.WriteFile(path, content, 0o644); err != nil {
 		return Profile{}, err
 	}
 	return profile, nil
+}
+
+// ProfileVersion returns the version token of the profile.yaml GetProfile
+// reads.
+func ProfileVersion(dataDir string) (string, error) {
+	return recordversion.Of(filepath.Join(dataDir, "profile.yaml"))
 }
 
 // ValidateProfile checks that a Profile's required fields are present and
