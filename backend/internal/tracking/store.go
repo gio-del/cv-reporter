@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"gopkg.in/yaml.v3"
 )
@@ -110,7 +111,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		Logo:            logo,
 		FreshnessStatus: FreshnessNotYetChecked,
 	}
-	if err := os.WriteFile(filepath.Join(jobsFullDir, slug+".md"), renderJobListing(listing), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(jobsFullDir, slug+".md"), renderJobListing(listing), 0o644); err != nil {
 		return JobListing{}, Application{}, err
 	}
 
@@ -126,7 +127,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		Method:          method,
 		StatusHistory:   []StatusChange{{Status: StatusSaved, ChangedAt: time.Now().UTC()}},
 	}
-	if err := os.WriteFile(filepath.Join(applicationsFullDir, slug+".md"), renderApplication(application), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(applicationsFullDir, slug+".md"), renderApplication(application), 0o644); err != nil {
 		return JobListing{}, Application{}, err
 	}
 

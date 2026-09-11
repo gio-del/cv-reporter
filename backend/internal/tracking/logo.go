@@ -5,9 +5,10 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // HTTPDoer is the minimal http.Client surface the Company Logo download
@@ -56,7 +57,7 @@ func downloadLogoBestEffort(ctx context.Context, doer HTTPDoer, logoURL, jobsFul
 	}
 
 	filename := slug + ext
-	if err := os.WriteFile(filepath.Join(jobsFullDir, filename), body, 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(jobsFullDir, filename), body, 0o644); err != nil {
 		return ""
 	}
 	return filename

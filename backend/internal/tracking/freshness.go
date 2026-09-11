@@ -2,11 +2,11 @@ package tracking
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/freshness"
 )
 
@@ -33,7 +33,7 @@ func CheckFreshness(ctx context.Context, dataDir string, doer HTTPDoer, id strin
 	listing.FreshnessStatus = toFreshnessStatus(status)
 	listing.FreshnessCheckedAt = time.Now().UTC().Format(time.RFC3339Nano)
 
-	if err := os.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
 		return JobListing{}, err
 	}
 	return listing, nil

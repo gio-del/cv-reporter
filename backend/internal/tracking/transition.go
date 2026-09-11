@@ -3,9 +3,10 @@ package tracking
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition
@@ -83,7 +84,7 @@ func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error)
 	application.StatusUpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	application.IsStale = IsStale(application.Status, application.StatusUpdatedAt, time.Now(), DefaultStaleThreshold)
 
-	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err
 	}
 	return application, nil

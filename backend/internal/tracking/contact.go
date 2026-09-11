@@ -3,9 +3,10 @@ package tracking
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // SuggestContact asks client to research a Contact for the Job Listing
@@ -37,7 +38,7 @@ func UpdateApplicationContact(dataDir, id string, contact Contact) (Application,
 	}
 	application.Contact = &contact
 
-	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err
 	}
 	return application, nil
