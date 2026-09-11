@@ -100,6 +100,20 @@ func TestRouterConfig_OmittedATSHTTPDoer_ServesBoardRoutesThatNeverFetch(t *test
 	}
 }
 
+// TestRouterConfig_EmptyDataDir_Panics pins DataDir as the one required
+// field: a router built without it would read an empty Master Data set
+// rooted at the process working directory and look like data loss, so a
+// mis-wired construction has to fail loudly and immediately instead.
+func TestRouterConfig_EmptyDataDir_Panics(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected NewRouter to panic on an empty DataDir")
+		}
+	}()
+
+	api.NewRouter(api.RouterConfig{})
+}
+
 // TestRouterConfig_OmittedLANAuthToken_LeavesRoutesUnauthenticated pins the
 // LANAuthToken default: omitting it wires in no check at all, preserving
 // ADR-0004's localhost-only, no-auth default. Its counterpart — a

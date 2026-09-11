@@ -17,7 +17,9 @@ type RouterConfig struct {
 	// projects/ and cover-letter-snippets/ — the same Master Data files the
 	// tailor-cv skill reads and writes, alongside the tracked Job Listings
 	// and Applications. Required — it is the one field with no sensible
-	// default.
+	// default, so NewRouter panics on an empty DataDir rather than
+	// silently rooting the app at the process working directory and
+	// serving an empty Master Data set that would read as data loss.
 	DataDir string
 
 	// ProjectRoot is the directory holding template/, output/ and data/,
@@ -51,6 +53,9 @@ type RouterConfig struct {
 // defaults to.
 func NewRouter(cfg RouterConfig) http.Handler {
 	dataDir := cfg.DataDir
+	if dataDir == "" {
+		panic("api.NewRouter: RouterConfig.DataDir is required")
+	}
 	projectRoot := cfg.ProjectRoot
 	if projectRoot == "" {
 		projectRoot = "."
