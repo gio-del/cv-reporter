@@ -49,7 +49,7 @@ jobs:
         run: go test ./...
 
   frontend:
-    name: Frontend (lint, build)
+    name: Frontend (lint, test, build)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -69,6 +69,12 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: npm run lint
+
+      # Vitest + Testing Library + MSW (ADR-0019): jsdom and a faked network,
+      # so no backend, ANTHROPIC_API_KEY or typst is needed here.
+      - name: Test
+        working-directory: frontend
+        run: npm test
 
       - name: Build
         working-directory: frontend
