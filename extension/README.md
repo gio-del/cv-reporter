@@ -51,6 +51,8 @@ npm install
 npm test
 ```
 
+This suite is load-bearing, not optional local tooling: `.github/workflows/ci.yml` runs it as its own `extension` job (peer to `backend` and `frontend`) on every push to `main` and every pull request, installing from the committed `package-lock.json` so CI parses fixtures with the same jsdom version you do. A failing extension test fails the build.
+
 Only the pure extraction/validation functions are covered this way — button injection, click handling, and message-passing to `background.js` stay untested, exercised manually via "Loading it" above instead. `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
 
 ### If capture breaks again
