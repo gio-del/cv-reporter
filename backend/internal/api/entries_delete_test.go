@@ -12,7 +12,7 @@ import (
 
 func TestDeleteEntry_RemovesFileAndReturns204(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
@@ -41,7 +41,7 @@ func TestDeleteEntry_RemovesFileAndReturns204(t *testing.T) {
 
 func TestDeleteEntry_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodDelete, server.URL+"/api/master-data/entries/experience/does-not-exist", nil)

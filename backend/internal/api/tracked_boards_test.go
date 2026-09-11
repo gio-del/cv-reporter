@@ -15,11 +15,11 @@ func TestTrackedBoards_AddThenList(t *testing.T) {
 	dataDir := seedDataDir(t)
 	// Listing tracked boards now computes a live new-count preview per
 	// board, so this needs a fake doer rather than a real network call —
-	// NewRouter defaults to http.DefaultClient.
+	// an omitted RouterConfig.ATSHTTPDoer defaults to http.DefaultClient.
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, `{"jobs": []}`), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{
@@ -58,7 +58,7 @@ func TestTrackedBoards_AddThenList(t *testing.T) {
 
 func TestTrackedBoards_Delete_RemovesIt(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "lever", "slug": "acme"})
@@ -94,7 +94,7 @@ func TestTrackedBoards_Delete_RemovesSeenState(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	createResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})
@@ -151,7 +151,7 @@ func TestTrackedBoards_List_IncludesNewCount(t *testing.T) {
 		  ]
 		}`), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	trackResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})

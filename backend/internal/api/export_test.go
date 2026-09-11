@@ -20,7 +20,7 @@ func TestExportData_ReturnsZipOfJobsAndApplications(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(dataDir, "jobs", "acme.md"), "---\ncompany: Acme\n---\n")
 
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/export")
@@ -67,7 +67,7 @@ func TestExportData_NoJobsOrApplicationsYet_Returns200EmptyArchive(t *testing.T)
 	// must still succeed — see the PRD's "zero Job Listings" user story.
 	dataDir := seedDataDir(t)
 
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/export")
@@ -92,7 +92,7 @@ func TestExportData_JobsPathIsAFileNotDirectory_Returns500(t *testing.T) {
 	dataDir := seedDataDir(t)
 	writeFile(t, filepath.Join(dataDir, "jobs"), "not a directory")
 
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/export")

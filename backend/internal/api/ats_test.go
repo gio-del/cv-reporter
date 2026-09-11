@@ -40,7 +40,7 @@ func TestListAtsListings_Greenhouse_ReturnsNormalizedListings(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/ats/greenhouse/acme/listings")
@@ -73,7 +73,7 @@ func TestListAtsListings_MarksAlreadySavedListingsByURL(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	saveResp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -109,7 +109,7 @@ func TestListAtsListings_UntrackedBoard_NeverMarksNewOrCreatesSeenState(t *testi
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	// Story 10: a one-off browse of a board never tracked shouldn't require
@@ -134,7 +134,7 @@ func TestListAtsListings_TrackedBoard_FirstFetch_SeedsBaselineNoneNew(t *testing
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, fixtureGreenhouseResponse), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	trackResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})
@@ -172,7 +172,7 @@ func TestListAtsListings_TrackedBoard_SecondFetch_OnlyFlagsGenuinelyNewListings(
 		  ]
 		}`), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	trackResp := postJSON(t, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme"})
@@ -214,7 +214,7 @@ func TestListAtsListings_BoardNotFound_Returns404WithClearError(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusNotFound, `{}`), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/ats/greenhouse/does-not-exist/listings")

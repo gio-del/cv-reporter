@@ -29,7 +29,7 @@ func checkLANToken(configuredToken, presentedToken string) bool {
 // requireLANToken wraps next with LAN mode's auth gate: a request whose
 // X-CV-Reporter-Token header doesn't match lanAuthToken gets 401 instead of
 // reaching next. Callers only wrap with this when lanAuthToken is
-// non-empty (see NewRouterFullWithATSAndAuth) — default mode never wraps a
+// non-empty (see RouterConfig.LANAuthToken) — default mode never wraps a
 // handler with it at all.
 func requireLANToken(lanAuthToken string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

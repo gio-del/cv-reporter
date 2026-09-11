@@ -335,7 +335,7 @@ type checkFreshnessResponse struct {
 // "Job Description link-rot / staleness check") against the Job Listing
 // identified by id's own source URL, using the same injectable HTTP doer
 // already threaded through for ATS sourcing (a real *http.Client in
-// production — see NewRouterFull — a fixture doer in tests). 404 when id
+// production — see RouterConfig.ATSHTTPDoer — a fixture doer in tests). 404 when id
 // doesn't exist, matching resolve/suggest-contact's existing pattern.
 func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

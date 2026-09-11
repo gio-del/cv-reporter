@@ -30,7 +30,7 @@ func TestCheckFreshness_LiveResponse_UpdatesStatusOn200(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, ""), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	id := saveJobListingWithURL(t, server.URL, "Acme Corp", "https://boards.example.com/acme/jobs/1")
@@ -59,7 +59,7 @@ func TestCheckFreshness_UnknownID_Returns404(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, ""), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings/does-not-exist/check-freshness", nil)
@@ -79,7 +79,7 @@ func TestCheckFreshness_NetworkError_DoesNotOverwritePriorLiveStatus(t *testing.
 		}
 		return nil, errors.New("dial tcp: i/o timeout")
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	id := saveJobListingWithURL(t, server.URL, "Acme Corp", "https://boards.example.com/acme/jobs/1")
@@ -111,7 +111,7 @@ func TestCheckFreshness_NoURLRecorded_LeavesNotYetChecked(t *testing.T) {
 		doerCalled = true
 		return jsonATSResponse(http.StatusOK, ""), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp") // no URL

@@ -46,7 +46,7 @@ func copyTemplate(t *testing.T, root, name string) {
 
 func TestRenderGeneration_ApprovedSelection_ProducesOnePagePDF(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -94,7 +94,7 @@ func TestRenderGeneration_ApprovedSelection_ProducesOnePagePDF(t *testing.T) {
 
 func TestRenderGeneration_WithCoverLetter_AlsoProducesCoverLetterPDF(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -150,7 +150,7 @@ func TestRenderGeneration_LanguageThreadedIntoPDFLangMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			projectRoot, dataDir := seedProjectRoot(t)
-			server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 			defer server.Close()
 
 			payload := map[string]any{
@@ -184,7 +184,7 @@ func TestRenderGeneration_LanguageThreadedIntoPDFLangMetadata(t *testing.T) {
 
 func TestRenderGeneration_InvalidSlug_Returns400(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"slug": "Not Kebab Case!", "selection": map[string]any{"entries": []map[string]any{}}}
@@ -198,7 +198,7 @@ func TestRenderGeneration_InvalidSlug_Returns400(t *testing.T) {
 
 func TestRenderGeneration_UnknownEntryID_Returns400(t *testing.T) {
 	projectRoot, dataDir := seedProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
