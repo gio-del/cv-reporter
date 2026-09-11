@@ -4,8 +4,8 @@ import "testing"
 
 func TestFindLikelyDuplicate(t *testing.T) {
 	base := "2026-01-15T10:00:00Z"
-	closeAfter := "2026-01-15T10:05:00Z"     // 5 minutes later
-	farApart := "2027-01-15T10:00:00Z"       // ~1 year later
+	closeAfter := "2026-01-15T10:05:00Z" // 5 minutes later
+	farApart := "2027-01-15T10:00:00Z"   // ~1 year later
 
 	tests := []struct {
 		name      string
