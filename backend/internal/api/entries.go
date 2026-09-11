@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 
@@ -118,5 +119,10 @@ func deleteEntryHandler(dataDir string) http.HandlerFunc {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		// The status line is already on the wire, so the response can't be
+		// turned into an error one — but a half-written body shouldn't look
+		// like a successful reply either. Log it.
+		log.Printf("api: encoding JSON response body: %v", err)
+	}
 }

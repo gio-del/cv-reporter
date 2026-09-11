@@ -300,7 +300,7 @@ func renderJobListing(l JobListing) []byte {
 
 	var buf bytes.Buffer
 	buf.WriteString("---\n")
-	fmBytes, _ := yaml.Marshal(raw)
+	fmBytes, _ := yaml.Marshal(raw) //nolint:errcheck // raw is a plain struct of strings/slices; yaml.Marshal cannot fail on it
 	buf.Write(fmBytes)
 	buf.WriteString("---\n\n")
 	buf.WriteString(l.JobDescription)
@@ -318,7 +318,7 @@ func renderApplication(a Application) []byte {
 		Generations:     a.Generations,
 		StatusHistory:   a.StatusHistory,
 	}
-	out, _ := yaml.Marshal(raw)
+	out, _ := yaml.Marshal(raw) //nolint:errcheck // raw is a plain struct of strings/slices; yaml.Marshal cannot fail on it
 	return out
 }
 

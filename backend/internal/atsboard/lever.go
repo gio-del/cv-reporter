@@ -35,7 +35,7 @@ func FetchLeverListings(ctx context.Context, doer HTTPDoer, company string) ([]L
 	if err != nil {
 		return nil, fmt.Errorf("fetching Lever company %q: %w", company, err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // idiomatic response-body drain: the read is already done and there's nothing to do about a close failure
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("Lever company %q: %w", company, ErrBoardNotFound)
