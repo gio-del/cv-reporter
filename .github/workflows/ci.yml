@@ -70,7 +70,7 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      # Vitest + Testing Library + MSW (ADR-0018): jsdom and a faked network,
+      # Vitest + Testing Library + MSW (ADR-0019): jsdom and a faked network,
       # so no backend, ANTHROPIC_API_KEY or typst is needed here.
       - name: Test
         working-directory: frontend

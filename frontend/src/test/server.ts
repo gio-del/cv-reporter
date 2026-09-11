@@ -1,6 +1,6 @@
 import { setupServer } from 'msw/node'
 
-// The one faked boundary for the whole suite (ADR-0018): HTTP and nothing
+// The one faked boundary for the whole suite (ADR-0019): HTTP and nothing
 // below it. `@/api/client` runs for real against this, so the paths and
 // query strings it builds — and its `!res.ok` error path — stay under test.
 // No default handlers: every test declares the endpoints its page touches,

@@ -21,7 +21,7 @@ export default defineConfig({
     },
   },
   // Vitest lives in this config (rather than its own) so tests inherit the
-  // '@' alias and plugin setup above instead of restating them (ADR-0018).
+  // '@' alias and plugin setup above instead of restating them (ADR-0019).
   // globals: false keeps describe/it/expect explicit imports, so test files
   // type-check under the existing `tsc -b` with no `types` array surgery.
   test: {

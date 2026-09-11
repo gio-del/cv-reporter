@@ -8,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Pages read route params and search params, so they are rendered inside a
 // real MemoryRouter at their real route rather than having routing stubbed —
-// the URL a filter writes is part of the behaviour under test (ADR-0018).
+// the URL a filter writes is part of the behaviour under test (ADR-0019).
 
 function LocationProbe() {
   const location = useLocation()
