@@ -27,6 +27,13 @@ type RouterConfig struct {
 	// Empty means ".", the process working directory.
 	ProjectRoot string
 
+	// Addr is the TCP address NewServer listens on; it does nothing for a
+	// NewRouter-only call site. Empty means DefaultAddr
+	// ("0.0.0.0:8080") — which is not the LAN-reachable opt-in, since
+	// docker-compose.yml's port mapping is what decides reachability
+	// (issue #57, ADR-0004).
+	Addr string
+
 	// GenerationClient backs Generation, RAL estimation and the other
 	// Claude-API-facing routes (tracking.Client embeds generation.Client).
 	// Nil means a real claude.New() client, which calls the Claude API
