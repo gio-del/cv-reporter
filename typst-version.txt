@@ -5,6 +5,14 @@
 #   - plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh,
 #     at skill Render time, to warn (non-blocking) if the host's typst/fonts
 #     don't match this file.
+#   - .github/workflows/ci.yml, to install this exact release before the
+#     render-dependent backend tests run, and fail if what landed doesn't
+#     match.
+#
+# Deliberately not watched by Dependabot (see .github/dependabot.yml): this
+# is a render-fidelity pin, not a dependency — bumping it is a potential
+# pagination change against the Tailored CV's one-page constraint, which
+# only Visual Review can judge.
 #
 # Bumping the pinned version is a single edit here — don't hardcode the
 # version string anywhere else.
