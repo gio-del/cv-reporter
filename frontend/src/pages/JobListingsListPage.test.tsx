@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import JobListingsListPage, { allowedNextStatuses } from './JobListingsListPage'
@@ -216,5 +216,41 @@ describe('Application Status transitions', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('invalid transition')
     expect(shownStatus('Saved')).toBeInTheDocument()
+  })
+})
+
+// Deleting a Job Listing takes its Application — Status, Method, Contact and
+// the whole Generation history — with it, so it is confirmation-gated and the
+// dialog names what is about to go.
+describe('Job Listing deletion', () => {
+  const DELETE_PATH = '/api/job-listings/acme'
+
+  it('Delete_Requested_AsksForConfirmationNamingTheJobListing', async () => {
+    showList([listingWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' })])
+    server.use(http.delete(DELETE_PATH, () => new HttpResponse(null, { status: 204 })))
+    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText('Delete Backend Engineer — Acme?')).toBeInTheDocument()
+    expect(await requestsTo(DELETE_PATH)).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Yes, delete' }))
+
+    await waitFor(() => expect(screen.queryByText('Backend Engineer — Acme')).not.toBeInTheDocument())
+    expect(await requestsTo(DELETE_PATH)).toHaveLength(1)
+  })
+
+  it('Delete_ConfirmationCancelled_DeletesNothingAndSendsNothing', async () => {
+    showList([listing('saved')])
+    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Acme')).toBeInTheDocument()
+    expect(await requestsTo(DELETE_PATH)).toHaveLength(0)
   })
 })
