@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -41,6 +42,7 @@ func listSnippetsHandler(dataDir string) http.HandlerFunc {
 
 		enriched := make([]snippetWithUsage, len(snippets))
 		for i, s := range snippets {
+			attachSnippetVersion(&s, dataDir)
 			enriched[i] = snippetWithUsage{Snippet: s, LastUsedAt: lastUsed[s.ID]}
 		}
 		writeJSON(w, http.StatusOK, enriched)
@@ -59,8 +61,19 @@ func getSnippetHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachSnippetVersion(&snippet, dataDir)
 		writeJSON(w, http.StatusOK, snippet)
 	}
+}
+
+// attachSnippetVersion populates snippet.Version, the read-time token a
+// later conditional write is checked against (issue #89).
+func attachSnippetVersion(snippet *masterdata.Snippet, dataDir string) {
+	version, err := masterdata.SnippetVersion(dataDir, snippet.ID)
+	if err != nil {
+		return
+	}
+	snippet.Version = version
 }
 
 func createSnippetHandler(dataDir string) http.HandlerFunc {
@@ -80,6 +93,7 @@ func createSnippetHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachSnippetVersion(&created, dataDir)
 		writeJSON(w, http.StatusCreated, created)
 	}
 }
@@ -94,9 +108,13 @@ func putSnippetHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		updated, err := masterdata.UpdateSnippet(dataDir, id, snippet)
+		updated, err := masterdata.UpdateSnippetIfMatch(dataDir, id, snippet, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "snippet not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Cover Letter Snippet")
 			return
 		}
 		if errors.Is(err, masterdata.ErrValidation) {
@@ -107,6 +125,7 @@ func putSnippetHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachSnippetVersion(&updated, dataDir)
 		writeJSON(w, http.StatusOK, updated)
 	}
 }
@@ -114,9 +133,13 @@ func putSnippetHandler(dataDir string) http.HandlerFunc {
 func deleteSnippetHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := masterdata.DeleteSnippet(dataDir, id)
+		err := masterdata.DeleteSnippetIfMatch(dataDir, id, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "snippet not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Cover Letter Snippet")
 			return
 		}
 		if err != nil {
