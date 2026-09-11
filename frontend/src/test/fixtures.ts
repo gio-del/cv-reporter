@@ -66,8 +66,10 @@ export function entry(overrides: Partial<Entry> = {}): Entry {
 }
 
 /**
- * generateResult is a Generate call's result: one Entry with two bullets, an
- * Italian-or-English language, usage and no Cover Letter unless asked for.
+ * generateResult is a Generate call's result: two Entries of two bullets
+ * each, usage, and no Cover Letter unless asked for. Each bullet's rewritten
+ * text equals its source so the Text Review checkboxes have stable
+ * accessible names — the word-level diff is BulletDiff's own concern.
  */
 export function generateResult(overrides: Partial<GenerateResult> = {}): GenerateResult {
   return {
@@ -75,11 +77,19 @@ export function generateResult(overrides: Partial<GenerateResult> = {}): Generat
     selection: {
       entries: [
         {
-          entryId: 'acme-backend',
+          entryId: 'globex-backend',
           reason: 'Closest match to the Job Description.',
           bullets: [
-            { sourceIndex: 0, source: 'Built an API.', rewritten: 'Built a Go HTTP API.' },
-            { sourceIndex: 1, source: 'Ran deploys.', rewritten: 'Owned deploys end to end.' },
+            { sourceIndex: 0, source: 'Built a Go HTTP API.', rewritten: 'Built a Go HTTP API.' },
+            { sourceIndex: 1, source: 'Owned deploys end to end.', rewritten: 'Owned deploys end to end.' },
+          ],
+        },
+        {
+          entryId: 'pathfinder',
+          reason: 'Shows routing work.',
+          bullets: [
+            { sourceIndex: 0, source: 'Wrote a route planner.', rewritten: 'Wrote a route planner.' },
+            { sourceIndex: 1, source: 'Published it as open source.', rewritten: 'Published it as open source.' },
           ],
         },
       ],
@@ -88,6 +98,14 @@ export function generateResult(overrides: Partial<GenerateResult> = {}): Generat
     language: 'en',
     ...overrides,
   }
+}
+
+/** selectedEntries are the Entries a Generate result offers at Text Review. */
+export function generationEntries(): Entry[] {
+  return [
+    entry({ id: 'globex-backend', type: 'experience', employer: 'Globex' }),
+    entry({ id: 'pathfinder', type: 'project', name: 'Pathfinder', employer: undefined, role: undefined }),
+  ]
 }
 
 export function renderResult(overrides: Partial<RenderResult> = {}): RenderResult {
