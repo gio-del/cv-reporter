@@ -1,0 +1,134 @@
+# Dependency-update automation (issue #93).
+#
+# This is a single-maintainer personal repo, so the tuning here is aimed at
+# noise, not coverage: monthly runs, everything in one ecosystem grouped into
+# a single pull request, majors broken out on their own, a low cap on open
+# pull requests, and a human review + merge on every one of them. There is
+# deliberately no auto-merge and no merge queue — green CI is evidence for the
+# maintainer's decision, not a substitute for it.
+#
+# The `schedule` below only governs the version-update lane. Dependabot's
+# security lane is advisory-driven and unaffected by it, which is the intended
+# asymmetry: routine updates are quiet and batched, advisories arrive promptly
+# and on their own.
+#
+# DELIBERATELY NOT AUTOMATED: typst-version.txt (repo root).
+# The pinned typst release and Liberation Sans font are a render-fidelity
+# decision, not a dependency (ADR-0012, ADR-0016). They are what keeps the
+# tailor-cv skill's host-side Render and the backend container's Render
+# producing identical pagination for identical input, against a hard one-page
+# constraint on the Tailored CV. A version bump is a potential layout change
+# that CI cannot catch — the render tests assert that compilation succeeds,
+# not that the result still fits on one page. Visual Review is the only real
+# gate there, and a dependency-update pull request is not a Visual Review.
+# So: no ecosystem covers that file and no custom updater is added for it.
+# Bumping it stays a single, deliberate human edit in typst-version.txt.
+# The `poppler-utils` apt pin in backend/Dockerfile is likewise untouched
+# (ADR-0012 pinned it to keep the ATS-parsability check's behavior stable);
+# the Debian base-image bump that would invalidate it arrives as a major
+# update, on its own, which is exactly the pull request where a reviewer
+# should re-read ADR-0012.
+#
+# Each block names its directory explicitly, so adding a fifth manifest later
+# is an obvious one-block edit.
+
+version: 2
+
+updates:
+  # Backend Go module — includes the Anthropic SDK, on the critical path for
+  # every Generation.
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: monthly
+    # 2 per block: room for one grouped minor/patch pull request plus at most
+    # one major at a time. The steady state should be ~1 per surface per month.
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - go
+    groups:
+      backend-go:
+        patterns:
+          - "*"
+        # Majors are excluded from the group on purpose: a grouped minor/patch
+        # pull request is a skim-and-approve decision given green CI, a major
+        # is a read-the-changelog decision, and merging the two review modes
+        # into one pull request degrades both.
+        update-types:
+          - minor
+          - patch
+
+  # Frontend app — React, Vite, Tailwind, TypeScript and the lint tooling.
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      frontend-npm:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # Browser extension — the test tooling protecting the fragile capture path.
+  - package-ecosystem: npm
+    directory: /extension
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - javascript
+    groups:
+      extension-npm:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # The actions/* versions used by .github/workflows/ci.yml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+  # Container base images: the backend's Go build stage and Debian runtime
+  # stage, and the frontend's Node image. Note that the backend's final stage
+  # is deliberately not distroless (ADR-0012) — Render needs a real typst
+  # binary and Liberation Sans on PATH. A tag bump must never quietly undo
+  # that shape.
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - docker
+    groups:
+      base-images:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
