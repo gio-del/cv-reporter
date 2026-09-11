@@ -1,7 +1,12 @@
 package api_test
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 )
@@ -68,5 +73,88 @@ func TestNewServer_AddrDefaultsAndOverrides(t *testing.T) {
 	explicit := api.NewServer(api.RouterConfig{DataDir: dataDir, Addr: "127.0.0.1:9999", GenerationClient: &fakeGenerationClient{}})
 	if explicit.Addr != "127.0.0.1:9999" {
 		t.Errorf("explicit Addr should be used verbatim, got %q", explicit.Addr)
+	}
+}
+
+// TestNewServer_RequestPathIsUnchanged is the paired check that adding a
+// server around the router changed nothing about the requests it serves:
+// default (localhost-only, no auth) mode still answers unauthenticated,
+// and a configured LAN auth token still rejects a request without it —
+// through the handler NewServer built, not one assembled by the test.
+func TestNewServer_RequestPathIsUnchanged(t *testing.T) {
+	dataDir := seedDataDir(t)
+
+	for _, tc := range []struct {
+		name     string
+		token    string
+		expected int
+	}{
+		{"default mode, no token configured", "", http.StatusOK},
+		{"LAN mode, request carries no token", "s3cret", http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := api.NewServer(api.RouterConfig{
+				DataDir:          dataDir,
+				GenerationClient: &fakeGenerationClient{},
+				LANAuthToken:     tc.token,
+			})
+			server := httptest.NewServer(srv.Handler)
+			defer server.Close()
+
+			resp, err := http.Get(server.URL + "/api/healthz")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != tc.expected {
+				t.Fatalf("expected %d, got %d", tc.expected, resp.StatusCode)
+			}
+		})
+	}
+}
+
+// TestNewServer_AbandonedRequest_StopsItsClaudeCall is story 12: a browser
+// that closes the tab or reloads the page cancels the request, and the
+// Claude call behind it stops rather than running on and billing for a
+// response nobody will read.
+func TestNewServer_AbandonedRequest_StopsItsClaudeCall(t *testing.T) {
+	dataDir := seedDataDir(t)
+	observed := make(chan error, 1)
+	srv := api.NewServer(api.RouterConfig{
+		DataDir:          dataDir,
+		GenerationClient: blockingGenerationClient(observed),
+	})
+	server := httptest.NewServer(srv.Handler)
+	defer server.Close()
+
+	ctx, abandon := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, server.URL+"/api/generations",
+		strings.NewReader(`{"jobDescription":"Looking for a Go backend engineer."}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if resp, err := http.DefaultClient.Do(req); err == nil {
+			resp.Body.Close()
+		}
+	}()
+
+	// Give the handler time to reach the (blocking) Claude call, then
+	// walk away from it.
+	time.Sleep(50 * time.Millisecond)
+	abandon()
+	<-done
+
+	select {
+	case err := <-observed:
+		if err != context.Canceled {
+			t.Fatalf("expected the outbound call's context to report cancellation, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the outbound call kept running after the request was abandoned")
 	}
 }
