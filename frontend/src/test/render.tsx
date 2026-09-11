@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 // Pages read route params and search params, so they are rendered inside a
 // real MemoryRouter at their real route rather than having routing stubbed —
@@ -28,13 +29,17 @@ export function renderPage(element: ReactElement, options: RenderPageOptions = {
   // `pointer-events: none` on the body while open, which jsdom reports
   // faithfully and user-event would otherwise refuse to click through.
   const user = userEvent.setup({ pointerEventsCheck: 0 })
+  // TooltipProvider mirrors App.tsx: pages render Tooltips, and Radix needs
+  // its provider above them exactly as the real app supplies it.
   const result = render(
-    <MemoryRouter initialEntries={[at]}>
-      <LocationProbe />
-      <Routes>
-        <Route path={pattern} element={element} />
-      </Routes>
-    </MemoryRouter>,
+    <TooltipProvider>
+      <MemoryRouter initialEntries={[at]}>
+        <LocationProbe />
+        <Routes>
+          <Route path={pattern} element={element} />
+        </Routes>
+      </MemoryRouter>
+    </TooltipProvider>,
   )
   return { user, ...result }
 }
