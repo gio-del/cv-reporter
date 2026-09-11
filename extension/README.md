@@ -53,7 +53,9 @@ npm test
 
 This suite is load-bearing, not optional local tooling: `.github/workflows/ci.yml` runs it as its own `extension` job (peer to `backend` and `frontend`) on every push to `main` and every pull request, installing from the committed `package-lock.json` so CI parses fixtures with the same jsdom version you do. A failing extension test fails the build.
 
-Only the pure extraction/validation functions are covered this way — button injection, click handling, and message-passing to `background.js` stay untested, exercised manually via "Loading it" above instead. `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
+What is covered: LinkedIn extraction (`content.test.js` against `fixtures/linkedin-job-view.html` — Job Title, company, Company Logo including the lazy-load fallback, Job Description Markdown with the toggle stripped and the longest block chosen, canonical URL in both the split-pane and direct-page cases, and the salary badge scan found/description-excluded/absent), Indeed extraction (`content-indeed.test.js` against `fixtures/indeed-job-view.html`), and the capture validator (`validate-capture.test.js`, pure payloads).
+
+What is not: button injection, click handling, the mutation observer that re-injects after a single-page-app re-render, and message-passing to `background.js` all need the `chrome.*` runtime faked, so they stay untested and are exercised manually via "Loading it" above instead. And both fixtures are synthetic — a green suite says the extraction logic is correct against the DOM shape the scripts target, never that LinkedIn or Indeed still serve that shape (see `fixtures/README.md`). `extension/package.json`/`node_modules` exist solely for this test suite; the extension itself still ships as plain, unbundled scripts per `manifest.json`, no build step involved.
 
 ### If capture breaks again
 
