@@ -182,3 +182,82 @@ tags:
 		t.Errorf("expected no staleEntries field for a record with no stored entryIds, got %v", record["staleEntries"])
 	}
 }
+
+// editAmplifonEntry commits an edit to one of the Master Data Entries the
+// seeded project root ships, dated well after any Generation recorded during
+// a test — the "source Entry changed since the Tailored CV was produced"
+// fixture (issue #52).
+func editAmplifonEntry(t *testing.T, projectRoot string) {
+	t.Helper()
+	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"), `---
+employer: Quantyca S.p.A.
+role: Data Engineer
+client: Amplifon
+location: Monza
+start: "2024-10"
+end: null
+flagship: true
+tags:
+  - AI Platform
+  - React
+---
+
+- Designed and built an AI Platform, now with an added bullet.
+- Built the platform's front end in React.
+`, "edit amplifon entry", time.Now().UTC().Add(48*time.Hour))
+}
+
+// The stale-Entry notice moves to the Job Listing detail page (issue #94), so
+// the detail endpoint has to run the same read-time attachment the list
+// endpoint does — otherwise the notice silently renders nothing.
+func TestGetJobListing_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *testing.T) {
+	projectRoot, dataDir := seedGitProjectRoot(t)
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":     "acme-corp",
+		"cvPath":   "output/acme-corp/cv.pdf",
+		"entryIds": []string{"experience/quantyca-amplifon", "projects/emall"},
+	})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
+
+	editAmplifonEntry(t, projectRoot)
+
+	application := getJobListingDetail(t, server.URL, id)["application"].(map[string]any)
+	record := application["generations"].([]any)[0].(map[string]any)
+
+	stale, ok := record["staleEntries"].([]any)
+	if !ok || len(stale) != 1 {
+		t.Fatalf("expected exactly 1 stale entry, got %v", record["staleEntries"])
+	}
+	if stale[0] != "Quantyca S.p.A. – Data Engineer" {
+		t.Errorf("expected stale entry named by employer + role, got %v", stale[0])
+	}
+}
+
+func TestGetJobListing_NoEntriesChangedSinceGeneration_NoStaleEntries(t *testing.T) {
+	projectRoot, dataDir := seedGitProjectRoot(t)
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":     "acme-corp",
+		"cvPath":   "output/acme-corp/cv.pdf",
+		"entryIds": []string{"experience/quantyca-amplifon"},
+	})
+	resp.Body.Close()
+
+	application := getJobListingDetail(t, server.URL, id)["application"].(map[string]any)
+	record := application["generations"].([]any)[0].(map[string]any)
+	if _, present := record["staleEntries"]; present {
+		t.Errorf("expected no staleEntries field when nothing changed, got %v", record["staleEntries"])
+	}
+}

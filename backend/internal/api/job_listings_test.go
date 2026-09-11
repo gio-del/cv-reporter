@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
@@ -561,14 +562,12 @@ func TestListJobListings_NoneSaved_ReturnsEmptyArray(t *testing.T) {
 	}
 }
 
-func TestGetJobListing_ReturnsSavedRecord(t *testing.T) {
-	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
-	defer server.Close()
-
-	id := saveJobListing(t, server.URL, "Acme Corp")
-
-	resp, err := http.Get(server.URL + "/api/job-listings/" + id)
+// getJobListingDetail reads the detail endpoint's {jobListing, application}
+// pair — the shape the Job Listing detail page needs to render a record
+// without a second request (issue #94).
+func getJobListingDetail(t *testing.T, serverURL, id string) map[string]any {
+	t.Helper()
+	resp, err := http.Get(serverURL + "/api/job-listings/" + id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -577,12 +576,108 @@ func TestGetJobListing_ReturnsSavedRecord(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
-	var listing map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&listing); err != nil {
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
+	}
+	return result
+}
+
+func TestGetJobListing_ReturnsSavedRecordWithItsApplication(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	result := getJobListingDetail(t, server.URL, id)
+
+	listing, ok := result["jobListing"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected a jobListing object, got %v", result["jobListing"])
 	}
 	if listing["company"] != "Acme Corp" {
 		t.Errorf("expected company Acme Corp, got %v", listing["company"])
+	}
+
+	application, ok := result["application"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected an application object, got %v", result["application"])
+	}
+	if application["jobListingId"] != id {
+		t.Errorf("expected application jobListingId %q, got %v", id, application["jobListingId"])
+	}
+	if application["status"] != "saved" {
+		t.Errorf("expected status saved, got %v", application["status"])
+	}
+	if _, ok := application["method"].(map[string]any); !ok {
+		t.Errorf("expected an application method, got %v", application["method"])
+	}
+	if _, ok := application["statusHistory"].([]any); !ok {
+		t.Errorf("expected a statusHistory, got %v", application["statusHistory"])
+	}
+}
+
+func TestGetJobListing_AfterContactAndGeneration_CarriesTheWholeApplication(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	contactResp := patchJSON(t, server.URL+"/api/applications/"+id+"/contact", map[string]any{
+		"name":  "Dana Recruiter",
+		"email": "dana@acme.example",
+	})
+	contactResp.Body.Close()
+
+	genResp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
+		"slug":   "acme-corp",
+		"cvPath": "output/acme-corp/cv.pdf",
+	})
+	genResp.Body.Close()
+
+	application := getJobListingDetail(t, server.URL, id)["application"].(map[string]any)
+
+	contact, ok := application["contact"].(map[string]any)
+	if !ok || contact["email"] != "dana@acme.example" {
+		t.Errorf("expected the confirmed Contact on the detail response, got %v", application["contact"])
+	}
+	generations, ok := application["generations"].([]any)
+	if !ok || len(generations) != 1 {
+		t.Fatalf("expected 1 generation record, got %v", application["generations"])
+	}
+	if generations[0].(map[string]any)["slug"] != "acme-corp" {
+		t.Errorf("expected the recorded Generation's slug, got %v", generations[0])
+	}
+}
+
+// The detail page and the list row show the same record; a divergence
+// between the two responses would mean an affordance works in one place and
+// not the other (issue #94's "the two cannot drift").
+func TestGetJobListing_MatchesWhatTheListEndpointReturnsForTheSameRecord(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	listResp, err := http.Get(server.URL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listResp.Body.Close()
+	var listed []map[string]any
+	if err := json.NewDecoder(listResp.Body).Decode(&listed); err != nil {
+		t.Fatal(err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("expected 1 job listing, got %d", len(listed))
+	}
+
+	detail := getJobListingDetail(t, server.URL, id)
+	if !reflect.DeepEqual(detail, listed[0]) {
+		t.Errorf("detail response differs from the list entry for the same record:\ndetail: %v\nlist:   %v", detail, listed[0])
 	}
 }
 

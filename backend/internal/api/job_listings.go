@@ -188,10 +188,17 @@ func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 	}
 }
 
-func getJobListingHandler(dataDir string) http.HandlerFunc {
+// getJobListingHandler returns a Job Listing paired with its 1:1
+// Application — the same shape the list endpoint returns per row, including
+// the read-time stale-Entry attachment — so the Job Listing detail page
+// (issue #94) can render Status, Application Method, Contact, Generation
+// history and the stale-Entry notice from one request. projectRoot is what
+// that attachment compares Master Data modification times against, exactly
+// as in listJobListingsHandler.
+func getJobListingHandler(dataDir, projectRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		listing, err := tracking.GetJobListing(dataDir, id)
+		listing, err := tracking.Get(dataDir, id)
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "job listing not found", http.StatusNotFound)
 			return
@@ -200,6 +207,7 @@ func getJobListingHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachStaleEntries(&listing.Application, dataDir, projectRoot)
 		writeJSON(w, http.StatusOK, listing)
 	}
 }
