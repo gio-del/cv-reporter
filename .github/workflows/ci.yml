@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (vet, test)
+    name: Backend (lint, vet, test)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -19,6 +19,20 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+
+      # Runs `golangci-lint run ./...` against the repo-root .golangci.yml —
+      # the same command and the same config a developer runs locally (see
+      # README.md), so a failure here is reproducible without pushing. Placed
+      # before the typst/poppler install and the test step: it needs neither
+      # binary, so a formatting or dropped-error failure surfaces fast. The
+      # linter version is pinned for the same reason ADR-0012/ADR-0016 pin
+      # typst — a tool that gates the build doesn't float on latest.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          working-directory: backend
+          args: ./...
 
       # Render (backend/internal/generation/render.go) shells out to the
       # typst CLI, and generations_render_test.go exercises that real

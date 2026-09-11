@@ -1,0 +1,66 @@
+# golangci-lint configuration for backend/ (the repo's only Go module).
+#
+# This file is the single source of truth for the Go lint gate: the command
+# documented in README.md and the CI step in .github/workflows/ci.yml run the
+# same `golangci-lint run ./...` against this config, so a CI failure is
+# reproducible locally without pushing a commit.
+#
+# The enabled set is a deliberate, explicit allowlist (`default: none`) rather
+# than "the defaults minus some". A golangci-lint upgrade therefore cannot
+# silently enlarge the gate.
+version: "2"
+
+linters:
+  default: none
+  # Deliberately small and bug-oriented. Findings here are meant to be worth
+  # reading rather than noise to skim past.
+  #
+  # staticcheck is deliberately NOT enabled: its bug-class (SA*) checks find
+  # nothing in this tree, while its style checks contribute only ST1005
+  # capitalized-error-string complaints in the ATS fetchers and the Claude
+  # client. That is a rename-N-error-strings change wearing a linter's
+  # clothes; it can be revisited as its own issue.
+  #
+  # gocritic, revive, gosec, lll and the rest of the default suite are out for
+  # the same reason: this gate exists to catch dropped errors and formatting
+  # drift, not to adjudicate style.
+  enable:
+    - errcheck # dropped errors — the reason this gate exists
+    - govet # kept alongside the standalone `go vet` CI step, not instead of it
+    - ineffassign # assignments that are never read
+    - unused # unreferenced package-level identifiers
+  settings:
+    errcheck:
+      # LOAD-BEARING. Without this, errcheck treats `_ = someCall()` as an
+      # acknowledged discard and stays silent — which would miss exactly the
+      # swallowed usage-log write that motivated this gate. Do not remove it
+      # to quiet a finding: annotate the finding instead (see below).
+      check-blank: true
+  exclusions:
+    rules:
+      # Test files are exempt from errcheck. The Go HTTP integration tests
+      # ADR-0009 established as this repo's primary seam contain ~225
+      # idiomatic `defer resp.Body.Close()` lines; annotating or rewriting
+      # them all would be a large mechanical diff for no correctness gain.
+      # Note this exempts _test.go only — an unchecked Close() on a
+      # production file write stays a finding, which matters given ADR-0008's
+      # flat-file storage.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+issues:
+  # Report every finding rather than golangci-lint's default per-linter and
+  # per-message caps: the gate is small enough that a truncated list would only
+  # hide work from whoever is fixing it.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  # gofmt only. gofumpt and friends are deliberately not used: gofmt is the
+  # standard, and the measured drift when this gate landed was a single file.
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true

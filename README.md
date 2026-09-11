@@ -126,6 +126,8 @@ This is a single static shared secret, not a login/session system — proportion
 
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
+Backend lint: `golangci-lint run ./...` from `backend/`. It reads [`.golangci.yml`](.golangci.yml) at the repo root and is the same command CI runs, so a red lint build is reproducible locally. The enabled set is deliberately small — `gofmt`, `errcheck` (with `check-blank`, so `_ = someCall()` is flagged too), `ineffassign`, `unused`, `govet` — with the rationale for what's left out recorded in the config file itself. A genuinely intentional discard gets a `//nolint:errcheck` with a reason rather than a weaker gate. Install: `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2` (the version CI pins).
+
 ### Frontend dev loop
 
 From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`.

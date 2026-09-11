@@ -211,7 +211,7 @@ func ResolveJobDescription(ctx context.Context, text, url string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("fetching job description URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // idiomatic response-body drain: the read is already done and there's nothing to do about a close failure
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("fetching job description URL: got status %d", resp.StatusCode)
 	}

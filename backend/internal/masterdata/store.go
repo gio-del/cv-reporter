@@ -207,7 +207,7 @@ func renderEntry(e Entry) []byte {
 
 	var buf bytes.Buffer
 	buf.WriteString("---\n")
-	fmBytes, _ := yaml.Marshal(raw)
+	fmBytes, _ := yaml.Marshal(raw) //nolint:errcheck // raw is a plain struct of strings/slices; yaml.Marshal cannot fail on it
 	buf.Write(fmBytes)
 	buf.WriteString("---\n\n")
 	for _, bullet := range e.Bullets {

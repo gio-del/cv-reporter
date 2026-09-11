@@ -40,7 +40,7 @@ func downloadLogoBestEffort(ctx context.Context, doer HTTPDoer, logoURL, jobsFul
 	if err != nil {
 		return ""
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // idiomatic response-body drain: the read is already done and there's nothing to do about a close failure
 	if resp.StatusCode != http.StatusOK {
 		return ""
 	}
@@ -68,7 +68,7 @@ func downloadLogoBestEffort(ctx context.Context, doer HTTPDoer, logoURL, jobsFul
 // reports ok=false when the content isn't recognizable as an image at
 // all — a Company Logo, not just any successfully-fetched URL.
 func imageExtension(contentType string, body []byte) (ext string, ok bool) {
-	mediaType, _, _ := mime.ParseMediaType(contentType)
+	mediaType, _, _ := mime.ParseMediaType(contentType) //nolint:errcheck // an unparseable Content-Type is handled by the DetectContentType fallback below
 	if !strings.HasPrefix(mediaType, "image/") {
 		mediaType = http.DetectContentType(body)
 	}
