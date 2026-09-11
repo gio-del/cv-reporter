@@ -3,9 +3,9 @@ package tracking
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -44,7 +44,7 @@ func UpdateApplicationMethod(dataDir, id string, method ApplicationMethod) (Appl
 	}
 	application.Method = method
 
-	if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 		return Application{}, err
 	}
 	return application, nil

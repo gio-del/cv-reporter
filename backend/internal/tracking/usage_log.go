@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -51,7 +52,7 @@ func RecordStandaloneUsage(dataDir string, client any) {
 
 	data, err := json.MarshalIndent(existing, "", "  ")
 	if err == nil {
-		err = os.WriteFile(path, data, 0o644)
+		err = atomicfile.WriteFile(path, data, 0o644)
 	}
 	if err != nil {
 		log.Printf("usage log: failed to record %d Claude API call(s) to %s: %v", len(calls), path, err)
@@ -85,7 +86,7 @@ func markUsageIncomplete(dataDir, reason string) {
 	path := filepath.Join(dataDir, usageIncompleteFile)
 	data, err := json.MarshalIndent(usageIncompleteMarker{Reason: reason, RecordedAt: time.Now().UTC()}, "", "  ")
 	if err == nil {
-		err = os.WriteFile(path, data, 0o644)
+		err = atomicfile.WriteFile(path, data, 0o644)
 	}
 	if err != nil {
 		log.Printf("usage log: failed to write incompleteness marker %s: %v", path, err)

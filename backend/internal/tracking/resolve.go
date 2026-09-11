@@ -2,9 +2,9 @@ package tracking
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -27,14 +27,14 @@ func Resolve(ctx context.Context, dataDir string, client Client, id string) (Job
 
 	if listing.RAL.Source == generation.RALSourceUnresolved {
 		listing.RAL = resolveRALBestEffort(ctx, listing.JobDescription, "", client)
-		if err := os.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
+		if err := atomicfile.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
 			return JobListing{}, Application{}, err
 		}
 	}
 
 	if application.Method.Kind == MethodUnresolved {
 		application.Method = resolveApplicationMethodBestEffort(ctx, listing.JobDescription, client)
-		if err := os.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
+		if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
 			return JobListing{}, Application{}, err
 		}
 	}
