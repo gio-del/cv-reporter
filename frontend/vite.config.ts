@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -19,5 +19,17 @@ export default defineConfig({
         target: process.env.BACKEND_URL ?? 'http://localhost:8080',
       },
     },
+  },
+  // Vitest lives in this config (rather than its own) so tests inherit the
+  // '@' alias and plugin setup above instead of restating them (ADR-0018).
+  // globals: false keeps describe/it/expect explicit imports, so test files
+  // type-check under the existing `tsc -b` with no `types` array surgery.
+  test: {
+    globals: false,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+    css: false,
+    restoreMocks: true,
   },
 })
