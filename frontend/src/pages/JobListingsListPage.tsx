@@ -67,8 +67,14 @@ const freshnessBadgeVariant: Record<FreshnessStatus, 'secondary' | 'destructive'
 
 // Mirrors the backend's Status state machine (see tracking.allowedTransitions)
 // so the FE only ever offers a valid next move — the backend remains the
-// source of truth and re-validates on PATCH regardless (story 4).
-const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
+// source of truth and re-validates on PATCH regardless (story 4). Exported
+// so JobListingsListPage.test.tsx can pin its exact content transition by
+// transition: the duplication is deliberate, so drift from the backend has
+// to fail loudly rather than silently (issue #90).
+// It is a lookup table, not a component: Fast Refresh's constant-export
+// allowance covers primitives only, hence the directive below.
+// oxlint-disable-next-line react/only-export-components
+export const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
   saved: ['tailoring', 'withdrawn'],
   tailoring: ['sent', 'withdrawn'],
   sent: ['interviewing', 'rejected', 'withdrawn'],
