@@ -180,7 +180,10 @@ export function getApplicationsStats(): Promise<ApplicationStats> {
   return request('/api/applications/stats')
 }
 
-export function getJobListing(id: string): Promise<JobListing> {
+// getJobListing returns a Job Listing paired with its Application — the same
+// shape listJobListings returns per row, stale-Entry information included
+// (issue #94), so the Job Listing detail page needs one request.
+export function getJobListing(id: string): Promise<JobListingWithApplication> {
   return request(`/api/job-listings/${encodeURIComponent(id)}`)
 }
 

@@ -4,7 +4,13 @@ import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import GenerationPage from './GenerationPage'
 import type { Application, GenerateResult, RenderResult, SelectedEntry } from '@/api/types'
-import { application, generateResult, generationEntries, jobListing, renderResult } from '@/test/fixtures'
+import {
+  application,
+  generateResult,
+  generationEntries,
+  listingWithApplication,
+  renderResult,
+} from '@/test/fixtures'
 import { renderPage } from '@/test/render'
 import { recordedRequests, requestsTo, server } from '@/test/server'
 
@@ -25,7 +31,11 @@ interface Backend {
 function standUp(backend: Backend = {}) {
   server.use(
     http.get('/api/master-data/entries', () => HttpResponse.json(generationEntries())),
-    http.get('/api/job-listings/acme', () => HttpResponse.json(jobListing({ company: 'Acme' }))),
+    // The detail endpoint answers with the {jobListing, application} pair
+    // (issue #94); the Generation page reads its Job Listing out of it.
+    http.get('/api/job-listings/acme', () =>
+      HttpResponse.json(listingWithApplication({ company: 'Acme' })),
+    ),
     http.post('/api/generations', () => HttpResponse.json(backend.generate ?? generateResult())),
     http.post(RENDER_PATH, () => {
       const result = backend.render ?? renderResult()
