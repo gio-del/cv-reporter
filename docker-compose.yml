@@ -32,6 +32,13 @@ services:
       # then requires this exact value in the X-CV-Reporter-Token header.
       # See README.md/CLAUDE.md for the tradeoffs this mode accepts.
       LAN_AUTH_TOKEN: ${LAN_AUTH_TOKEN:-}
+    # The backend drains in-flight requests for 15s after SIGTERM (see
+    # api.DefaultDrainTimeout) so `docker compose down` doesn't throw away
+    # a Job Listing save that is one Claude call from finishing. Docker's
+    # default grace period is 10s, which would SIGKILL the process in the
+    # middle of that drain; 30s leaves the drain room to finish and still
+    # bounds how long a stop can take.
+    stop_grace_period: 30s
     volumes:
       # Render's typst invocation needs template/ and output/ alongside
       # data/, all under one --root (see ADR-0012), so the whole project

@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
 	"github.com/gio-del/cv-reporter/backend/internal/claude"
@@ -27,6 +28,13 @@ type RouterConfig struct {
 	// Empty means ".", the process working directory.
 	ProjectRoot string
 
+	// Addr is the TCP address NewServer listens on; it does nothing for a
+	// NewRouter-only call site. Empty means DefaultAddr
+	// ("0.0.0.0:8080") — which is not the LAN-reachable opt-in, since
+	// docker-compose.yml's port mapping is what decides reachability
+	// (issue #57, ADR-0004).
+	Addr string
+
 	// GenerationClient backs Generation, RAL estimation and the other
 	// Claude-API-facing routes (tracking.Client embeds generation.Client).
 	// Nil means a real claude.New() client, which calls the Claude API
@@ -39,6 +47,14 @@ type RouterConfig struct {
 	// freshness recheck (ADR-0007). Nil means http.DefaultClient. Tests
 	// that must not reach a live board inject a fake here.
 	ATSHTTPDoer atsboard.HTTPDoer
+
+	// ClaudeRouteTimeout bounds a single request on the Claude-calling
+	// routes (Generation, Job Listing save, resolve, suggest-contact) via
+	// a request context deadline — the bound that stands in for the
+	// http.Server WriteTimeout NewServer deliberately leaves off. Zero
+	// means DefaultClaudeRouteTimeout (10 minutes). Tests inject a short
+	// value here; the other routes are never wrapped.
+	ClaudeRouteTimeout time.Duration
 
 	// LANAuthToken opts the handler into LAN-reachable mode's auth gate
 	// (issue #57, see lan_auth.go): once non-empty, every /api/* route
@@ -69,6 +85,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		atsHTTPDoer = http.DefaultClient
 	}
 	lanAuthToken := cfg.LANAuthToken
+	// claudeRoute marks the routes that call the Claude API, the only ones
+	// that can legitimately run for minutes and so the only ones that need
+	// a bound of their own. Everything else — Master Data browsing,
+	// file-serving, the tracking reads and writes — stays unwrapped.
+	claudeRoute := func(h http.HandlerFunc) http.HandlerFunc {
+		return withRequestDeadline(cfg.ClaudeRouteTimeout, h)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
@@ -87,14 +110,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.HandleFunc("PUT /api/master-data/cover-letter-snippets/{id...}", putSnippetHandler(dataDir))
 	mux.HandleFunc("DELETE /api/master-data/cover-letter-snippets/{id...}", deleteSnippetHandler(dataDir))
 	mux.HandleFunc("GET /api/job-listings", listJobListingsHandler(dataDir, projectRoot))
-	mux.HandleFunc("POST /api/job-listings", createJobListingHandler(dataDir, generationClient, atsHTTPDoer))
-	mux.HandleFunc("POST /api/job-listings/from-extension", captureJobListingFromExtensionHandler(dataDir, generationClient, atsHTTPDoer))
+	mux.HandleFunc("POST /api/job-listings", claudeRoute(createJobListingHandler(dataDir, generationClient, atsHTTPDoer)))
+	mux.HandleFunc("POST /api/job-listings/from-extension", claudeRoute(captureJobListingFromExtensionHandler(dataDir, generationClient, atsHTTPDoer)))
 	mux.HandleFunc("OPTIONS /api/job-listings/from-extension", captureJobListingCORSPreflightHandler)
 	mux.HandleFunc("GET /api/job-listings/{id}", getJobListingHandler(dataDir))
 	mux.HandleFunc("DELETE /api/job-listings/{id}", deleteJobListingHandler(dataDir))
 	mux.HandleFunc("GET /api/job-listings/{id}/logo", getJobListingLogoHandler(dataDir))
-	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", suggestContactHandler(dataDir, generationClient))
-	mux.HandleFunc("POST /api/job-listings/{id}/resolve", resolveJobListingHandler(dataDir, generationClient))
+	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", claudeRoute(suggestContactHandler(dataDir, generationClient)))
+	mux.HandleFunc("POST /api/job-listings/{id}/resolve", claudeRoute(resolveJobListingHandler(dataDir, generationClient)))
 	mux.HandleFunc("POST /api/job-listings/{id}/check-freshness", checkFreshnessHandler(dataDir, atsHTTPDoer))
 	mux.HandleFunc("GET /api/applications/stats", getApplicationsStatsHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/status", updateApplicationStatusHandler(dataDir))
@@ -102,8 +125,8 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	mux.HandleFunc("PATCH /api/applications/{id}/contact", updateApplicationContactHandler(dataDir))
 	mux.HandleFunc("GET /api/applications/{id}/mailto", getApplicationMailtoHandler(dataDir))
 	mux.HandleFunc("POST /api/applications/{id}/generations", recordApplicationGenerationHandler(dataDir))
-	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
-	mux.HandleFunc("POST /api/generations/preview", previewGenerationHandler(dataDir, generationClient))
+	mux.HandleFunc("POST /api/generations", claudeRoute(createGenerationHandler(dataDir, generationClient)))
+	mux.HandleFunc("POST /api/generations/preview", claudeRoute(previewGenerationHandler(dataDir, generationClient)))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))
 	mux.HandleFunc("GET /api/generations/{slug}/{file}", getGenerationFileHandler(projectRoot))
 	mux.HandleFunc("GET /api/ats/{provider}/{slug}/listings", listAtsListingsHandler(dataDir, atsHTTPDoer))

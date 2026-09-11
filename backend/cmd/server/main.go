@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
 	"github.com/gio-del/cv-reporter/backend/internal/claude"
@@ -28,7 +31,8 @@ func main() {
 	// the process inside the container can't observe (see issue #57).
 	lanAuthToken := os.Getenv("LAN_AUTH_TOKEN")
 
-	mux := api.NewRouter(api.RouterConfig{
+	srv := api.NewServer(api.RouterConfig{
+		Addr:             "0.0.0.0:" + port,
 		DataDir:          dataDir,
 		ProjectRoot:      projectRoot,
 		GenerationClient: claude.New(),
@@ -36,12 +40,18 @@ func main() {
 		LANAuthToken:     lanAuthToken,
 	})
 
-	addr := "0.0.0.0:" + port
 	if lanAuthToken != "" {
-		log.Printf("LAN-reachable mode: binding %s, auth required", addr)
+		log.Printf("LAN-reachable mode: binding %s, auth required", srv.Addr)
 	}
-	log.Printf("cv-reporter backend listening on %s (data dir: %s, project root: %s)", addr, dataDir, projectRoot)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	log.Printf("cv-reporter backend listening on %s (data dir: %s, project root: %s)", srv.Addr, dataDir, projectRoot)
+	// SIGINT (Ctrl-C in a local `go run`) and SIGTERM (`docker compose
+	// down`, a restart to pick up an .env change) both reach here: the
+	// Dockerfile's exec-form ENTRYPOINT makes the server PID 1, so the
+	// signal arrives directly with no shell in between. Run turns either
+	// one into a bounded drain instead of instant death.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if err := api.Run(ctx, srv, api.DefaultDrainTimeout); err != nil {
 		log.Fatal(err)
 	}
 }
