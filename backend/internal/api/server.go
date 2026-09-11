@@ -1,6 +1,10 @@
 package api
 
 import (
+	"context"
+	"errors"
+	"log"
+	"net"
 	"net/http"
 	"time"
 )
@@ -30,7 +34,94 @@ const (
 	// DefaultIdleTimeout reaps keep-alive connections between requests, so
 	// connection count tracks actual use.
 	DefaultIdleTimeout = 120 * time.Second
+
+	// DefaultDrainTimeout is how long Serve waits for in-flight requests
+	// after a stop signal. Long enough for a Claude call that is nearly
+	// done to land and for a typst compile (seconds, ADR-0012) to finish;
+	// short enough that stopping the backend stays a quick action. A
+	// Generation that has only just started does not survive a shutdown,
+	// and should not — waiting minutes for it would make the window
+	// useless as a bound.
+	DefaultDrainTimeout = 15 * time.Second
 )
+
+// Run listens on srv.Addr and serves it until ctx is cancelled, then
+// drains as Serve documents. It is the whole of the process's lifecycle,
+// so main stays a thin wrapper over reading the environment and calling
+// it. An error means the listener could not be opened or serving failed —
+// a graceful stop returns nil.
+func Run(ctx context.Context, srv *http.Server, drainTimeout time.Duration) error {
+	addr := srv.Addr
+	if addr == "" {
+		addr = DefaultAddr
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	return Serve(ctx, srv, ln, drainTimeout)
+}
+
+// Serve serves ln with srv until ctx is cancelled — in the running process
+// that is SIGINT or SIGTERM, via signal.NotifyContext — and then stops
+// gracefully: it closes the listener so no new connection is accepted,
+// gives requests already in flight up to drainTimeout to finish, and only
+// then returns.
+//
+// Server.Shutdown waits for active handlers but does not cancel their
+// request contexts, so Serve cancels the base context every request is
+// derived from once the drain is over (cleanly or expired). Without that,
+// a request mid-Claude-call would block the drain for its full
+// multi-minute duration, the window would expire, and the process would
+// exit killing it anyway — today's behaviour with extra steps. With it,
+// the outbound call is cancelled and unwinds.
+//
+// A stop is a routine action, not a failure: Serve returns nil both when
+// the drain completes and when it expires, logging which of the two
+// happened. It returns an error only when serving itself failed.
+//
+// drainTimeout is a parameter rather than a constant so tests can inject a
+// short window; callers in the running process pass DefaultDrainTimeout. A
+// value <= 0 means DefaultDrainTimeout.
+func Serve(ctx context.Context, srv *http.Server, ln net.Listener, drainTimeout time.Duration) error {
+	if drainTimeout <= 0 {
+		drainTimeout = DefaultDrainTimeout
+	}
+
+	baseCtx, cancelBase := context.WithCancel(context.Background())
+	defer cancelBase()
+	srv.BaseContext = func(net.Listener) context.Context { return baseCtx }
+
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Serve(ln) }()
+
+	select {
+	case err := <-serveErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+	}
+
+	log.Printf("shutdown signal received: no longer accepting connections, draining in-flight requests (up to %s)", drainTimeout)
+	drainCtx, cancelDrain := context.WithTimeout(context.Background(), drainTimeout)
+	defer cancelDrain()
+	err := srv.Shutdown(drainCtx)
+	// Whatever the drain's outcome, cancel the contexts of anything still
+	// running so it stops instead of being severed at the socket.
+	cancelBase()
+
+	switch {
+	case err == nil:
+		log.Print("drain complete: all in-flight requests finished, shutting down")
+	case errors.Is(err, context.DeadlineExceeded):
+		log.Printf("drain window (%s) expired with requests still in flight: cancelling them and shutting down", drainTimeout)
+	default:
+		return err
+	}
+	return nil
+}
 
 // NewServer builds the app's *http.Server from cfg: the handler NewRouter
 // returns, wrapped in explicit connection limits rather than
