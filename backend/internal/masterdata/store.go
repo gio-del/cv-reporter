@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 
@@ -82,6 +83,19 @@ func GetEntry(dataDir, id string) (Entry, error) {
 // GetEntry would read for id, replacing its frontmatter and bullets in
 // place. On validation failure the file is left untouched.
 func UpdateEntry(dataDir, id string, entry Entry) (Entry, error) {
+	return UpdateEntryIfMatch(dataDir, id, entry, "")
+}
+
+// UpdateEntryIfMatch is UpdateEntry, refusing the write with
+// recordversion.ErrMismatch when version no longer matches the file on
+// disk — something else (the tailor-cv skill, another tab, a hand edit)
+// wrote the Entry since the caller read it. An empty version writes
+// unconditionally, exactly as UpdateEntry always has.
+//
+// The comparison happens immediately before the write, not in the caller,
+// so the window between checking and writing is as small as a
+// single-process app can make it (issue #89).
+func UpdateEntryIfMatch(dataDir, id string, entry Entry, version string) (Entry, error) {
 	dir, slug, ok := splitID(id)
 	if !ok {
 		return Entry{}, fmt.Errorf("invalid entry id %q", id)
@@ -103,10 +117,28 @@ func UpdateEntry(dataDir, id string, entry Entry) (Entry, error) {
 		return Entry{}, fmt.Errorf("%w: %v", ErrValidation, err)
 	}
 
+	if err := recordversion.Check(path, version); err != nil {
+		return Entry{}, err
+	}
+
 	if err := atomicfile.WriteFile(path, renderEntry(entry), 0o644); err != nil {
 		return Entry{}, err
 	}
 	return entry, nil
+}
+
+// EntryVersion returns the version token of the Entry file GetEntry would
+// read for id — the opaque value a later conditional write is checked
+// against.
+func EntryVersion(dataDir, id string) (string, error) {
+	dir, slug, ok := splitID(id)
+	if !ok {
+		return "", fmt.Errorf("invalid entry id %q", id)
+	}
+	if _, ok := entryDirs[dir]; !ok {
+		return "", fmt.Errorf("invalid entry id %q", id)
+	}
+	return recordversion.Of(filepath.Join(dataDir, dir, slug+".md"))
 }
 
 // CreateEntry validates entry and, if valid, writes it to a new file under
