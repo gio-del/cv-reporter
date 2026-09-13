@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -135,5 +136,80 @@ func TestDeleteJobListing_DeletedOutOfBand_Returns404NotConflict(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+// pairVersions decodes a {jobListing, application} response and returns
+// both tokens (the application's is empty when the shape has none).
+func pairVersions(t *testing.T, resp *http.Response) (jobListing, application string) {
+	t.Helper()
+	var result map[string]map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	jobListing, _ = result["jobListing"]["version"].(string)
+	application, _ = result["application"]["version"].(string)
+	return jobListing, application
+}
+
+// The server-computed routes stay unconditional, but they do rewrite the
+// files — so the FE, which merges their response into what it holds, must
+// get fresh tokens back or its next write would present a stale one.
+func TestSaveJobListing_ResponseCarriesCurrentTokens(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role. Salary: €40,000.",
+	})
+	defer resp.Body.Close()
+	jobListing, application := pairVersions(t, resp)
+
+	wantJobListing, wantApplication := listingVersions(t, server.URL, "acme-corp")
+	if jobListing != wantJobListing || application != wantApplication {
+		t.Errorf("expected the save response tokens to match a fresh read, got (%q, %q) want (%q, %q)", jobListing, application, wantJobListing, wantApplication)
+	}
+}
+
+func TestResolveJobListing_ResponseCarriesTokensUsableForTheNextWrite(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp := postJSON(t, server.URL+"/api/job-listings/"+id+"/resolve", nil)
+	defer resp.Body.Close()
+	_, application := pairVersions(t, resp)
+	if application == "" {
+		t.Fatal("expected a version token on the resolved Application")
+	}
+
+	patch := doJSON(t, http.MethodPatch, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"}, application)
+	defer patch.Body.Close()
+	if patch.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", patch.StatusCode)
+	}
+}
+
+func TestCheckFreshness_ResponseCarriesTheCurrentJobListingToken(t *testing.T) {
+	dataDir := seedDataDir(t)
+	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
+		return jsonATSResponse(http.StatusOK, ""), nil
+	}}
+	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	defer server.Close()
+
+	id := saveJobListingWithURL(t, server.URL, "Acme Corp", "https://boards.example.com/acme/jobs/1")
+
+	resp := postJSON(t, server.URL+"/api/job-listings/"+id+"/check-freshness", nil)
+	defer resp.Body.Close()
+	jobListing, _ := pairVersions(t, resp)
+
+	want, _ := listingVersions(t, server.URL, id)
+	if jobListing == "" || jobListing != want {
+		t.Errorf("expected the check-freshness response to carry the current Job Listing token, got %q want %q", jobListing, want)
 	}
 }

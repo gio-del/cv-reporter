@@ -402,6 +402,8 @@ func resolveJobListingHandler(dataDir string, client tracking.Client) http.Handl
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, saveJobListingResponse{JobListing: listing, Application: application})
 	}
 }
@@ -434,6 +436,8 @@ func createJobListingHandler(dataDir string, client tracking.Client, doer tracki
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, saveJobListingResponse{
 			JobListing:       listing,
 			Application:      application,
@@ -467,6 +471,7 @@ func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerF
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
 		writeJSON(w, http.StatusOK, checkFreshnessResponse{JobListing: listing})
 	}
 }
@@ -542,6 +547,8 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, saveJobListingResponse{
 			JobListing:       listing,
 			Application:      application,
