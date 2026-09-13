@@ -110,6 +110,8 @@ This is a single static shared secret, not a login/session system — proportion
 | POST | `/api/job-listings/{id}/resolve` | retry RAL Range/Application Method resolution for whatever is still `unresolved` on a Job Listing (no-op if both already resolved) |
 | POST | `/api/job-listings/{id}/suggest-contact` | suggest an Application contact for a Job Listing |
 | POST | `/api/job-listings/{id}/check-freshness` | on-demand check of whether a Job Listing's source URL is still live (`live`/`unreachable`/`unknown`), persisting the result and a checked-at timestamp |
+| POST | `/api/job-listings/{id}/archive` | archive a Job Listing (issue #98): sets `archived: true` in its frontmatter, returning `{jobListing}`. Idempotent; never touches the Application, deletes nothing, and archived listings still count in `/api/applications/stats` |
+| POST | `/api/job-listings/{id}/unarchive` | unarchive a Job Listing, removing the `archived` key from its frontmatter and returning `{jobListing}`. Idempotent |
 | PATCH | `/api/applications/{id}/status` | move an Application's status (state machine — see `tracking.allowedTransitions`) |
 | PATCH | `/api/applications/{id}/method` | correct an Application's Application Method |
 | PATCH | `/api/applications/{id}/contact` | correct an Application's contact |

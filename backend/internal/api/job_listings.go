@@ -208,6 +208,7 @@ type jobListingSummary struct {
 	Logo               string                   `json:"logo,omitempty"`
 	FreshnessStatus    tracking.FreshnessStatus `json:"freshnessStatus"`
 	FreshnessCheckedAt string                   `json:"freshnessCheckedAt,omitempty"`
+	Archived           bool                     `json:"archived"`
 }
 
 // jobListingSummaryWithApplication is one list row: a Job Listing summary
@@ -235,6 +236,7 @@ func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithAp
 			Logo:               listing.Logo,
 			FreshnessStatus:    listing.FreshnessStatus,
 			FreshnessCheckedAt: listing.FreshnessCheckedAt,
+			Archived:           listing.Archived,
 		},
 		Application: l.Application,
 	}
@@ -411,6 +413,33 @@ func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerF
 			return
 		}
 		writeJSON(w, http.StatusOK, checkFreshnessResponse{JobListing: listing})
+	}
+}
+
+// archiveJobListingResponse is archive/unarchive's response shape — just the
+// updated Job Listing, like check-freshness's, since archiving never
+// touches the Application record.
+type archiveJobListingResponse struct {
+	JobListing tracking.JobListing `json:"jobListing"`
+}
+
+// setJobListingArchivedHandler backs both POST /api/job-listings/{id}/archive
+// (archived true) and /unarchive (archived false) (issue #98). Both are
+// idempotent and 404 when id doesn't exist, matching the other id-addressed
+// Job Listing routes.
+func setJobListingArchivedHandler(dataDir string, archived bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, err := tracking.SetArchived(dataDir, id, archived)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, archiveJobListingResponse{JobListing: listing})
 	}
 }
 

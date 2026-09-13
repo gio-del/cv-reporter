@@ -89,6 +89,8 @@ func NewRouterFullWithATSAndAuth(dataDir, projectRoot string, generationClient t
 	mux.HandleFunc("POST /api/job-listings/{id}/suggest-contact", suggestContactHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/job-listings/{id}/resolve", resolveJobListingHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/job-listings/{id}/check-freshness", checkFreshnessHandler(dataDir, atsHTTPDoer))
+	mux.HandleFunc("POST /api/job-listings/{id}/archive", setJobListingArchivedHandler(dataDir, true))
+	mux.HandleFunc("POST /api/job-listings/{id}/unarchive", setJobListingArchivedHandler(dataDir, false))
 	mux.HandleFunc("GET /api/applications/stats", getApplicationsStatsHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/status", updateApplicationStatusHandler(dataDir))
 	mux.HandleFunc("PATCH /api/applications/{id}/method", updateApplicationMethodHandler(dataDir))
