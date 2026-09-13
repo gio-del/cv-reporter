@@ -1,3 +1,5 @@
 # RAL Range estimation is two Claude API calls, not one
 
 `Client.EstimateRAL` (called only when `ParseStatedRAL` finds nothing stated in the Job Description) makes two Claude API calls instead of one: a first call with the web search tool enabled and free-form text output to do the actual research, then a second call, no web search tool, with a forced tool call to extract a structured `{found, min, max, currency}` from the first call's text. The obvious one-call design — web search tool plus a forced custom tool in the same request — doesn't compose well: forcing `tool_choice` to a specific custom tool suppresses the model's own decision to invoke the server-executed web search tool first, so the model would emit structured output without ever researching anything. Splitting research from extraction costs a second request but guarantees the tool call is only ever synthesizing already-gathered findings, not guessing.
+
+Because the extraction call only synthesizes findings the research call already gathered, it is served by a cheaper model than the research call — see ADR-0025.
