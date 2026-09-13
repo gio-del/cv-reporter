@@ -53,8 +53,12 @@ The gross annual salary (Reddito Annuo Lordo) range for a Job Listing, with a so
 _Avoid_: salary, salary range, pay
 
 **Application**:
-The tracked record of one attempt to apply to a Job Listing (exactly one Application per Job Listing), created the moment it's saved: its Status, Application Method, Contact (if applicable), and a history of every Generation run for it — the most recent Tailored CV and Cover Letter being what you'd actually send.
+The tracked record of one attempt to apply to a Job Listing (exactly one Application per Job Listing), created the moment it's saved: its Status, Application Method, Contact (if applicable), its Notes, and a history of every Generation run for it — the most recent Tailored CV and Cover Letter being what you'd actually send.
 _Avoid_: submission
+
+**Note**:
+A timestamped, Markdown observation the user records against an Application as its process unfolds — what a recruiter said, a deadline agreed, a salary figure discussed. Ordered newest-first and never derived from anything else: the tool writes Status history on its own, but a Note is only ever authored by the user. Its body is correctable (an edited Note is marked as edited) and it can be deleted, but its timestamp is fixed at the moment it was written. Adding one never changes the Application's Status or staleness, and a Note never feeds Generation. Deliberately not a reminder: nothing about a Note ever fires.
+_Avoid_: comment, log entry, memo, activity
 
 **Status** (of an Application):
 Where an Application stands: Saved → Tailoring → Sent → Interviewing → Rejected/Offer. Rejected is not fully terminal: it can be moved back to Interviewing via Reopen, for when a rejection turns out to be premature (e.g. a recruiter reaches back out). Both moving to Rejected and Reopening from it require explicit user confirmation, since each reverses the other. Offer remains fully terminal. Withdrawn is a separate Status, additively reachable from Saved, Tailoring, Sent, or Interviewing, recording the user ending the process on their own initiative — distinct from Rejected, which means the employer ended it. Withdrawn follows the same terminal-but-reopenable shape as Rejected: its only outbound move is back to Interviewing via Reopen, with the same explicit-confirmation requirement in both directions.

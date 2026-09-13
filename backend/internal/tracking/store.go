@@ -68,6 +68,9 @@ type rawApplication struct {
 	Contact         *Contact           `yaml:"contact,omitempty"`
 	Generations     []GenerationRecord `yaml:"generations,omitempty"`
 	StatusHistory   []StatusChange     `yaml:"statusHistory,omitempty"`
+	// Notes is omitempty so an Application without Notes renders exactly as
+	// a file written before issue #96, with no stray empty key.
+	Notes []Note `yaml:"notes,omitempty"`
 }
 
 // Save resolves req's Job Description (required — its absence blocks the
@@ -267,6 +270,7 @@ func getApplication(dataDir, slug string) (Application, error) {
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return Application{}, err
 	}
+	sortNotesNewestFirst(raw.Notes)
 	return Application{
 		ID:              slug,
 		JobListingID:    raw.JobListingID,
@@ -277,6 +281,7 @@ func getApplication(dataDir, slug string) (Application, error) {
 		IsStale:         IsStale(raw.Status, raw.StatusUpdatedAt, time.Now(), DefaultStaleThreshold),
 		Generations:     raw.Generations,
 		StatusHistory:   raw.StatusHistory,
+		Notes:           raw.Notes,
 	}, nil
 }
 
@@ -339,6 +344,7 @@ func renderApplication(a Application) []byte {
 		Contact:         a.Contact,
 		Generations:     a.Generations,
 		StatusHistory:   a.StatusHistory,
+		Notes:           a.Notes,
 	}
 	out, _ := yaml.Marshal(raw)
 	return out

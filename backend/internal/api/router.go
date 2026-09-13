@@ -97,6 +97,7 @@ func NewRouterFullWithATSAndAuth(dataDir, projectRoot string, generationClient t
 	mux.HandleFunc("PATCH /api/applications/{id}/contact", updateApplicationContactHandler(dataDir))
 	mux.HandleFunc("GET /api/applications/{id}/mailto", getApplicationMailtoHandler(dataDir))
 	mux.HandleFunc("POST /api/applications/{id}/generations", recordApplicationGenerationHandler(dataDir))
+	mux.HandleFunc("POST /api/applications/{id}/notes", addApplicationNoteHandler(dataDir))
 	mux.HandleFunc("POST /api/generations", createGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/preview", previewGenerationHandler(dataDir, generationClient))
 	mux.HandleFunc("POST /api/generations/render", renderGenerationHandler(dataDir, projectRoot))

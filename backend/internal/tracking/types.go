@@ -202,6 +202,11 @@ type Application struct {
 	// first. Applications saved before this field existed simply have an
 	// empty slice — there is nothing to backfill it from.
 	StatusHistory []StatusChange `json:"statusHistory,omitempty"`
+	// Notes are the user's own timestamped observations on this Application
+	// (issue #96), newest first. Absent means no Notes: a record written
+	// before this field existed and one whose Notes were all deleted mean
+	// the same thing, so there is no tolerance rule to add for it.
+	Notes []Note `json:"notes,omitempty"`
 }
 
 // ListingWithApplication pairs a Job Listing with its 1:1 Application, the
