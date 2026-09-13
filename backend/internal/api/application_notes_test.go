@@ -401,6 +401,82 @@ func TestEditNote_UnknownNoteID_Returns404AndLeavesNotesAlone(t *testing.T) {
 	}
 }
 
+func deleteNote(t *testing.T, serverURL, id, noteID string) *http.Response {
+	t.Helper()
+	return deleteRequest(t, serverURL+"/api/applications/"+id+"/notes/"+noteID)
+}
+
+func TestDeleteNote_RemovesOnlyTheAddressedNote(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	addNoteOK(t, server.URL, id, "First.")
+	middle := notesOf(t, addNoteOK(t, server.URL, id, "Typed into the wrong Application."))[0]
+	addNoteOK(t, server.URL, id, "Third.")
+
+	resp := deleteNote(t, server.URL, id, middle["id"].(string))
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	want := []string{"Third.", "First."}
+	for label, application := range map[string]map[string]any{"response": decodeApplication(t, resp), "re-read": storedApplication(t, server.URL, id)} {
+		if got := noteBodies(notesOf(t, application)); !equalStrings(got, want) {
+			t.Errorf("%s: expected the siblings %v intact, got %v", label, want, got)
+		}
+	}
+}
+
+func TestDeleteNote_LastNote_LeavesNoNotesKeyBehind(t *testing.T) {
+	dataDir, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	note := notesOf(t, addNoteOK(t, server.URL, id, "Only Note."))[0]
+
+	resp := deleteNote(t, server.URL, id, note["id"].(string))
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if _, ok := decodeApplication(t, resp)["notes"]; ok {
+		t.Errorf("expected an Application with no Notes left to carry no notes key")
+	}
+	content, err := os.ReadFile(filepath.Join(dataDir, "applications", id+".md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(content, []byte("notes")) {
+		t.Errorf("expected no stray notes key once the last Note is deleted, got:\n%s", content)
+	}
+}
+
+func TestDeleteNote_UnknownApplication_Returns404(t *testing.T) {
+	_, server := newNotesServer(t)
+
+	resp := deleteNote(t, server.URL, "does-not-exist", "n1")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteNote_UnknownNoteID_Returns404AndLeavesNotesAlone(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	addNoteOK(t, server.URL, id, "Real Note.")
+
+	resp := deleteNote(t, server.URL, id, "no-such-note")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+	if got := noteBodies(notesOf(t, storedApplication(t, server.URL, id))); !equalStrings(got, []string{"Real Note."}) {
+		t.Errorf("expected the existing Note untouched, got %v", got)
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

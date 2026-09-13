@@ -94,6 +94,31 @@ func EditNote(dataDir, id, noteID, body string) (Application, error) {
 	return application, nil
 }
 
+// DeleteNote hard-deletes the Note noteID from the Application id, leaving
+// its siblings intact, and returns the updated Application (story 11). No
+// tombstone is kept; the confirmation step belongs to the UI (story 12).
+// Deleting the last Note leaves the Application with no notes key at all,
+// exactly as if it never had one.
+func DeleteNote(dataDir, id, noteID string) (Application, error) {
+	application, err := getApplication(dataDir, id)
+	if err != nil {
+		return Application{}, err
+	}
+	i := noteIndex(application.Notes, noteID)
+	if i < 0 {
+		return Application{}, ErrNoteNotFound
+	}
+
+	application.Notes = append(application.Notes[:i:i], application.Notes[i+1:]...)
+	if len(application.Notes) == 0 {
+		application.Notes = nil
+	}
+	if err := writeApplication(dataDir, application); err != nil {
+		return Application{}, err
+	}
+	return application, nil
+}
+
 func noteIndex(notes []Note, noteID string) int {
 	for i, n := range notes {
 		if n.ID == noteID {

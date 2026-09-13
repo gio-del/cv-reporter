@@ -53,6 +53,18 @@ func editApplicationNoteHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
+// deleteApplicationNoteHandler hard-deletes the Note noteId from the
+// Application id, answering 200 with the whole updated Application.
+func deleteApplicationNoteHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		application, err := tracking.DeleteNote(dataDir, r.PathValue("id"), r.PathValue("noteId"))
+		if writeNoteError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusOK, application)
+	}
+}
+
 // writeNoteError maps a Note operation's error to its status code and
 // reports whether it wrote a response: a missing Application or Note is
 // 404, an empty body 400.
