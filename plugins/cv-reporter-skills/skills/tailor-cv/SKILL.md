@@ -72,17 +72,17 @@ Once an Application is matched (step 1 above), any of the four actions below can
    ```
    It returns the same `{"jobListing": {...}, "application": {...}}` shape, and its `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the label behind the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another — step 5 still appends the timestamp to it.
 
-3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
+3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite and Cover Letter draft → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
 
 4. **Record the Generation.** POST the rendered result to the same endpoint the web app's own Generate button uses, so it appears in the Application's history there (`<id>` is the id from step 1, `<lang>` the target language written into `data.json`). The groundedness result is attached the same way the app attaches it, by re-running the check over the approved `selection.json` in JSON mode, in the same command:
    ```
    groundedness="$(./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json --json)"
    curl -sf -X POST http://127.0.0.1:8080/api/applications/<id>/generations \
      -H 'Content-Type: application/json' \
-     -d "{\"slug\": \"<slug>\", \"cvPath\": \"output/<slug>/cv.pdf\", \"language\": \"<lang>\", \"groundedness\": ${groundedness:-null}}"
+     -d "{\"slug\": \"<slug>\", \"cvPath\": \"output/<slug>/cv.pdf\", \"coverLetterPath\": \"output/<slug>/cover-letter.pdf\", \"sourceSnippetIds\": [<ids>], \"language\": \"<lang>\", \"groundedness\": ${groundedness:-null}}"
    ```
    Use the full timestamped `<slug>` from step 5 (the directory actually written), not the bare label.
-   The check's `--json` output is exactly the `groundedness` shape the endpoint accepts (`{}` when nothing was flagged), so the Generation displays in the web app like an app-produced one. If the check couldn't run it prints nothing and `null` is sent — never an invented result. Omit `coverLetterPath` — this skill doesn't draft Cover Letters. Omit `usage` too, deliberately: it records the backend's own Claude API calls, and a skill run makes none, so there's no honest figure to send. A connection error or non-2xx response means the Generation was **not** recorded — stop and tell the user; don't report the run as complete.
+   The check's `--json` output is exactly the `groundedness` shape the endpoint accepts (`{}` when nothing was flagged), so the Generation displays in the web app like an app-produced one. If the check couldn't run it prints nothing and `null` is sent — never an invented result. `coverLetterPath` and `sourceSnippetIds` record the Cover Letter approved at Text Review and Visual Review: `<ids>` is the Snippet ids it drew from as quoted JSON strings (`\"opening\", \"closing\"` inside the double-quoted `-d` string), already checked in step 3 to resolve to loaded Snippet files, or nothing (`[]`) for fresh prose — so Snippet usage tracking counts skill runs the same as app runs. If no Cover Letter was produced (declined at Text Review), remove both fields from the body rather than sending empty values; an absent `sourceSnippetIds` already means "no usage signal". Omit `usage`, deliberately: it records the backend's own Claude API calls, and a skill run makes none, so there's no honest figure to send. A connection error or non-2xx response means the Generation was **not** recorded — stop and tell the user; don't report the run as complete.
 
 5. **Offer the Status move.** If `application.status` (from step 1) was `"saved"`, ask the user whether to move it to `"tailoring"`. If they say yes:
    ```
