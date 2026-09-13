@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
@@ -43,15 +44,60 @@ func RecordStandaloneUsage(dataDir string, client any) {
 	existing, err := ReadUsageLog(dataDir)
 	if err != nil {
 		log.Printf("usage log: not recording %d Claude API call(s), refusing to overwrite unreadable %s: %v", len(calls), path, err)
+		markUsageIncomplete(dataDir, fmt.Sprintf("%d Claude API call(s) were not recorded because the usage log (%s) is unreadable: %v", len(calls), usageLogFile, err))
 		return
 	}
 	existing = append(existing, calls...)
 
 	data, err := json.MarshalIndent(existing, "", "  ")
-	if err != nil {
-		return
+	if err == nil {
+		err = os.WriteFile(path, data, 0o644)
 	}
-	_ = os.WriteFile(path, data, 0o644)
+	if err != nil {
+		log.Printf("usage log: failed to record %d Claude API call(s) to %s: %v", len(calls), path, err)
+		markUsageIncomplete(dataDir, fmt.Sprintf("%d Claude API call(s) could not be written to the usage log (%s): %v", len(calls), usageLogFile, err))
+	}
+}
+
+// usageIncompleteFile is a sidecar beside the usage log recording that
+// some usage has been lost (issue #102). It lives outside the log because
+// the log itself is exactly what's unwritable or unparseable when it's
+// needed, and it's on disk (not in memory) so a loss in one session is
+// still disclosed after a restart.
+const usageIncompleteFile = "usage-log.incomplete.json"
+
+type usageIncompleteMarker struct {
+	Reason     string    `json:"reason"`
+	RecordedAt time.Time `json:"recordedAt"`
+}
+
+// markUsageIncomplete best-effort persists the incompleteness marker. If
+// that write fails too, the server log line already emitted by the caller
+// is the last line of defence.
+func markUsageIncomplete(dataDir, reason string) {
+	path := filepath.Join(dataDir, usageIncompleteFile)
+	data, err := json.MarshalIndent(usageIncompleteMarker{Reason: reason, RecordedAt: time.Now().UTC()}, "", "  ")
+	if err == nil {
+		err = os.WriteFile(path, data, 0o644)
+	}
+	if err != nil {
+		log.Printf("usage log: failed to write incompleteness marker %s: %v", path, err)
+	}
+}
+
+// readUsageIncompleteReason returns the persisted marker's reason, or ""
+// when no marker exists. A marker that exists but can't be read still
+// counts as incomplete.
+func readUsageIncompleteReason(dataDir string) string {
+	data, err := os.ReadFile(filepath.Join(dataDir, usageIncompleteFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return ""
+	}
+	var marker usageIncompleteMarker
+	if err != nil || json.Unmarshal(data, &marker) != nil || marker.Reason == "" {
+		return fmt.Sprintf("Some Claude API usage could not be recorded (see %s and the backend log).", usageIncompleteFile)
+	}
+	return marker.Reason
 }
 
 // TotalUsage aggregates every Claude API call this dataDir has ever
@@ -75,6 +121,8 @@ func TotalUsage(dataDir string) (UsageTotal, error) {
 	logged, err := ReadUsageLog(dataDir)
 	if err != nil {
 		total.IncompleteReason = fmt.Sprintf("The standalone usage log (%s) is unreadable, so its calls are missing from this total and new ones are not being recorded until it is fixed or removed: %v", usageLogFile, err)
+	} else {
+		total.IncompleteReason = readUsageIncompleteReason(dataDir)
 	}
 	calls = append(calls, logged...)
 

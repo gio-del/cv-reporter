@@ -165,3 +165,30 @@ func TestSaveJobListing_CorruptUsageLog_LeavesLogUntouched(t *testing.T) {
 	}
 	assertUsageIncomplete(t, getUsage(t, server.URL))
 }
+
+func TestSaveJobListing_UsageLogWriteFails_SaveSucceedsAndIncompletenessSurvivesRestart(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores file permission bits, so the usage log write can't be made to fail")
+	}
+	dataDir := seedDataDir(t)
+	if err := os.WriteFile(filepath.Join(dataDir, "usage-log.json"), []byte("[]"), 0o444); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, usageReportingClient()))
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role.",
+	})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected the save to still succeed with 201, got %d", resp.StatusCode)
+	}
+	assertUsageIncomplete(t, getUsage(t, server.URL))
+	server.Close()
+
+	// A fresh router over the same dataDir stands in for an app restart.
+	restarted := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer restarted.Close()
+	assertUsageIncomplete(t, getUsage(t, restarted.URL))
+}
