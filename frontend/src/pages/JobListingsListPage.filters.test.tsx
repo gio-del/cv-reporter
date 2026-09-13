@@ -155,5 +155,42 @@ describe('RAL Range sort and filter', () => {
     await user.click(screen.getByRole('button', { name: 'Clear RAL filter' }))
 
     await waitFor(async () => expect(await lastListQuery()).toBe(''))
+    expect(currentSearch()).toBe('')
+  })
+
+  // The RAL sort and applied bounds share the URL with the other filters, so
+  // returning from a Job Listing's own page restores them too (issue #94).
+  it('RALFilterAndSort_Applied_AreReflectedInTheUrlSoTheViewSurvivesADetour', async () => {
+    const { user } = open()
+    await screen.findByText('Acme')
+
+    await chooseFromSelect(user, 'Sort by RAL Range', 'RAL: low to high')
+    await user.type(screen.getByLabelText('Min RAL'), '40000')
+    await user.type(screen.getByLabelText('Max RAL'), '60000')
+    await user.click(screen.getByRole('button', { name: 'Apply RAL filter' }))
+
+    await waitFor(() =>
+      expect(currentSearch()).toBe('?ralSort=asc&ralMin=40000&ralMax=60000&ralCurrency=EUR'),
+    )
+  })
+
+  it('RALFilterAndSort_RestoredFromTheUrl_AreSentOnTheFirstRequestAndShownInTheInputs', async () => {
+    open('/jobs?status=sent&ralSort=desc&ralMin=40000&ralCurrency=EUR')
+
+    await screen.findByText('Acme')
+    expect(await lastListQuery()).toBe(
+      `?status=sent&sort=ral&order=desc&ral_min=40000&ral_max=${Number.MAX_SAFE_INTEGER}&ral_currency=EUR`,
+    )
+    expect(screen.getByLabelText('Min RAL')).toHaveValue(40000)
+    expect(screen.getByRole('button', { name: 'Clear RAL filter' })).toBeInTheDocument()
+  })
+
+  it('ClearFilters_WithARALFilterApplied_LeavesTheRALFilterInPlace', async () => {
+    const { user } = open('/jobs?status=sent&ralMin=40000&ralCurrency=EUR')
+    await screen.findByText('Acme')
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+
+    await waitFor(() => expect(currentSearch()).toBe('?ralMin=40000&ralCurrency=EUR'))
   })
 })

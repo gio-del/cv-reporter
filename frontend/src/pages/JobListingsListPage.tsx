@@ -64,11 +64,7 @@ interface PendingDelete {
 
 type RALSortChoice = 'none' | 'asc' | 'desc'
 
-interface AppliedRALFilter {
-  min: number
-  max: number
-  currency: string
-}
+const RAL_SORT_CHOICES: RALSortChoice[] = ['none', 'asc', 'desc']
 
 export default function JobListingsListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -105,22 +101,46 @@ export default function JobListingsListPage() {
   }
 
   function clearFilters() {
-    setSearchParams(new URLSearchParams())
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const key of ['status', 'company', 'savedFrom', 'savedTo']) next.delete(key)
+      return next
+    })
   }
 
-  // RAL Range sort/filter (issue #51): appliedRALFilter/ralSort together
-  // drive the fetch below, so applying a filter or sort doesn't get
-  // silently reset by anything else on the page (story 9). knownCurrencies
-  // is (re)derived only from an *unfiltered* fetch, so it keeps reflecting
-  // every currency actually in use even while a currency-scoped filter is
-  // active (story 8, currency-handling decision).
-  const [ralSort, setRalSort] = useState<RALSortChoice>('none')
-  const [ralMinInput, setRalMinInput] = useState('')
-  const [ralMaxInput, setRalMaxInput] = useState('')
-  const [ralCurrency, setRalCurrency] = useState('EUR')
+  // RAL Range sort/filter (issue #51): the applied sort and bounds live in
+  // the URL alongside the filters above, so a detour into one Job Listing's
+  // page and back — by its back link or by browser Back — restores the view
+  // as it was (issue #94, stories 5-6). Only *applied* bounds are written
+  // there: the Min/Max inputs stay local until "Apply RAL filter", so typing
+  // never fires a request per keystroke. A bound left blank is absent from
+  // the URL and falls back to 0 / no ceiling when the request is built.
+  // knownCurrencies is (re)derived only from an *unfiltered* fetch, so it
+  // keeps reflecting every currency actually in use even while a
+  // currency-scoped filter is active (story 8, currency-handling decision).
+  const ralSortParam = searchParams.get('ralSort') as RALSortChoice | null
+  const ralSort: RALSortChoice = ralSortParam && RAL_SORT_CHOICES.includes(ralSortParam) ? ralSortParam : 'none'
+  const appliedRALMin = searchParams.get('ralMin') ?? ''
+  const appliedRALMax = searchParams.get('ralMax') ?? ''
+  const appliedRALCurrency = searchParams.get('ralCurrency') ?? ''
+  const hasAppliedRALFilter = Boolean(appliedRALMin || appliedRALMax)
+  const [ralMinInput, setRalMinInput] = useState(appliedRALMin)
+  const [ralMaxInput, setRalMaxInput] = useState(appliedRALMax)
+  const [ralCurrency, setRalCurrency] = useState(appliedRALCurrency || 'EUR')
   const [knownCurrencies, setKnownCurrencies] = useState<string[]>([])
-  const [appliedRALFilter, setAppliedRALFilter] = useState<AppliedRALFilter | null>(null)
   const [ralFilterError, setRalFilterError] = useState<string | null>(null)
+
+  function setRalSort(choice: RALSortChoice) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (choice === 'none') {
+        next.delete('ralSort')
+      } else {
+        next.set('ralSort', choice)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     listJobListings({
@@ -129,13 +149,13 @@ export default function JobListingsListPage() {
       savedFrom: savedFromFilter || undefined,
       savedTo: savedToFilter || undefined,
       sortByRAL: ralSort === 'none' ? undefined : ralSort,
-      ralMin: appliedRALFilter?.min,
-      ralMax: appliedRALFilter?.max,
-      ralCurrency: appliedRALFilter?.currency,
+      ralMin: hasAppliedRALFilter ? Number(appliedRALMin || 0) : undefined,
+      ralMax: hasAppliedRALFilter ? (appliedRALMax === '' ? Number.MAX_SAFE_INTEGER : Number(appliedRALMax)) : undefined,
+      ralCurrency: hasAppliedRALFilter ? appliedRALCurrency || 'EUR' : undefined,
     })
       .then((l) => {
         setListings(l ?? [])
-        if (!appliedRALFilter) {
+        if (!hasAppliedRALFilter) {
           const currencies = Array.from(
             new Set(
               (l ?? [])
@@ -150,7 +170,17 @@ export default function JobListingsListPage() {
         }
       })
       .catch((e) => setError(e.message))
-  }, [statusFilter, companyFilter, savedFromFilter, savedToFilter, ralSort, appliedRALFilter])
+  }, [
+    statusFilter,
+    companyFilter,
+    savedFromFilter,
+    savedToFilter,
+    ralSort,
+    hasAppliedRALFilter,
+    appliedRALMin,
+    appliedRALMax,
+    appliedRALCurrency,
+  ])
 
   function handleApplyRALFilter() {
     setRalFilterError(null)
@@ -164,14 +194,28 @@ export default function JobListingsListPage() {
       setRalFilterError('Min RAL must not exceed Max RAL.')
       return
     }
-    setAppliedRALFilter({ min, max, currency: ralCurrency || knownCurrencies[0] || 'EUR' })
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('ralMin', String(min))
+      if (ralMaxInput.trim() === '') {
+        next.delete('ralMax')
+      } else {
+        next.set('ralMax', String(max))
+      }
+      next.set('ralCurrency', ralCurrency || knownCurrencies[0] || 'EUR')
+      return next
+    })
   }
 
   function handleClearRALFilter() {
     setRalMinInput('')
     setRalMaxInput('')
     setRalFilterError(null)
-    setAppliedRALFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const key of ['ralMin', 'ralMax', 'ralCurrency']) next.delete(key)
+      return next
+    })
   }
 
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
@@ -448,7 +492,7 @@ export default function JobListingsListPage() {
           Apply RAL filter
         </Button>
 
-        {appliedRALFilter && (
+        {hasAppliedRALFilter && (
           <Button size="sm" variant="ghost" onClick={handleClearRALFilter}>
             Clear RAL filter
           </Button>
@@ -461,10 +505,10 @@ export default function JobListingsListPage() {
         )}
       </div>
 
-      {listings.length === 0 && (hasActiveFilter || appliedRALFilter) && (
+      {listings.length === 0 && (hasActiveFilter || hasAppliedRALFilter) && (
         <p>No Job Listings match the current filters.</p>
       )}
-      {listings.length === 0 && !hasActiveFilter && !appliedRALFilter && <p>No Job Listings saved yet.</p>}
+      {listings.length === 0 && !hasActiveFilter && !hasAppliedRALFilter && <p>No Job Listings saved yet.</p>}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
