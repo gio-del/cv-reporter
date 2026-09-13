@@ -138,7 +138,8 @@ func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
 	if status := query.Get("status"); status != "" {
 		switch tracking.Status(status) {
 		case tracking.StatusSaved, tracking.StatusTailoring, tracking.StatusSent,
-			tracking.StatusInterviewing, tracking.StatusRejected, tracking.StatusOffer:
+			tracking.StatusInterviewing, tracking.StatusRejected, tracking.StatusOffer,
+			tracking.StatusWithdrawn:
 			params.Status = tracking.Status(status)
 		default:
 			return params, fmt.Errorf("invalid status: %q", status)
