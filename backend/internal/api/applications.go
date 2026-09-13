@@ -201,3 +201,58 @@ func getApplicationsStatsHandler(dataDir string) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, tracking.ComputeStats(applications))
 	}
 }
+
+// applicationGroupResponse is one Status group as GET /api/applications
+// returns it: its items are list rows (a Job Listing summary without the Job
+// Description text, paired with its Application), never whole records.
+type applicationGroupResponse struct {
+	Status tracking.Status                    `json:"status"`
+	Count  int                                `json:"count"`
+	Items  []jobListingSummaryWithApplication `json:"items"`
+}
+
+type applicationGroupsResponse struct {
+	Total  int                        `json:"total"`
+	Groups []applicationGroupResponse `json:"groups"`
+}
+
+// listApplicationsHandler serves the Applications view (issue #95): every
+// tracked Application grouped under its Status, most overdue first within
+// each group. It is wired exactly like the stats handler: load every record
+// once with tracking.List, hand the loaded set to a pure function
+// (tracking.GroupApplications), serialize the result.
+//
+// Archived Job Listings are left out by default and selected with the same
+// archived=exclude|only|all parameter GET /api/job-listings takes: archiving
+// is how the user takes a Job Listing off their plate, and this view is the
+// plate. Stats still counts them, since it is about history, not today.
+func listApplicationsHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		archived, err := parseArchivedView(r.URL.Query())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		listings, err := tracking.List(dataDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		listings = tracking.FilterListings(listings, tracking.FilterParams{Archived: archived})
+
+		grouped := tracking.GroupApplications(listings, time.Now(), tracking.DefaultStaleThreshold)
+		response := applicationGroupsResponse{
+			Total:  grouped.Total,
+			Groups: make([]applicationGroupResponse, len(grouped.Groups)),
+		}
+		for i, group := range grouped.Groups {
+			items := make([]jobListingSummaryWithApplication, len(group.Items))
+			for j, item := range group.Items {
+				items[j] = summarizeListing(item)
+			}
+			response.Groups[i] = applicationGroupResponse{Status: group.Status, Count: group.Count, Items: items}
+		}
+		writeJSON(w, http.StatusOK, response)
+	}
+}

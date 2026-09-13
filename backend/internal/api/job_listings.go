@@ -114,6 +114,23 @@ type captureJobListingRequest struct {
 	ListingSalaryText string `json:"listingSalaryText"`
 }
 
+// parseArchivedView reads the archived query parameter (issue #98) shared by
+// GET /api/job-listings and GET /api/applications. An absent parameter means
+// the safe default, non-archived only. The default lives here rather than in
+// tracking.FilterParams, whose zero value must keep matching everything.
+func parseArchivedView(query url.Values) (tracking.ArchivedView, error) {
+	switch archived := query.Get("archived"); archived {
+	case "", string(tracking.ArchivedExclude):
+		return tracking.ArchivedExclude, nil
+	case string(tracking.ArchivedOnly):
+		return tracking.ArchivedOnly, nil
+	case "all":
+		return tracking.ArchivedAll, nil
+	default:
+		return "", fmt.Errorf("invalid archived: %q (want exclude, only or all)", archived)
+	}
+}
+
 // parseJobListingsFilter reads the optional status/company/savedFrom/savedTo
 // query parameters (issue #45) and archived (issue #98), returning a
 // descriptive error for any value that can't be parsed rather than silently
@@ -121,19 +138,11 @@ type captureJobListingRequest struct {
 func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
 	var params tracking.FilterParams
 
-	// An absent archived parameter means the safe default, non-archived
-	// only. The default lives here rather than in tracking.FilterParams,
-	// whose zero value must keep matching everything.
-	switch archived := query.Get("archived"); archived {
-	case "", string(tracking.ArchivedExclude):
-		params.Archived = tracking.ArchivedExclude
-	case string(tracking.ArchivedOnly):
-		params.Archived = tracking.ArchivedOnly
-	case "all":
-		params.Archived = tracking.ArchivedAll
-	default:
-		return params, fmt.Errorf("invalid archived: %q (want exclude, only or all)", archived)
+	archived, err := parseArchivedView(query)
+	if err != nil {
+		return params, err
 	}
+	params.Archived = archived
 
 	if status := query.Get("status"); status != "" {
 		switch tracking.Status(status) {
