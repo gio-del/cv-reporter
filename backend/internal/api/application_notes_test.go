@@ -293,6 +293,114 @@ func TestApplicationWithoutNotes_LoadsUnchangedAndWritesNoNotesKey(t *testing.T)
 	}
 }
 
+func editNote(t *testing.T, serverURL, id, noteID, body string) *http.Response {
+	t.Helper()
+	return patchJSON(t, serverURL+"/api/applications/"+id+"/notes/"+noteID, map[string]any{"body": body})
+}
+
+func TestEditNote_ChangesTheBodyKeepsCreatedAtAndMarksItEdited(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	original := notesOf(t, addNoteOK(t, server.URL, id, "Budget tops out at 84k."))[0]
+
+	resp := editNote(t, server.URL, id, original["id"].(string), "Budget tops out at 48k.")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	for label, application := range map[string]map[string]any{"response": decodeApplication(t, resp), "re-read": storedApplication(t, server.URL, id)} {
+		notes := notesOf(t, application)
+		if len(notes) != 1 {
+			t.Fatalf("%s: expected the one Note, got %v", label, notes)
+		}
+		edited := notes[0]
+		if edited["body"] != "Budget tops out at 48k." {
+			t.Errorf("%s: expected the corrected body, got %v", label, edited["body"])
+		}
+		if edited["id"] != original["id"] {
+			t.Errorf("%s: expected the Note to keep its id %v, got %v", label, original["id"], edited["id"])
+		}
+		if edited["createdAt"] != original["createdAt"] {
+			t.Errorf("%s: expected createdAt %v unchanged by an edit, got %v", label, original["createdAt"], edited["createdAt"])
+		}
+		editedAt, _ := edited["editedAt"].(string)
+		if _, err := time.Parse(time.RFC3339Nano, editedAt); err != nil {
+			t.Errorf("%s: expected an editedAt timestamp after an edit, got %v", label, edited["editedAt"])
+		}
+	}
+}
+
+func TestEditNote_OlderNote_KeepsItsPlaceInTheLog(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	older := notesOf(t, addNoteOK(t, server.URL, id, "Screening call bookd."))[0]
+	addNoteOK(t, server.URL, id, "Take-home due Friday.")
+
+	resp := editNote(t, server.URL, id, older["id"].(string), "Screening call booked.")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	want := []string{"Take-home due Friday.", "Screening call booked."}
+	if got := noteBodies(notesOf(t, storedApplication(t, server.URL, id))); !equalStrings(got, want) {
+		t.Errorf("expected an edit not to reorder the log, want %v, got %v", want, got)
+	}
+}
+
+func TestEditNote_EmptyOrWhitespaceBody_Returns400AndWritesNothing(t *testing.T) {
+	dataDir, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	note := notesOf(t, addNoteOK(t, server.URL, id, "Keep me."))[0]
+	path := filepath.Join(dataDir, "applications", id+".md")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := editNote(t, server.URL, id, note["id"].(string), " \n ")
+	resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("expected the Application file untouched, before:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+func TestEditNote_UnknownApplication_Returns404(t *testing.T) {
+	_, server := newNotesServer(t)
+
+	resp := editNote(t, server.URL, "does-not-exist", "n1", "Hello")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestEditNote_UnknownNoteID_Returns404AndLeavesNotesAlone(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	addNoteOK(t, server.URL, id, "Real Note.")
+
+	resp := editNote(t, server.URL, id, "no-such-note", "Hello")
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+	if got := noteBodies(notesOf(t, storedApplication(t, server.URL, id))); !equalStrings(got, []string{"Real Note."}) {
+		t.Errorf("expected the existing Note untouched, got %v", got)
+	}
+}
+
 func equalStrings(a, b []string) bool {
 	if len(a) != len(b) {
 		return false

@@ -118,6 +118,7 @@ This is a single static shared secret, not a login/session system — proportion
 | GET | `/api/applications/{id}/mailto` | get a `mailto:` link prefilled for an Application |
 | POST | `/api/applications/{id}/generations` | record a Generation against an Application |
 | POST | `/api/applications/{id}/notes` | add a Note (issue #96) from `{"body": "<markdown>"}`, returning 201 with the updated Application, whose `notes` come newest-first as `{id, createdAt, editedAt?, body}`. The id and `createdAt` are server-assigned; an empty or whitespace-only body is a 400, an unknown Application a 404. Never touches Status, Status history or staleness |
+| PATCH | `/api/applications/{id}/notes/{noteId}` | correct a Note's body from `{"body": "<markdown>"}`, returning 200 with the updated Application. `createdAt` never changes; `editedAt` is set when the body actually changes. Empty body is a 400; an unknown Application or Note id a 404 |
 | POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
 | POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
 | GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |

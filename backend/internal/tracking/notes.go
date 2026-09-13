@@ -1,6 +1,7 @@
 package tracking
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,10 @@ import (
 	"strings"
 	"time"
 )
+
+// ErrNoteNotFound marks an edit or delete addressing a Note id the
+// Application does not carry.
+var ErrNoteNotFound = errors.New("note not found")
 
 // Note is one timestamped, Markdown observation the user records against an
 // Application as its process unfolds (issue #96, CONTEXT.md's Note entry).
@@ -55,6 +60,47 @@ func AddNote(dataDir, id, body string) (Application, error) {
 		return Application{}, err
 	}
 	return application, nil
+}
+
+// EditNote replaces the body of the Note noteID on the Application id and
+// returns the updated Application (story 8). CreatedAt never changes, so an
+// edit neither reorders the log nor misdates the event (story 9); EditedAt
+// records the correction (story 10). Submitting the body the Note already
+// has is a no-op that writes nothing and does not mark it edited. An unknown
+// Note id is ErrNoteNotFound; an empty body is ErrValidation.
+func EditNote(dataDir, id, noteID, body string) (Application, error) {
+	body, err := validNoteBody(body)
+	if err != nil {
+		return Application{}, err
+	}
+
+	application, err := getApplication(dataDir, id)
+	if err != nil {
+		return Application{}, err
+	}
+	i := noteIndex(application.Notes, noteID)
+	if i < 0 {
+		return Application{}, ErrNoteNotFound
+	}
+	if application.Notes[i].Body == body {
+		return application, nil
+	}
+
+	application.Notes[i].Body = body
+	application.Notes[i].EditedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := writeApplication(dataDir, application); err != nil {
+		return Application{}, err
+	}
+	return application, nil
+}
+
+func noteIndex(notes []Note, noteID string) int {
+	for i, n := range notes {
+		if n.ID == noteID {
+			return i
+		}
+	}
+	return -1
 }
 
 func validNoteBody(body string) (string, error) {

@@ -34,13 +34,34 @@ func addApplicationNoteHandler(dataDir string) http.HandlerFunc {
 	}
 }
 
+// editApplicationNoteHandler replaces the body of the Note noteId on the
+// Application id, answering 200 with the whole updated Application. The
+// Note's creation timestamp is never changed.
+func editApplicationNoteHandler(dataDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req noteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		application, err := tracking.EditNote(dataDir, r.PathValue("id"), r.PathValue("noteId"), req.Body)
+		if writeNoteError(w, err) {
+			return
+		}
+		writeJSON(w, http.StatusOK, application)
+	}
+}
+
 // writeNoteError maps a Note operation's error to its status code and
-// reports whether it wrote a response: a missing Application is 404, an
-// empty body 400.
+// reports whether it wrote a response: a missing Application or Note is
+// 404, an empty body 400.
 func writeNoteError(w http.ResponseWriter, err error) bool {
 	switch {
 	case err == nil:
 		return false
+	case errors.Is(err, tracking.ErrNoteNotFound):
+		http.Error(w, "note not found", http.StatusNotFound)
 	case errors.Is(err, os.ErrNotExist):
 		http.Error(w, "application not found", http.StatusNotFound)
 	case errors.Is(err, tracking.ErrValidation):
