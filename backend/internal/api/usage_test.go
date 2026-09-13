@@ -166,6 +166,35 @@ func TestSaveJobListing_CorruptUsageLog_LeavesLogUntouched(t *testing.T) {
 	assertUsageIncomplete(t, getUsage(t, server.URL))
 }
 
+func TestGetUsage_LogHealthyAndRecordingAgain_ClearsIncompleteness(t *testing.T) {
+	dataDir := seedDataDir(t)
+	logPath := filepath.Join(dataDir, "usage-log.json")
+	if err := os.WriteFile(logPath, []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	client := usageReportingClient()
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+	assertUsageIncomplete(t, getUsage(t, server.URL))
+
+	// The user removes the broken log; the next recorded call succeeds.
+	if err := os.Remove(logPath); err != nil {
+		t.Fatal(err)
+	}
+	client.usage = []generation.CallUsage{
+		{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
+	}
+	saveJobListing(t, server.URL, "Globex")
+
+	got := getUsage(t, server.URL)
+	assertUsageComplete(t, got)
+	if calls, _ := got["calls"].([]any); len(calls) != 1 {
+		t.Errorf("expected the 1 call recorded after recovery, got %v", got["calls"])
+	}
+}
+
 func TestSaveJobListing_UsageLogWriteFails_SaveSucceedsAndIncompletenessSurvivesRestart(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root ignores file permission bits, so the usage log write can't be made to fail")

@@ -56,6 +56,13 @@ func RecordStandaloneUsage(dataDir string, client any) {
 	if err != nil {
 		log.Printf("usage log: failed to record %d Claude API call(s) to %s: %v", len(calls), path, err)
 		markUsageIncomplete(dataDir, fmt.Sprintf("%d Claude API call(s) could not be written to the usage log (%s): %v", len(calls), usageLogFile, err))
+		return
+	}
+
+	// The log was read and written cleanly, so it's healthy again: clear
+	// any earlier marker rather than branding the total suspect forever.
+	if err := os.Remove(filepath.Join(dataDir, usageIncompleteFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("usage log: failed to clear incompleteness marker: %v", err)
 	}
 }
 
