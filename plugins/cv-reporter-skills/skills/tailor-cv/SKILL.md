@@ -153,6 +153,20 @@ Once an Application is matched (step 1 above), any of the four actions below can
    - Never write into a directory that already exists. If `output/<slug>/` exists, append `-2`, then `-3`, … until the name is free (e.g. `acme-corp-20260911-143022-2`), and create it with a plain `mkdir` (not `mkdir -p`, which silently succeeds on an existing directory).
    - Choose `<slug>` once per run: re-renders during this run's Visual Review (step 7) reuse it; the next run gets a new one.
 
+   If a Cover Letter was approved at Text Review, also write `output/<slug>/cover-letter-data.json` in the same `<slug>` directory, with exactly the seven fields `template/cover-letter.typ` reads (see the comment at the top of that file) — the same object the app's Render writes:
+   ```json
+   {
+     "name": "<profile.yaml name>",
+     "location": "<profile.yaml location>",
+     "email": "<profile.yaml email>",
+     "phone": "<profile.yaml phone>",
+     "linkedin": "<profile.yaml linkedin>",
+     "github": "<profile.yaml github>",
+     "body": "<the approved Cover Letter prose, verbatim; paragraphs separated by \n\n>"
+   }
+   ```
+   The first six are copied verbatim from `data/profile.yaml`. Skip this file when there's no Cover Letter (Default Mode, or declined).
+
 6. **Render.** This repo's render path is pinned to a specific `typst` version and the Liberation Sans font — recorded once in `typst-version.txt` at the repo root and shared with the container's own render path (ADR-0012), so the skill's host-side render and the container's stay in sync instead of silently drifting apart (issue #55). Before compiling, run the preflight check against that pin:
    ```
    ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh
@@ -161,6 +175,13 @@ Once an Application is matched (step 1 above), any of the four actions below can
    ```
    typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
    ```
+   If there's an approved Cover Letter, render it too — the preflight above covers the whole run, don't repeat it — with the invocation `template/cover-letter.typ`'s header comment documents:
+   ```
+   typst compile --root . template/cover-letter.typ output/<slug>/cover-letter.pdf --input data=output/<slug>/cover-letter-data.json
+   ```
+   and write the approved prose, verbatim and nothing else, to `output/<slug>/cover-letter.txt` (for pasting into an application portal or email body) — the same file the app's Render writes, so a skill-produced output directory looks like an app-produced one.
+
+   Report a failure by document: if the CV compile fails, say the **CV** render failed (with typst's error) and fix `data.json`; if the Cover Letter compile fails, say the **Cover Letter** render failed and fix `cover-letter-data.json` — a missing or misspelled field shows up there as a typst error naming it. One document failing doesn't make the other's PDF wrong; don't go on to Visual Review until both approved documents have rendered.
 
 7. **Visual Review (HITL, required).** First run the PDF check over the rendered file — the same page-count and ATS-parsability checks the web app's Render attaches to its own Visual Review, via the same Go code (ADR-0028), plus a check that `data.json` carries a supported `lang`:
    ```
