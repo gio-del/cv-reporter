@@ -123,8 +123,8 @@ export default function JobListingCreatePage() {
           </p>
           <p>
             Inferred Application Method: <strong>{saved.application.method.kind}</strong>
-            {saved.application.method.value && <> ({saved.application.method.value})</>} — you can correct this from
-            the Job Listings list.
+            {saved.application.method.value && <> ({saved.application.method.value})</>} — you can correct this on{' '}
+            <Link to={`/jobs/${encodeURIComponent(saved.jobListing.id)}`}>its Job Listing page</Link>.
           </p>
           <RALBadge ral={saved.jobListing.ral} />
           <p>
