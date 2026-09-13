@@ -6,8 +6,8 @@ package generation
 // capture is simply skipped — see DrainUsage).
 type CallUsage struct {
 	// CallType identifies which kind of Claude call this was (e.g.
-	// "selection_rewrite", "cover_letter", "ral_estimation",
-	// "contact_suggestion") so a lifetime total can be broken down by call
+	// "selection_rewrite", "selection_preview", "cover_letter",
+	// "ral_estimation", "contact_suggestion") so a lifetime total can be broken down by call
 	// type (PRD story 11), not just reported as one opaque number.
 	CallType         string  `json:"callType"`
 	Model            string  `json:"model"`

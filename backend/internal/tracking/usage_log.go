@@ -15,13 +15,13 @@ const usageLogFile = "usage-log.json"
 // across concurrent requests (RAL resolution, Contact suggestion, ...).
 var usageLogMu sync.Mutex
 
-// recordStandaloneUsage best-effort appends any Claude API usage client has
+// RecordStandaloneUsage best-effort appends any Claude API usage client has
 // accumulated since its last drain to dataDir's usage log file — for calls
 // made outside a Generation (RAL Range / Application Method resolution,
-// Contact suggestion), which have no GenerationRecord to persist usage on
+// Contact suggestion, the Selection preview), which have no GenerationRecord to persist usage on
 // (PRD "Claude API cost/usage visibility", story 10). Silently does nothing
 // on any failure: usage logging must never affect the call it's logging.
-func recordStandaloneUsage(dataDir string, client any) {
+func RecordStandaloneUsage(dataDir string, client any) {
 	calls := generation.DrainUsage(client)
 	if len(calls) == 0 {
 		return

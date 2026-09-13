@@ -95,7 +95,7 @@ To override a model, set a variable in `.env` (listed in `.env.example`, forward
 
 A per-call-site variable wins over `CV_REPORTER_MODEL_DEFAULT`, which wins over the built-in default; an unset or empty variable means "use the default". Values go to the API unchanged — an unknown model id doesn't stop the backend starting, the affected calls fail with the API's own error.
 
-The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
+The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. The Selection preview's call is recorded too, as `selection_preview`, in the standalone usage log (it is never persisted against an Application). Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
 
 #### Optional: LAN-reachable mode
 

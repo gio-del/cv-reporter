@@ -77,6 +77,33 @@ func TestSelectAndRewrite_RecordsUsage(t *testing.T) {
 	}
 }
 
+// The Selection preview is a real, billed Claude call, so its usage must
+// be recorded like every sibling method's.
+func TestSelectOnly_RecordsSelectionPreviewUsage(t *testing.T) {
+	clearModelEnv(t)
+	server, _ := recordingAnthropicServer(t)
+	c := NewWithOptions(option.WithBaseURL(server.URL), option.WithAPIKey("test-key"))
+
+	if _, err := c.SelectOnly(context.Background(), generation.SelectionRequest{JobDescription: "a role"}); err != nil {
+		t.Fatalf("SelectOnly() error = %v", err)
+	}
+
+	calls := c.DrainUsage()
+	if len(calls) != 1 {
+		t.Fatalf("DrainUsage() = %d calls, want 1", len(calls))
+	}
+	got := calls[0]
+	if got.CallType != "selection_preview" {
+		t.Errorf("CallType = %q, want %q", got.CallType, "selection_preview")
+	}
+	if got.Model != "claude-sonnet-5" {
+		t.Errorf("Model = %q, want %q", got.Model, "claude-sonnet-5")
+	}
+	if got.EstimatedCostUSD <= 0 {
+		t.Errorf("EstimatedCostUSD = %v, want > 0", got.EstimatedCostUSD)
+	}
+}
+
 func TestDrainUsage_NothingRecordedYet_ReturnsEmpty(t *testing.T) {
 	c := New()
 	if got := c.DrainUsage(); len(got) != 0 {

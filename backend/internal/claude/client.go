@@ -237,6 +237,7 @@ func (c *Client) SelectOnly(ctx context.Context, req generation.SelectionRequest
 	if err != nil {
 		return generation.SelectionResult{}, fmt.Errorf("calling Claude API: %w", err)
 	}
+	c.recordUsage("selection_preview", message.Model, message.Usage, 0)
 
 	for _, block := range message.Content {
 		if block.Type != "tool_use" || block.Name != selectOnlyToolName {
