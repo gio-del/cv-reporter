@@ -102,6 +102,16 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
    **Target language.** Detect the language the Job Description is written in, as an ISO 639-1 code (`it`, `en`, `fr`, …), and write the rewritten bullets in it. The tool supports `en` and `it`; any other language falls back to `en` — the same rule the web app applies (`generation.NormalizeLanguage`), and the groundedness check in step 4 prints the resolved code, which is authoritative. An unsupported language never stops the run. In Default Mode there's no Job Description, so the target language is `en` without asking.
 
+   **Draft the Cover Letter.** Skip this entirely in Default Mode — a Cover Letter is grounded in the Job Description, and Default Mode has none, so don't draft one or offer one (the app's Default Mode Generation has no Cover Letter either). Otherwise draft one now, following the same contract the web app gives its own drafting call (`draft_cover_letter` in `backend/internal/claude/client.go`), so the two paths produce the same kind of letter:
+   - **Snippets first.** If step 1 loaded any Cover Letter Snippets, select and lightly adapt among them for this Job Description — reuse the user's own vetted phrasing rather than re-inventing it — and keep a list of every Snippet id you drew from (`sourceSnippetIds`).
+   - **Fresh prose otherwise.** If the library is empty, or no Snippet fits this Job Description, write fresh prose instead, and `sourceSnippetIds` is empty. An empty library is the normal case, not a degraded one.
+   - **Same Selection as the CV.** Ground the letter in the Entries this run's Selection kept (and their rewritten bullets) and the Job Description, so the CV and the Cover Letter tell one consistent story.
+   - **No invented facts** — the same constraint as Rewrite: never state a fact, tool, employer, number or claim that isn't in those Entries or in a Snippet you cite. The letter may reword and connect what Master Data contains, never add to it.
+   - **Same language as the CV:** write it in the target language resolved above (`it` CV, `it` letter), even if a Snippet is written in another language — adapt it.
+   - **Citations must resolve.** Before presenting it, check every id in `sourceSnippetIds` against the Snippet files loaded in step 1. An id that doesn't match a loaded file is a bug in the draft, not something to show or record — drop the citation, or redraft, until every id resolves. (The app rejects such a draft the same way, in `validateCoverLetter`.)
+
+   The draft is plain text: paragraphs separated by a blank line, no Markdown or Typst markup (the template prints the body literally, line breaks included, so `*`/`#` would show up as-is). The template adds only the contact header above it — any greeting or sign-off belongs in the prose. Keep the draft and its `sourceSnippetIds` for Text Review (step 4).
+
 4. **Text Review (HITL, required).** Before presenting anything, persist the Selection + Rewrite result and run the groundedness check over it — the same check the web app runs over its own Rewrite output, via the same Go code (ADR-0028):
 
    1. **Write the Selection + Rewrite artifact** to `output/<slug>/selection.json` (choose `<slug>` now, following step 5's naming rule, and reuse it there). It's the `SelectionResult` shape the backend uses:
