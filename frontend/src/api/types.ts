@@ -369,6 +369,23 @@ export interface JobListingSummaryWithApplication {
   application: Application
 }
 
+// ApplicationGroup is one Status group of GET /api/applications (issue
+// #95): its Applications, most overdue for attention first, each paired with
+// its Job Listing summary exactly as a Job Listings list row is.
+export interface ApplicationGroup {
+  status: ApplicationStatus
+  count: number
+  items: JobListingSummaryWithApplication[]
+}
+
+// ApplicationGroups is the Applications view's data: always one group per
+// Status in pipeline order, empty ones included, grouped and ordered by the
+// backend so the page never re-derives either.
+export interface ApplicationGroups {
+  total: number
+  groups: ApplicationGroup[]
+}
+
 export type SaveJobListingResult = JobListingWithApplication & {
   duplicateWarning?: DuplicateMatch
 }

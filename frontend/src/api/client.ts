@@ -1,6 +1,7 @@
 import type {
   AddTrackedBoardRequest,
   Application,
+  ApplicationGroups,
   ApplicationMethod,
   ApplicationStats,
   ApplicationStatus,
@@ -197,6 +198,14 @@ export function listJobListings(
 
 export function exportDataUrl(): string {
   return '/api/export'
+}
+
+// listApplications reads the Applications view (issue #95): every tracked
+// Application grouped under its Status, server-ordered. archived mirrors
+// listJobListings's, and exclude, the backend's default, is left off.
+export function listApplications(archived?: ArchivedView): Promise<ApplicationGroups> {
+  const qs = archived && archived !== 'exclude' ? `?archived=${archived}` : ''
+  return request(`/api/applications${qs}`)
 }
 
 export function getApplicationsStats(): Promise<ApplicationStats> {

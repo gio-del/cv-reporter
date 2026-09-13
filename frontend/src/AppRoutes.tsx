@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import ApplicationsPage from '@/pages/ApplicationsPage'
 import AtsBrowsePage from '@/pages/AtsBrowsePage'
 import EntriesListPage from '@/pages/EntriesListPage'
 import EntryCreatePage from '@/pages/EntryCreatePage'
@@ -28,6 +29,7 @@ export default function AppRoutes() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/generate" element={<GenerationPage />} />
       <Route path="/jobs" element={<JobListingsListPage />} />
+      <Route path="/applications" element={<ApplicationsPage />} />
       <Route path="/stats" element={<StatsPage />} />
       <Route path="/jobs/new" element={<JobListingCreatePage />} />
       <Route path="/jobs/:id" element={<JobListingDetailPage />} />
