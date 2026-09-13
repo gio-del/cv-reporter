@@ -194,6 +194,8 @@ Every record is read and checked before anything is written, so an unparseable r
 | DELETE | `/api/ats/tracked-boards/{id}` | stop tracking an ATS board |
 | GET | `/api/export` | download a zip archive of Job Listing/Application data (`data/jobs/`, `data/applications/`) — a manual backup, since that data is gitignored (ADR-0008) unlike Master Data |
 
+**Lost-update protection (issue #89).** The web app and the `tailor-cv` skill both write the same files, so every read of an editable record (Entry, Cover Letter Snippet, Profile, Application, Job Listing) carries an opaque `version` field — a hash of the record file's bytes, computed on read and never persisted. Send it back as an `If-Match` header on the Entry/Snippet/Profile `PUT`s, the Entry/Snippet `DELETE`s and the three Application `PATCH`es; the Job Listing `DELETE` takes the Job Listing's token as `If-Match` and its Application's as `Application-If-Match`. If the file changed since that read, the write is refused with `409 Conflict` and nothing is written (a record that is gone is still `404`). The headers are optional: a request without them writes unconditionally, so the skill and other non-FE callers are unaffected. Recording a Generation and the server-computed Job Listing routes (save, resolve, check-freshness) stay unconditional, but return fresh tokens.
+
 Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
 
 ### Frontend dev loop
