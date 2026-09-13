@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
+import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import ApplyGuidance from '@/components/ApplyGuidance'
 import RALBadge from '@/components/RALBadge'
 import StaleEntriesNotice from '@/components/StaleEntriesNotice'
@@ -34,19 +35,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { statusLabel } from '@/lib/applicationStatus'
 import { jobListingHeading } from '@/lib/utils'
 
 const ALL_STATUSES_VALUE = 'all'
-
-const statusLabel: Record<ApplicationStatus, string> = {
-  saved: 'Saved',
-  tailoring: 'Tailoring',
-  sent: 'Sent',
-  interviewing: 'Interviewing',
-  rejected: 'Rejected',
-  offer: 'Offer',
-  withdrawn: 'Withdrawn',
-}
 
 const freshnessLabel: Record<FreshnessStatus, string> = {
   'not-yet-checked': 'Not yet checked',
@@ -63,43 +55,6 @@ const freshnessBadgeVariant: Record<FreshnessStatus, 'secondary' | 'destructive'
   live: 'secondary',
   unreachable: 'destructive',
   unknown: 'outline',
-}
-
-// Mirrors the backend's Status state machine (see tracking.allowedTransitions)
-// so the FE only ever offers a valid next move — the backend remains the
-// source of truth and re-validates on PATCH regardless (story 4). Exported
-// so JobListingsListPage.test.tsx can pin its exact content transition by
-// transition: the duplication is deliberate, so drift from the backend has
-// to fail loudly rather than silently (issue #90).
-// It is a lookup table, not a component: Fast Refresh's constant-export
-// allowance covers primitives only, hence the directive below.
-// oxlint-disable-next-line react/only-export-components
-export const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
-  saved: ['tailoring', 'withdrawn'],
-  tailoring: ['sent', 'withdrawn'],
-  sent: ['interviewing', 'rejected', 'withdrawn'],
-  interviewing: ['rejected', 'offer', 'withdrawn'],
-  rejected: ['interviewing'],
-  offer: [],
-  withdrawn: ['interviewing'],
-}
-
-// Moving into Rejected/Withdrawn, and Reopening out of either back to
-// Interviewing, each reverse the other and need explicit confirmation
-// before the PATCH fires (stories 2-4, PRD stories 3 and 5).
-function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return (
-    to === 'rejected' ||
-    to === 'withdrawn' ||
-    ((from === 'rejected' || from === 'withdrawn') && to === 'interviewing')
-  )
-}
-
-interface PendingStatusChange {
-  jobListingId: string
-  company: string
-  from: ApplicationStatus
-  to: ApplicationStatus
 }
 
 interface PendingDelete {
@@ -125,7 +80,6 @@ export default function JobListingsListPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [freshnessError, setFreshnessError] = useState<string | null>(null)
   const [checkingFreshnessId, setCheckingFreshnessId] = useState<string | null>(null)
-  const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -233,20 +187,6 @@ export default function JobListingsListPage() {
     } finally {
       setUpdatingId(null)
     }
-  }
-
-  function handleStatusSelect(jobListingId: string, company: string, from: ApplicationStatus, to: ApplicationStatus) {
-    if (needsConfirmation(from, to)) {
-      setPendingChange({ jobListingId, company, from, to })
-      return
-    }
-    handleStatusChange(jobListingId, to)
-  }
-
-  function handleConfirmPendingChange() {
-    if (!pendingChange) return
-    handleStatusChange(pendingChange.jobListingId, pendingChange.to)
-    setPendingChange(null)
   }
 
   function toggleDescription(jobListingId: string) {
@@ -528,7 +468,6 @@ export default function JobListingsListPage() {
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
-          const nextStatuses = allowedNextStatuses[application.status]
           const needsResolve = jobListing.ral.source === 'unresolved' || application.method.kind === 'unresolved'
           const isDescriptionExpanded = expandedDescriptions.has(jobListing.id)
           return (
@@ -582,31 +521,12 @@ export default function JobListingsListPage() {
                       <TooltipContent>Retries RAL Range and Application Method resolution</TooltipContent>
                     </Tooltip>
                   )}
-                  {nextStatuses.length > 0 && (
-                    <Select
-                      value=""
-                      onValueChange={(value) =>
-                        handleStatusSelect(
-                          jobListing.id,
-                          jobListing.company,
-                          application.status,
-                          value as ApplicationStatus,
-                        )
-                      }
-                      disabled={updatingId === jobListing.id}
-                    >
-                      <SelectTrigger size="sm" aria-label={`Move ${jobListing.company} to a new status`}>
-                        <SelectValue placeholder="Move to…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nextStatuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {statusLabel[status]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <ApplicationStatusControl
+                    company={jobListing.company}
+                    status={application.status}
+                    disabled={updatingId === jobListing.id}
+                    onMove={(next) => handleStatusChange(jobListing.id, next)}
+                  />
                 </div>
               </div>
               <p className="mb-0 text-sm text-muted-foreground">
@@ -735,42 +655,6 @@ export default function JobListingsListPage() {
           )
         })}
       </ul>
-
-      <AlertDialog open={pendingChange !== null} onOpenChange={(open) => !open && setPendingChange(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingChange?.to === 'rejected'
-                ? 'Mark this Application Rejected?'
-                : pendingChange?.to === 'withdrawn'
-                  ? 'Mark this Application Withdrawn?'
-                  : 'Reopen this Application to Interviewing?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingChange?.to === 'rejected'
-                ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
-                : pendingChange?.to === 'withdrawn'
-                  ? `${pendingChange.company} will be marked Withdrawn. You can Reopen it back to Interviewing later if you change your mind.`
-                  : `${pendingChange?.company} will move back to Interviewing.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmPendingChange()
-              }}
-            >
-              {pendingChange?.to === 'rejected'
-                ? 'Yes, mark Rejected'
-                : pendingChange?.to === 'withdrawn'
-                  ? 'Yes, mark Withdrawn'
-                  : 'Yes, reopen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <AlertDialogContent>

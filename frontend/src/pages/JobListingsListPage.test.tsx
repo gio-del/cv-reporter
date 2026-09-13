@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import JobListingsListPage, { allowedNextStatuses } from './JobListingsListPage'
+import JobListingsListPage from './JobListingsListPage'
 import type { ApplicationStatus, JobListingWithApplication } from '@/api/types'
 import { application, listingWithApplication } from '@/test/fixtures'
 import { renderPage } from '@/test/render'
@@ -67,22 +67,6 @@ describe('JobListingsListPage', () => {
 })
 
 describe('Application Status transitions', () => {
-  // The frontend's table duplicates the backend's tracking.allowedTransitions
-  // by design (the UI needs it to offer a next move at all). Pinning its exact
-  // content is what stops the two drifting apart silently: a backend change
-  // that is not mirrored here fails with a readable diff.
-  it('AllowedNextStatuses_EveryStatus_MatchesTheBackendStateMachine', () => {
-    expect(allowedNextStatuses).toEqual({
-      saved: ['tailoring', 'withdrawn'],
-      tailoring: ['sent', 'withdrawn'],
-      sent: ['interviewing', 'rejected', 'withdrawn'],
-      interviewing: ['rejected', 'offer', 'withdrawn'],
-      rejected: ['interviewing'],
-      offer: [],
-      withdrawn: ['interviewing'],
-    })
-  })
-
   it('StatusDropdown_Interviewing_OffersExactlyTheBackendsAllowedMoves', async () => {
     showList([listing('interviewing')])
     const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
