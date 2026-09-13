@@ -88,6 +88,13 @@ Each kind of Claude API request the backend makes runs on a model chosen for tha
 | `contact_research` | `claude-sonnet-5` | Contact web research (first of two calls) |
 | `contact_extraction` | `claude-haiku-4-5` | Contact extraction from the research notes |
 
+To override a model, set a variable in `.env` (listed in `.env.example`, forwarded by `docker-compose.yml`) and restart the backend:
+
+- `CV_REPORTER_MODEL_<CALL_SITE>` overrides one call site, e.g. `CV_REPORTER_MODEL_SELECTION_REWRITE=claude-opus-5` to try Opus 5 on Rewrite alone and compare at Text Review.
+- `CV_REPORTER_MODEL_DEFAULT` overrides every call site at once.
+
+A per-call-site variable wins over `CV_REPORTER_MODEL_DEFAULT`, which wins over the built-in default; an unset or empty variable means "use the default". Values go to the API unchanged — an unknown model id doesn't stop the backend starting, the affected calls fail with the API's own error.
+
 The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
 
 #### Optional: LAN-reachable mode

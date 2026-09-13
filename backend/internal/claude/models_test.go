@@ -1,12 +1,15 @@
 package claude
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -132,6 +135,7 @@ var documentedDefaults = map[callSite]anthropic.Model{
 }
 
 func TestEveryCallSite_SendsItsDocumentedDefaultModel(t *testing.T) {
+	clearModelEnv(t)
 	covered := map[callSite]bool{}
 	for _, inv := range callSiteInvocations {
 		var want []string
@@ -169,5 +173,105 @@ func TestPricingTable_CoversEveryReachableModel(t *testing.T) {
 		if _, ok := lookupPricing(model); !ok {
 			t.Errorf("model %q is reachable but has no pricingTable entry", model)
 		}
+	}
+}
+
+// clearModelEnv blanks every model override variable for t's duration, so
+// a CV_REPORTER_MODEL_* exported in the developer's shell can't leak into
+// a test (an empty value means unset).
+func clearModelEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv(defaultModelEnvVar, "")
+	for site := range defaultModels {
+		t.Setenv(modelEnvVar(site), "")
+	}
+}
+
+func invocation(t *testing.T, method string) callSiteInvocation {
+	t.Helper()
+	for _, inv := range callSiteInvocations {
+		if inv.method == method {
+			return inv
+		}
+	}
+	t.Fatalf("no callSiteInvocation for %s", method)
+	return callSiteInvocation{}
+}
+
+func TestModelEnvVar_Names(t *testing.T) {
+	if got, want := modelEnvVar(callSiteSelectionRewrite), "CV_REPORTER_MODEL_SELECTION_REWRITE"; got != want {
+		t.Errorf("modelEnvVar(selection_rewrite) = %q, want %q", got, want)
+	}
+	if got, want := defaultModelEnvVar, "CV_REPORTER_MODEL_DEFAULT"; got != want {
+		t.Errorf("defaultModelEnvVar = %q, want %q", got, want)
+	}
+}
+
+func TestPerCallSiteOverride_ChangesOnlyThatCallSite(t *testing.T) {
+	clearModelEnv(t)
+	t.Setenv("CV_REPORTER_MODEL_RAL_EXTRACTION", "claude-opus-5")
+
+	if got, want := sentModels(t, invocation(t, "EstimateRAL")), []string{"claude-sonnet-5", "claude-opus-5"}; !slices.Equal(got, want) {
+		t.Errorf("EstimateRAL sent %v, want %v", got, want)
+	}
+	if got, want := sentModels(t, invocation(t, "SuggestContact")), []string{"claude-sonnet-5", "claude-haiku-4-5"}; !slices.Equal(got, want) {
+		t.Errorf("SuggestContact sent %v, want %v (neighbouring extraction call site must be untouched)", got, want)
+	}
+}
+
+// The blanket override moving every call site is also what catches a call
+// site that bypasses the registry and hardcodes a model.
+func TestBlanketOverride_MovesEveryCallSite(t *testing.T) {
+	clearModelEnv(t)
+	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "claude-opus-5")
+
+	for _, inv := range callSiteInvocations {
+		t.Run(inv.method, func(t *testing.T) {
+			for i, got := range sentModels(t, inv) {
+				if got != "claude-opus-5" {
+					t.Errorf("%s request %d sent %q, want claude-opus-5", inv.method, i, got)
+				}
+			}
+		})
+	}
+}
+
+func TestPerCallSiteOverride_WinsOverBlanketOverride(t *testing.T) {
+	clearModelEnv(t)
+	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "claude-haiku-4-5")
+	t.Setenv("CV_REPORTER_MODEL_SELECTION_REWRITE", "claude-opus-5")
+
+	if got, want := sentModels(t, invocation(t, "SelectAndRewrite")), []string{"claude-opus-5"}; !slices.Equal(got, want) {
+		t.Errorf("SelectAndRewrite sent %v, want %v", got, want)
+	}
+	if got, want := sentModels(t, invocation(t, "DraftCoverLetter")), []string{"claude-haiku-4-5"}; !slices.Equal(got, want) {
+		t.Errorf("DraftCoverLetter sent %v, want %v", got, want)
+	}
+}
+
+func TestEmptyOverride_FallsBackToBuiltInDefault(t *testing.T) {
+	clearModelEnv(t)
+	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "   ")
+	t.Setenv("CV_REPORTER_MODEL_APPLICATION_METHOD_INFERENCE", "")
+
+	if got, want := sentModels(t, invocation(t, "InferApplicationMethod")), []string{"claude-haiku-4-5"}; !slices.Equal(got, want) {
+		t.Errorf("InferApplicationMethod sent %v, want %v", got, want)
+	}
+}
+
+func TestUnpricedOverride_ConstructsClientAndWarns(t *testing.T) {
+	clearModelEnv(t)
+	t.Setenv("CV_REPORTER_MODEL_COVER_LETTER", "claude-unpriced-override-test")
+	var buf bytes.Buffer
+	prevOut := log.Writer()
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(prevOut) })
+
+	if c := New(); c == nil {
+		t.Fatal("New() = nil, want a Client even with an unpriced override")
+	}
+
+	if !strings.Contains(buf.String(), "claude-unpriced-override-test") {
+		t.Errorf("log output = %q, want a warning naming the unpriced model", buf.String())
 	}
 }

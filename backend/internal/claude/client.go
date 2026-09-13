@@ -46,7 +46,9 @@ func New() *Client {
 }
 
 // NewWithOptions builds a Client with explicit SDK request options (tests
-// pointing at a fake server, a non-default model, etc).
+// pointing at a fake server, etc). Like New, it takes each call site's
+// model from defaultModels and the CV_REPORTER_MODEL_* environment (see
+// resolveModels).
 func NewWithOptions(opts ...option.RequestOption) *Client {
 	return &Client{api: anthropic.NewClient(opts...), models: resolveModels()}
 }

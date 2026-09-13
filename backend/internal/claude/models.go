@@ -1,6 +1,11 @@
 package claude
 
-import "github.com/anthropics/anthropic-sdk-go"
+import (
+	"os"
+	"strings"
+
+	"github.com/anthropics/anthropic-sdk-go"
+)
 
 // callSite identifies one kind of Claude API request this package makes,
 // for choosing the model that serves it (ADR-0025). It is deliberately
@@ -45,10 +50,38 @@ var defaultModels = map[callSite]anthropic.Model{
 	callSiteContactExtraction:          anthropic.ModelClaudeHaiku4_5,
 }
 
-// resolveModels builds a Client's per-call-site model lookup.
+// defaultModelEnvVar overrides the model for every call site at once.
+const defaultModelEnvVar = "CV_REPORTER_MODEL_DEFAULT"
+
+// modelEnvVar is the variable overriding site's model alone, e.g.
+// CV_REPORTER_MODEL_SELECTION_REWRITE.
+func modelEnvVar(site callSite) string {
+	return "CV_REPORTER_MODEL_" + strings.ToUpper(string(site))
+}
+
+// resolveModels builds a Client's per-call-site model lookup from
+// defaultModels and the environment. Precedence per call site: its own
+// CV_REPORTER_MODEL_<CALL_SITE>, then CV_REPORTER_MODEL_DEFAULT, then the
+// built-in default; an empty (or whitespace-only) value counts as unset.
+//
+// An override value is passed to the API as-is, never validated against a
+// local allowlist: a typo or a model newer than this code should not stop
+// a localhost tool from starting, and the API's own error names the
+// problem better. A resolved model with no pricing entry logs a warning
+// here, at startup, rather than only when its first call is costed.
 func resolveModels() map[callSite]anthropic.Model {
+	blanket := strings.TrimSpace(os.Getenv(defaultModelEnvVar))
 	models := make(map[callSite]anthropic.Model, len(defaultModels))
 	for site, model := range defaultModels {
+		if blanket != "" {
+			model = anthropic.Model(blanket)
+		}
+		if override := strings.TrimSpace(os.Getenv(modelEnvVar(site))); override != "" {
+			model = anthropic.Model(override)
+		}
+		if _, ok := lookupPricing(model); !ok {
+			warnUnpricedOnce(model)
+		}
 		models[site] = model
 	}
 	return models

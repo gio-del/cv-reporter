@@ -47,6 +47,7 @@ const selectAndRewriteResponse = `{
 }`
 
 func TestSelectAndRewrite_RecordsUsage(t *testing.T) {
+	clearModelEnv(t)
 	server := fakeAnthropicServer(t, selectAndRewriteResponse)
 	c := NewWithOptions(option.WithBaseURL(server.URL), option.WithAPIKey("test-key"))
 
