@@ -11,10 +11,17 @@
 // Usage:
 //
 //	cvcheck groundedness --selection output/<slug>/selection.json [--data-dir data] [--json]
+//	cvcheck pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json [--json]
+//
+// groundedness is the Text Review check point: every rewritten bullet in
+// the Selection+Rewrite artifact scored against its source bullet. pdf is
+// the Visual Review check point: page count, ATS-parsability of the PDF's
+// text layer (via pdftotext) and the assembled data's target language.
 //
 // Exit status: 0 = ran, nothing flagged; 1 = ran, something flagged;
 // 2 = the check could not run (bad usage, missing/malformed artifact,
-// artifact not traceable to Master Data). None of these is meant to stop
+// artifact not traceable to Master Data, or — with nothing else flagged —
+// pdftotext unavailable). None of these is meant to stop
 // the skill's pipeline: flags are information for the human checkpoint,
 // not failures.
 package main
@@ -39,7 +46,8 @@ const (
 )
 
 const usage = `usage:
-  cvcheck groundedness --selection <output/<slug>/selection.json> [--data-dir data] [--json]`
+  cvcheck groundedness --selection <output/<slug>/selection.json> [--data-dir data] [--json]
+  cvcheck pdf --pdf <output/<slug>/cv.pdf> --data <output/<slug>/data.json> [--json]`
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -52,6 +60,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "groundedness":
 		return runGroundedness(args[1:], stdout, stderr)
+	case "pdf":
+		return runPDF(args[1:], stdout, stderr)
 	default:
 		return unavailable(stderr, fmt.Errorf("unknown subcommand %q\n%s", args[0], usage))
 	}
@@ -171,5 +181,74 @@ func describeLanguage(detected string) string {
 		return fmt.Sprintf("Target language: %s (detected %q is not supported; falling back to the default)", resolved, detected)
 	default:
 		return "Target language: " + resolved
+	}
+}
+
+func runPDF(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("pdf", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	pdfPath := fs.String("pdf", "", "path to the rendered CV (output/<slug>/cv.pdf)")
+	dataPath := fs.String("data", "", "path to the assembled data it was rendered from (output/<slug>/data.json)")
+	asJSON := fs.Bool("json", false, "print the result as JSON instead of human-readable text")
+	if err := fs.Parse(args); err != nil {
+		return unavailable(stderr, fmt.Errorf("%v\n%s", err, usage))
+	}
+	if *pdfPath == "" || *dataPath == "" {
+		return unavailable(stderr, errors.New("--pdf and --data are both required\n"+usage))
+	}
+
+	data, err := os.ReadFile(*dataPath)
+	if err != nil {
+		return unavailable(stderr, fmt.Errorf("reading assembled data: %w", err))
+	}
+	result, err := generation.CheckRenderedCV(*pdfPath, data)
+	if err != nil {
+		return unavailable(stderr, fmt.Errorf("pdf: %w", err))
+	}
+
+	if *asJSON {
+		if err := json.NewEncoder(stdout).Encode(result); err != nil {
+			return unavailable(stderr, fmt.Errorf("encoding result: %w", err))
+		}
+	} else {
+		printPDF(stdout, result)
+	}
+
+	switch {
+	case result.PageCount != 1 || result.Parsability.Status == generation.ParsabilityWarning || result.LanguageWarning != "":
+		return exitFlagged
+	case result.Parsability.Status == generation.ParsabilityUnavailable:
+		return exitUnavailable
+	default:
+		return exitClean
+	}
+}
+
+func printPDF(w io.Writer, r generation.RenderedCVCheck) {
+	if r.PageCount == 1 {
+		fmt.Fprintln(w, "Page count: 1")
+	} else {
+		fmt.Fprintf(w, "Page count: %d (a Tailored CV must be one page — trim Selection and re-render)\n", r.PageCount)
+	}
+
+	switch r.Parsability.Status {
+	case generation.ParsabilityOK:
+		fmt.Fprintln(w, "ATS-parsability: ok")
+	case generation.ParsabilityWarning:
+		fmt.Fprintln(w, "ATS-parsability: warning (non-blocking — an ATS reading the text layer may not see these):")
+		for _, f := range r.Parsability.MissingFields {
+			fmt.Fprintf(w, "- missing from the extracted text: %s\n", f)
+		}
+		for _, v := range r.Parsability.OrderingViolations {
+			fmt.Fprintf(w, "- out of order: %s\n", v)
+		}
+	default:
+		fmt.Fprintf(w, "ATS-parsability: unavailable (%s) — the check could not run; this says nothing about the PDF itself\n", r.Parsability.Reason)
+	}
+
+	if r.LanguageWarning == "" {
+		fmt.Fprintln(w, "Language: "+r.Language)
+	} else {
+		fmt.Fprintf(w, "Language: %s (warning: %s)\n", r.Language, r.LanguageWarning)
 	}
 }

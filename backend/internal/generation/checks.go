@@ -1,8 +1,10 @@
 package generation
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
 )
@@ -42,4 +44,53 @@ func CheckSelectionGroundedness(dataDir string, selection SelectionResult) (Grou
 		return GroundednessResult{}, err
 	}
 	return computeGroundedness(selection, CoverLetterResult{}, nil), nil
+}
+
+// RenderedCVCheck is the Visual Review check point's result for one
+// rendered Tailored CV: the mechanical signals Render attaches in the app
+// (page count, ATS-parsability), plus the target language the assembled
+// data asked the template to render in.
+type RenderedCVCheck struct {
+	PageCount   int               `json:"pageCount"`
+	Parsability ParsabilityResult `json:"parsability"`
+
+	// Language is the assembled data's lang after NormalizeLanguage — what
+	// the app's Render would have stamped into the document.
+	Language string `json:"language"`
+	// LanguageWarning is set when the assembled data's lang is missing or
+	// isn't already a supported, normalized code, i.e. when the rendered
+	// document's language may not be the one intended.
+	LanguageWarning string `json:"languageWarning,omitempty"`
+}
+
+// CheckRenderedCV is the Visual Review check point's facade: given the
+// rendered CV PDF at pdfPath and the assembled data (the data.json it was
+// compiled from, in the shape template/cv.typ reads), it counts pages and
+// runs the ATS-parsability check with the same expected-field list Render
+// uses. A missing pdftotext degrades to ParsabilityUnavailable rather than
+// an error, exactly as in Render; an unreadable PDF or malformed assembled
+// data is an error, since no verdict can be reached at all.
+func CheckRenderedCV(pdfPath string, assembledData []byte) (RenderedCVCheck, error) {
+	var cv cvData
+	if err := json.Unmarshal(assembledData, &cv); err != nil {
+		return RenderedCVCheck{}, fmt.Errorf("parsing assembled data: %w", err)
+	}
+
+	pageCount, err := countPDFPages(pdfPath)
+	if err != nil {
+		return RenderedCVCheck{}, fmt.Errorf("counting rendered pages: %w", err)
+	}
+
+	result := RenderedCVCheck{
+		PageCount:   pageCount,
+		Parsability: checkPDFParsability(pdfPath, cvExpectedFields(cv)),
+		Language:    NormalizeLanguage(cv.Lang),
+	}
+	switch {
+	case strings.TrimSpace(cv.Lang) == "":
+		result.LanguageWarning = fmt.Sprintf("assembled data has no lang; the CV was rendered in the default language (%s)", result.Language)
+	case cv.Lang != result.Language:
+		result.LanguageWarning = fmt.Sprintf("assembled data's lang %q is not a supported language code; the app would render this CV as %q", cv.Lang, result.Language)
+	}
+	return result, nil
 }

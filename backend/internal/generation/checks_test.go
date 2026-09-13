@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
 )
 
 const checksFixtureEntry = `---
@@ -121,5 +123,121 @@ func TestCheckSelectionGroundedness_MissingDataDir_ReturnsError(t *testing.T) {
 	_, err := CheckSelectionGroundedness(filepath.Join(t.TempDir(), "nope"), SelectionResult{})
 	if err == nil {
 		t.Fatal("expected an error for a missing Master Data directory")
+	}
+}
+
+// renderChecksFixtureCV renders cv through the real typst binary (no skip
+// guard, matching api's generations_render_test.go — CI installs typst and
+// poppler-utils so these paths run for real) and returns the PDF path plus
+// the assembled data.json bytes it was rendered from.
+func renderChecksFixtureCV(t *testing.T, cv cvData) (string, []byte) {
+	t.Helper()
+	projectRoot := t.TempDir()
+	copyTemplateFixture(t, projectRoot, "cv.typ")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "output", "checks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pdfRelPath, err := renderTypst(projectRoot, "template/cv.typ", "checks", "data.json", "cv.pdf", cv)
+	if err != nil {
+		t.Fatalf("renderTypst: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(projectRoot, "output", "checks", "data.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(projectRoot, pdfRelPath), data
+}
+
+func checksFixtureCVData(lang string) cvData {
+	return cvData{
+		Name:      "Jane Doe",
+		Lang:      lang,
+		Location:  "Milan, Italy",
+		Email:     "jane@example.com",
+		Phone:     "+39 000 000 000",
+		LinkedIn:  "janedoe",
+		GitHub:    "janedoe",
+		Education: []masterdata.Education{},
+		Experience: []cvExperience{{
+			Employer: "Acme Corp",
+			Role:     "Senior Engineer",
+			Start:    "2022",
+			Bullets:  []string{"Shipped things."},
+		}},
+		Projects:     []cvProject{{Name: "Widget Tool", Start: "2023", Bullets: []string{"Built a widget."}}},
+		TechStack:    []string{"Go"},
+		Publications: []masterdata.Publication{},
+		Awards:       []masterdata.Award{},
+		Activities:   []masterdata.Activity{},
+		Languages:    []masterdata.Language{},
+	}
+}
+
+func TestCheckRenderedCV_RealRender_OnePageParsableInSupportedLanguage(t *testing.T) {
+	pdfPath, data := renderChecksFixtureCV(t, checksFixtureCVData("it"))
+
+	result, err := CheckRenderedCV(pdfPath, data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.PageCount != 1 {
+		t.Errorf("PageCount = %d, want 1", result.PageCount)
+	}
+	if result.Parsability.Status != ParsabilityOK {
+		t.Errorf("Parsability = %+v, want ok", result.Parsability)
+	}
+	if result.Language != "it" || result.LanguageWarning != "" {
+		t.Errorf("Language = %q (warning %q), want \"it\" with no warning", result.Language, result.LanguageWarning)
+	}
+}
+
+func TestCheckRenderedCV_MissingOrUnsupportedLang_WarnsAndReportsDefault(t *testing.T) {
+	for _, lang := range []string{"", "fr"} {
+		t.Run("lang="+lang, func(t *testing.T) {
+			pdfPath, data := renderChecksFixtureCV(t, checksFixtureCVData(lang))
+
+			result, err := CheckRenderedCV(pdfPath, data)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result.Language != DefaultLanguage {
+				t.Errorf("Language = %q, want %q", result.Language, DefaultLanguage)
+			}
+			if result.LanguageWarning == "" {
+				t.Error("expected a LanguageWarning for a missing/unsupported lang")
+			}
+		})
+	}
+}
+
+func TestCheckRenderedCV_PdftotextMissing_ReportsUnavailableNotWarning(t *testing.T) {
+	pdfPath, data := renderChecksFixtureCV(t, checksFixtureCVData("en"))
+	t.Setenv("PATH", t.TempDir())
+
+	result, err := CheckRenderedCV(pdfPath, data)
+	if err != nil {
+		t.Fatalf("a missing pdftotext must degrade, not error: %v", err)
+	}
+	if result.Parsability.Status != ParsabilityUnavailable || result.Parsability.Reason == "" {
+		t.Errorf("Parsability = %+v, want unavailable with a reason", result.Parsability)
+	}
+	if result.PageCount != 1 {
+		t.Errorf("PageCount = %d, want 1 (page counting needs no external tool)", result.PageCount)
+	}
+}
+
+func TestCheckRenderedCV_MalformedData_ReturnsError(t *testing.T) {
+	pdfPath, _ := renderChecksFixtureCV(t, checksFixtureCVData("en"))
+
+	if _, err := CheckRenderedCV(pdfPath, []byte(`{"name": `)); err == nil {
+		t.Fatal("expected an error for malformed assembled data")
+	}
+}
+
+func TestCheckRenderedCV_MissingPDF_ReturnsError(t *testing.T) {
+	data := []byte(`{"name": "Jane Doe", "lang": "en"}`)
+
+	if _, err := CheckRenderedCV(filepath.Join(t.TempDir(), "missing.pdf"), data); err == nil {
+		t.Fatal("expected an error for a missing PDF")
 	}
 }
