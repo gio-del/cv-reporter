@@ -50,6 +50,11 @@ type JobListing struct {
 	// the Application's Status or from FreshnessStatus, and it never touches
 	// the Application. A file with no archived key reads as false.
 	Archived bool `json:"archived"`
+	// Version is the Job Listing file's version token, populated by the
+	// API layer (via JobListingVersion) on reads and never persisted. It
+	// is what the Job Listing delete is checked against — distinct from
+	// the Application's own token, since they are two files (issue #89).
+	Version string `json:"version,omitempty"`
 }
 
 // FreshnessStatus is a Job Listing source URL's most recent on-demand
@@ -226,6 +231,12 @@ type Application struct {
 	// before this field existed and one whose Notes were all deleted mean
 	// the same thing, so there is no tolerance rule to add for it.
 	Notes []Note `json:"notes,omitempty"`
+	// Version is the Application file's version token, populated by the
+	// API layer (via ApplicationVersion) on reads and never persisted. An
+	// Application and its Job Listing are two separate files sharing one
+	// id, and the Application patches write only the Application file, so
+	// this is computed from that file alone (issue #89).
+	Version string `json:"version,omitempty"`
 }
 
 // ListingWithApplication pairs a Job Listing with its 1:1 Application, the

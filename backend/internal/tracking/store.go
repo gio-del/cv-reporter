@@ -13,6 +13,7 @@ import (
 
 	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 
@@ -270,6 +271,43 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 		FreshnessCheckedAt: raw.FreshnessCheckedAt,
 		Archived:           raw.Archived,
 	}, nil
+}
+
+// applicationPath is the file every Application mutation writes — the
+// Application's own file, never its Job Listing's, even though the two
+// share an id (issue #89).
+func applicationPath(dataDir, id string) string {
+	return filepath.Join(dataDir, applicationsDir, id+".md")
+}
+
+// writeApplicationIfMatch writes application back to disk unless version
+// no longer matches what is there, in which case it returns
+// recordversion.ErrMismatch and writes nothing. The comparison sits
+// immediately before the write, inside the store, so the window between
+// checking and writing is as small as a single-process app can make it.
+// An empty version writes unconditionally (issue #89).
+func writeApplicationIfMatch(dataDir, id string, application Application, version string) (Application, error) {
+	path := applicationPath(dataDir, id)
+	if err := recordversion.Check(path, version); err != nil {
+		return Application{}, err
+	}
+	if err := atomicfile.WriteFile(path, renderApplication(application), 0o644); err != nil {
+		return Application{}, err
+	}
+	return application, nil
+}
+
+// ApplicationVersion returns the version token of the Application file for
+// id, computed from that file alone.
+func ApplicationVersion(dataDir, id string) (string, error) {
+	return recordversion.Of(applicationPath(dataDir, id))
+}
+
+// JobListingVersion returns the version token of the Job Listing file for
+// id — what a Job Listing delete is checked against, distinct from the
+// Application's own token.
+func JobListingVersion(dataDir, id string) (string, error) {
+	return recordversion.Of(filepath.Join(dataDir, jobsDir, id+".md"))
 }
 
 func getApplication(dataDir, slug string) (Application, error) {

@@ -207,9 +207,15 @@ func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 			listings = tracking.SortListingsByRAL(listings, order)
 		}
 
+		// An Application and its Job Listing are two separate files
+		// sharing one id, so the combined shape carries both tokens: the
+		// Application patches check the Application's, the Job Listing
+		// delete checks the Job Listing's (issue #89).
 		summaries := make([]jobListingSummaryWithApplication, len(listings))
 		for i := range listings {
 			attachStaleEntries(&listings[i].Application, dataDir, projectRoot)
+			attachApplicationVersion(&listings[i].Application, dataDir)
+			attachJobListingVersion(&listings[i].JobListing, dataDir)
 			summaries[i] = summarizeListing(listings[i])
 		}
 		writeJSON(w, http.StatusOK, summaries)
@@ -235,6 +241,9 @@ type jobListingSummary struct {
 	FreshnessStatus    tracking.FreshnessStatus `json:"freshnessStatus"`
 	FreshnessCheckedAt string                   `json:"freshnessCheckedAt,omitempty"`
 	Archived           bool                     `json:"archived"`
+	// Version is the Job Listing file's version token (issue #89), carried
+	// over from the whole record so a list row can still guard a delete.
+	Version string `json:"version,omitempty"`
 }
 
 // jobListingSummaryWithApplication is one list row: a Job Listing summary
@@ -264,6 +273,7 @@ func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithAp
 			FreshnessStatus:    listing.FreshnessStatus,
 			FreshnessCheckedAt: listing.FreshnessCheckedAt,
 			Archived:           listing.Archived,
+			Version:            listing.Version,
 		},
 		Application: l.Application,
 	}
@@ -290,8 +300,20 @@ func getJobListingHandler(dataDir, projectRoot string) http.HandlerFunc {
 			return
 		}
 		attachStaleEntries(&listing.Application, dataDir, projectRoot)
+		attachApplicationVersion(&listing.Application, dataDir)
+		attachJobListingVersion(&listing.JobListing, dataDir)
 		writeJSON(w, http.StatusOK, listing)
 	}
+}
+
+// attachJobListingVersion populates listing.Version, the read-time token
+// the Job Listing delete is checked against (issue #89).
+func attachJobListingVersion(listing *tracking.JobListing, dataDir string) {
+	version, err := tracking.JobListingVersion(dataDir, listing.ID)
+	if err != nil {
+		return
+	}
+	listing.Version = version
 }
 
 // getJobListingLogoHandler serves the Company Logo file tracking.Save

@@ -102,6 +102,13 @@ func writeOutOfBand(t *testing.T, path, content string) {
 	}
 }
 
+func removeFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func readFile(t *testing.T, path string) string {
 	t.Helper()
 	content, err := os.ReadFile(path)

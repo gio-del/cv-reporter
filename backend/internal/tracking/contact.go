@@ -3,10 +3,7 @@ package tracking
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
-
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // SuggestContact asks client to research a Contact for the Job Listing
@@ -28,6 +25,15 @@ func SuggestContact(ctx context.Context, dataDir string, client Client, id strin
 // Application identified by id — the explicit confirmation step for both a
 // manual entry and an accepted Claude suggestion (story 7).
 func UpdateApplicationContact(dataDir, id string, contact Contact) (Application, error) {
+	return UpdateApplicationContactIfMatch(dataDir, id, contact, "")
+}
+
+// UpdateApplicationContactIfMatch is UpdateApplicationContact, refusing the
+// write with recordversion.ErrMismatch when version no longer matches the
+// Application file on disk, so a confirmed Contact is not overwritten by a
+// stale copy (issue #89, story 17). An empty version writes
+// unconditionally.
+func UpdateApplicationContactIfMatch(dataDir, id string, contact Contact, version string) (Application, error) {
 	if strings.TrimSpace(contact.Email) == "" {
 		return Application{}, fmt.Errorf("%w: email is required", ErrValidation)
 	}
@@ -38,8 +44,5 @@ func UpdateApplicationContact(dataDir, id string, contact Contact) (Application,
 	}
 	application.Contact = &contact
 
-	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
-		return Application{}, err
-	}
-	return application, nil
+	return writeApplicationIfMatch(dataDir, id, application, version)
 }
