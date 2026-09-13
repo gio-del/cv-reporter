@@ -33,8 +33,8 @@ import (
 // concern in practice for a localhost, no-auth personal tool (ADR
 // context), but worth knowing if that assumption ever changes.
 type Client struct {
-	api   anthropic.Client
-	model anthropic.Model
+	api    anthropic.Client
+	models map[callSite]anthropic.Model
 
 	usageMu    sync.Mutex
 	usageCalls []generation.CallUsage
@@ -42,13 +42,13 @@ type Client struct {
 
 // New builds a Client using ANTHROPIC_API_KEY from the environment.
 func New() *Client {
-	return &Client{api: anthropic.NewClient(), model: anthropic.ModelClaudeSonnet5}
+	return &Client{api: anthropic.NewClient(), models: resolveModels()}
 }
 
 // NewWithOptions builds a Client with explicit SDK request options (tests
 // pointing at a fake server, a non-default model, etc).
 func NewWithOptions(opts ...option.RequestOption) *Client {
-	return &Client{api: anthropic.NewClient(opts...), model: anthropic.ModelClaudeSonnet5}
+	return &Client{api: anthropic.NewClient(opts...), models: resolveModels()}
 }
 
 var _ generation.Client = (*Client)(nil)
@@ -136,7 +136,7 @@ func (c *Client) SelectAndRewrite(ctx context.Context, req generation.SelectionR
 	userPrompt := fmt.Sprintf("Job Description:\n%s\n\nCandidate Entries (JSON):\n%s", req.JobDescription, candidates)
 
 	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteSelectionRewrite),
 		MaxTokens:  8192,
 		System:     []anthropic.TextBlockParam{{Text: selectAndRewriteSystemPrompt}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt))},
@@ -225,7 +225,7 @@ func (c *Client) SelectOnly(ctx context.Context, req generation.SelectionRequest
 	userPrompt := fmt.Sprintf("Job Description:\n%s\n\nCandidate Entries (JSON):\n%s", req.JobDescription, candidates)
 
 	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteSelectionPreview),
 		MaxTokens:  4096,
 		System:     []anthropic.TextBlockParam{{Text: selectOnlySystemPrompt}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt))},
@@ -300,7 +300,7 @@ func (c *Client) DraftCoverLetter(ctx context.Context, req generation.CoverLette
 	)
 
 	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteCoverLetter),
 		MaxTokens:  4096,
 		System:     []anthropic.TextBlockParam{{Text: draftCoverLetterSystemPrompt}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(userPrompt))},
@@ -355,7 +355,7 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 	researchPrompt := "Research the likely gross annual salary range for the role, company, and location described in this Job Description, using web search. Summarize what you found, including a minimum and maximum figure and currency if you found a credible source, or say plainly that you couldn't find one.\n\nJob Description:\n" + jobDescription
 
 	research, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     c.model,
+		Model:     c.modelFor(callSiteRALResearch),
 		MaxTokens: 2048,
 		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(researchPrompt))},
 		Tools: []anthropic.ToolUnionParam{
@@ -375,7 +375,7 @@ func (c *Client) EstimateRAL(ctx context.Context, jobDescription string) (genera
 	}
 
 	extraction, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteRALExtraction),
 		MaxTokens:  1024,
 		System:     []anthropic.TextBlockParam{{Text: "Extract a structured RAL range from these research notes by calling the extract_ral_range tool."}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(notes.String()))},
@@ -450,7 +450,7 @@ type inferredApplicationMethod struct {
 // infer_application_method tool (story 5).
 func (c *Client) InferApplicationMethod(ctx context.Context, jobDescription string) (tracking.ApplicationMethod, error) {
 	message, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteApplicationMethodInference),
 		MaxTokens:  512,
 		System:     []anthropic.TextBlockParam{{Text: inferApplicationMethodSystemPrompt}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock("Job Description:\n" + jobDescription))},
@@ -508,7 +508,7 @@ func (c *Client) SuggestContact(ctx context.Context, company, jobDescription str
 	)
 
 	research, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     c.model,
+		Model:     c.modelFor(callSiteContactResearch),
 		MaxTokens: 2048,
 		Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(researchPrompt))},
 		Tools: []anthropic.ToolUnionParam{
@@ -528,7 +528,7 @@ func (c *Client) SuggestContact(ctx context.Context, company, jobDescription str
 	}
 
 	extraction, err := c.api.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:      c.model,
+		Model:      c.modelFor(callSiteContactExtraction),
 		MaxTokens:  512,
 		System:     []anthropic.TextBlockParam{{Text: "Extract a structured contact from these research notes by calling the extract_contact tool."}},
 		Messages:   []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock(notes.String()))},
