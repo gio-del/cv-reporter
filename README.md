@@ -66,6 +66,12 @@ The skill runs the web app's automated quality checks through the app's own Go c
 ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json [--json]
 ```
 
+and, before Visual Review, checks the rendered PDF's page count, ATS-parsability (its text layer via `pdftotext`, which must be on `PATH` for that part — otherwise it reports itself unavailable) and the assembled data's `lang`:
+
+```
+./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json [--json]
+```
+
 Checks are advisory — exit `0` clean, `1` flagged, `2` couldn't run — and never stop the pipeline.
 
 Adding a new job or project means adding a new Markdown file under `data/experience/` or `data/projects/` following the existing frontmatter shape — not writing code.

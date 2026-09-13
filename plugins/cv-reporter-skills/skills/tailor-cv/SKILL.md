@@ -141,12 +141,18 @@ Once an Application is matched (step 1 above), any of the four actions below can
    ```
    ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh
    ```
-   It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. Then render:
+   It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. (The rendered PDF gets its own mechanical check at the start of Visual Review, step 7.) Then render:
    ```
    typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
    ```
 
-7. **Visual Review (HITL, required).** Tell the user the PDF is ready at `output/<slug>/cv.pdf` and ask them to check it — page count (must be one page), overflow, awkward breaks. If they report an issue, fix the data or trim Selection and re-render; don't guess silently. If this run is targeting a tracked Application, once approved here go back to "Targeting a tracked Application" step 4 to record it.
+7. **Visual Review (HITL, required).** First run the PDF check over the rendered file — the same page-count and ATS-parsability checks the web app's Render attaches to its own Visual Review, via the same Go code (ADR-0028), plus a check that `data.json` carries a supported `lang`:
+   ```
+   ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json
+   ```
+   It prints three lines of signal. `Page count:` — anything but 1 is overflow to fix. `ATS-parsability:` — `ok`; `warning`, followed by which expected fields (name, section headers, employers, project names) were missing from the PDF's extracted text layer or came out in the wrong order, i.e. what an automated screener may not see; or `unavailable` (e.g. `pdftotext` isn't installed), which is a tooling gap and must be reported as "the check couldn't run", never as the PDF being unparsable. `Language:` — the resolved code, with a warning if `data.json`'s `lang` is missing or unsupported (fix `data.json` and re-render). Exit `0` = all clear, `1` = something flagged, `2` = couldn't run (a stderr note, or parsability unavailable with nothing else flagged) — none of them stops the pipeline.
+
+   Then tell the user the PDF is ready at `output/<slug>/cv.pdf`, show those results as signals alongside it, and ask them to check it — overflow, awkward breaks, and anything the check flagged. The check doesn't add a checkpoint: the user's decision is still the gate, and they can approve despite a warning. If you re-render after a fix, re-run the check before asking again. If they report an issue, fix the data or trim Selection and re-render; don't guess silently. If this run is targeting a tracked Application, once approved here go back to "Targeting a tracked Application" step 4 to record it.
 
 ## Notes
 

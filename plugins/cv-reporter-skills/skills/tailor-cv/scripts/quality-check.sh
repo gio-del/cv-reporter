@@ -27,7 +27,7 @@ repo_root="$(cd "$script_dir/../../../../.." && pwd)"
 if command -v go >/dev/null 2>&1 && [ -d "$repo_root/backend/cmd/cvcheck" ]; then
   build_dir="$(mktemp -d)"
   trap 'rm -rf "$build_dir"' EXIT
-  if ! build_output="$(cd "$repo_root/backend" && go build -o "$build_dir/cvcheck" ./cmd/cvcheck 2>&1)"; then
+  if ! build_output="$(cd "$repo_root/backend" && go build -buildvcs=false -o "$build_dir/cvcheck" ./cmd/cvcheck 2>&1)"; then
     echo "quality-check: check unavailable: building cvcheck from backend/ failed — continuing without this check." >&2
     echo "$build_output" >&2
     exit 2
