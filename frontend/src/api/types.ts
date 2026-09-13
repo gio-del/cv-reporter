@@ -143,6 +143,14 @@ export interface GenerationUsage {
   calls?: CallUsage[]
 }
 
+// UsageSummary is GET /api/usage's body: the lifetime usage totals plus a
+// completeness signal (issue #102). Distinct from GenerationUsage, which is
+// also persisted per Generation where completeness has no meaning.
+export interface UsageSummary extends GenerationUsage {
+  incomplete?: boolean
+  incompleteReason?: string
+}
+
 export type GroundednessReason = 'no-source-match' | 'numeric-mismatch'
 
 export interface GroundednessFlag {

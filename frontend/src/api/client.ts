@@ -13,7 +13,6 @@ import type {
   EntryInput,
   GenerateRequest,
   GenerateResult,
-  GenerationUsage,
   JobListing,
   JobListingSummaryWithApplication,
   JobListingWithApplication,
@@ -28,6 +27,7 @@ import type {
   SnippetInput,
   TagLintReport,
   TrackedBoard,
+  UsageSummary,
 } from './types'
 
 // ApiError is what request() throws for a non-2xx response: the message is
@@ -353,6 +353,6 @@ export async function removeTrackedBoard(id: string): Promise<void> {
   }
 }
 
-export function getUsageSummary(): Promise<GenerationUsage> {
+export function getUsageSummary(): Promise<UsageSummary> {
   return request('/api/usage')
 }
