@@ -45,6 +45,9 @@ type SaveRequest struct {
 }
 
 type rawJobListingFrontmatter struct {
+	// SchemaVersion is omitempty so a legacy Job Listing rewritten by an
+	// edit keeps reading as legacy (no key) until MigrateRecords runs.
+	SchemaVersion      int                 `yaml:"schemaVersion,omitempty"`
 	Title              string              `yaml:"title,omitempty"`
 	Company            string              `yaml:"company"`
 	URL                string              `yaml:"url,omitempty"`
@@ -61,6 +64,7 @@ type rawJobListingFrontmatter struct {
 }
 
 type rawApplication struct {
+	SchemaVersion   int                `yaml:"schemaVersion,omitempty"`
 	JobListingID    string             `yaml:"jobListingId"`
 	Status          Status             `yaml:"status"`
 	StatusUpdatedAt string             `yaml:"statusUpdatedAt,omitempty"`
@@ -106,6 +110,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 	logo := downloadLogoBestEffort(ctx, doer, req.LogoURL, jobsFullDir, slug)
 
 	listing := JobListing{
+		SchemaVersion:   CurrentSchemaVersion,
 		ID:              slug,
 		Title:           req.Title,
 		Company:         req.Company,
@@ -126,6 +131,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		return JobListing{}, Application{}, err
 	}
 	application := Application{
+		SchemaVersion:   CurrentSchemaVersion,
 		ID:              slug,
 		JobListingID:    slug,
 		Status:          StatusSaved,
@@ -246,6 +252,7 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 		freshnessStatus = FreshnessNotYetChecked
 	}
 	return JobListing{
+		SchemaVersion:      raw.SchemaVersion,
 		ID:                 slug,
 		Title:              raw.Title,
 		Company:            raw.Company,
@@ -272,6 +279,7 @@ func getApplication(dataDir, slug string) (Application, error) {
 	}
 	sortNotesNewestFirst(raw.Notes)
 	return Application{
+		SchemaVersion:   raw.SchemaVersion,
 		ID:              slug,
 		JobListingID:    raw.JobListingID,
 		Status:          raw.Status,
@@ -313,6 +321,7 @@ func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
 
 func renderJobListing(l JobListing) []byte {
 	raw := rawJobListingFrontmatter{
+		SchemaVersion:      l.SchemaVersion,
 		Title:              l.Title,
 		Company:            l.Company,
 		URL:                l.URL,
@@ -337,6 +346,7 @@ func renderJobListing(l JobListing) []byte {
 
 func renderApplication(a Application) []byte {
 	raw := rawApplication{
+		SchemaVersion:   a.SchemaVersion,
 		JobListingID:    a.JobListingID,
 		Status:          a.Status,
 		StatusUpdatedAt: a.StatusUpdatedAt,

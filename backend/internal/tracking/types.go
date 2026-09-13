@@ -18,6 +18,11 @@ const SourceManual = "manual"
 // JobListing is a persisted, tracked record of a role the user is
 // considering, per CONTEXT.md's Job Listing entry.
 type JobListing struct {
+	// SchemaVersion is the record format generation this Job Listing was
+	// written in (schema.go): LegacySchemaVersion when the file has no
+	// schemaVersion key. Write paths carry it through unchanged; only Save
+	// (stamping) and MigrateRecords advance it.
+	SchemaVersion  int                 `json:"schemaVersion"`
 	ID             string              `json:"id"`
 	Title          string              `json:"title,omitempty"`
 	Company        string              `json:"company"`
@@ -111,6 +116,12 @@ type ApplicationMethod struct {
 // regenerate (stories 12, 13) — the most recent is what the user would
 // actually send.
 type GenerationRecord struct {
+	// SchemaVersion is stamped by RecordGeneration; LegacySchemaVersion
+	// (absent) marks a Generation recorded before it existed, whose empty
+	// SourceSnippetIDs/EntryIDs/Usage/Language are unknowable rather than
+	// genuinely empty (see IsLegacy). MigrateRecords never stamps an existing
+	// Generation, since it cannot recover those fields.
+	SchemaVersion   int                            `json:"schemaVersion,omitempty" yaml:"schemaVersion,omitempty"`
 	Slug            string                         `json:"slug"`
 	CreatedAt       string                         `json:"createdAt"`
 	CVPath          string                         `json:"cvPath"`
@@ -182,9 +193,12 @@ type StatusChange struct {
 // its id with the Job Listing it belongs to, since the relationship is
 // strictly 1:1 for this PRD.
 type Application struct {
-	ID           string `json:"id"`
-	JobListingID string `json:"jobListingId"`
-	Status       Status `json:"status"`
+	// SchemaVersion is the record format generation this Application was
+	// written in, carried and advanced exactly like JobListing.SchemaVersion.
+	SchemaVersion int    `json:"schemaVersion"`
+	ID            string `json:"id"`
+	JobListingID  string `json:"jobListingId"`
+	Status        Status `json:"status"`
 	// StatusUpdatedAt (RFC3339Nano) is when Status last changed — set at
 	// Application creation and on every successful Transition, including
 	// Reopen (story 1-3, 8). Empty for records written before this field
