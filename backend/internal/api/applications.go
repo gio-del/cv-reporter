@@ -192,6 +192,8 @@ func getApplicationsStatsHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Archived Job Listings (issue #98) deliberately still count:
+		// archiving is a view concern, never a history concern.
 		applications := make([]tracking.Application, len(listings))
 		for i, l := range listings {
 			applications[i] = l.Application
