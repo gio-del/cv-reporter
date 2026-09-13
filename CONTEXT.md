@@ -72,6 +72,10 @@ _Avoid_: apply type
 The recruiter/hiring-manager name and email for an email-method Application. Entered manually by the user or suggested by Claude via web search and confirmed by the user — never trusted unconfirmed.
 _Avoid_: recruiter
 
+**Schema Version** (of a Job Listing, Application or Generation record):
+Which generation of the persisted record format a record was written in, stamped on the record itself. What it buys is the meaning of an absent field: on a current record, absent means genuinely none (a Generation with no Snippet ids used no Cover Letter Snippet); on a **legacy** record — one written before Schema Versions existed — absent means unknowable. Brought current only by the one-shot record migration, which backfills what is provably on disk and leaves the rest legacy-empty, never guessed.
+_Avoid_: format version, revision, vintage
+
 **Cover Letter**:
 A Generation output alongside the Tailored CV. Selected/adapted from a user-authored library of Cover Letter Snippets in Master Data when one exists; otherwise freshly generated prose grounded in Master Data and the Job Description, under the same no-invented-facts constraint as Rewrite. Reviewed at Text Review like the CV.
 _Avoid_: motivation letter
