@@ -15,6 +15,14 @@ import (
 // write path.
 const versionHeader = "If-Match"
 
+// applicationVersionHeader carries the Application's token on the Job
+// Listing delete, alongside the Job Listing's own token in If-Match. The
+// delete removes two files sharing one id, each with its own token, and
+// If-Match's list form means "any of these matches" — the wrong semantics
+// for "both must still match" — so the second token gets its own header.
+// Like If-Match it is optional (issue #89, story 19).
+const applicationVersionHeader = "Application-If-Match"
+
 // requestVersion reads the version token off r, empty when the caller sent
 // none.
 func requestVersion(r *http.Request) string {

@@ -10,9 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -346,9 +348,13 @@ func getJobListingLogoHandler(dataDir string) http.HandlerFunc {
 func deleteJobListingHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := tracking.Delete(dataDir, id)
+		err := tracking.DeleteIfMatch(dataDir, id, requestVersion(r), strings.TrimSpace(r.Header.Get(applicationVersionHeader)))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Job Listing or its Application")
 			return
 		}
 		if err != nil {

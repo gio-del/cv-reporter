@@ -214,6 +214,26 @@ func Get(dataDir, id string) (ListingWithApplication, error) {
 // removed); only the final removal's error is returned, so callers can
 // errors.Is(err, os.ErrNotExist) exactly like masterdata.DeleteEntry.
 func Delete(dataDir, id string) error {
+	return DeleteIfMatch(dataDir, id, "", "")
+}
+
+// DeleteIfMatch is Delete, refusing with recordversion.ErrMismatch — and
+// removing nothing — when jobListingVersion no longer matches the Job
+// Listing file or applicationVersion no longer matches the Application
+// file. Both are checked because the delete destroys both: a Status that
+// moved on since the list was loaded must stop it just as an edited Job
+// Listing does (issue #89, story 19). An empty token skips its check; a
+// missing Job Listing file is os.ErrNotExist (not-found outranks
+// conflict), while an Application already gone has nothing left to lose
+// and is tolerated exactly as Delete tolerates it.
+func DeleteIfMatch(dataDir, id, jobListingVersion, applicationVersion string) error {
+	if err := recordversion.Check(filepath.Join(dataDir, jobsDir, id+".md"), jobListingVersion); err != nil {
+		return err
+	}
+	if err := recordversion.Check(applicationPath(dataDir, id), applicationVersion); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
 	listing, err := getJobListing(dataDir, id)
 	if err == nil && listing.Logo != "" {
 		if rmErr := os.Remove(filepath.Join(dataDir, jobsDir, listing.Logo)); rmErr != nil && !os.IsNotExist(rmErr) {
