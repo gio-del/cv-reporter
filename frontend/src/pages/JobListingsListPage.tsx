@@ -5,7 +5,7 @@ import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import FreshnessBadge from '@/components/FreshnessBadge'
 import RALBadge from '@/components/RALBadge'
 import { exportDataUrl, jobListingLogoUrl, listJobListings, updateApplicationStatus } from '@/api/client'
-import type { ApplicationStatus, JobListingWithApplication } from '@/api/types'
+import type { ApplicationStatus, JobListingSummaryWithApplication } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,7 +22,7 @@ const RAL_SORT_CHOICES: RALSortChoice[] = ['none', 'asc', 'desc']
 export default function JobListingsListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
-  const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
+  const [listings, setListings] = useState<JobListingSummaryWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)

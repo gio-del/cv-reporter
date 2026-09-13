@@ -13,6 +13,7 @@ import type {
   GenerateResult,
   GenerationUsage,
   JobListing,
+  JobListingSummaryWithApplication,
   JobListingWithApplication,
   Profile,
   RALListQuery,
@@ -169,7 +170,11 @@ export interface JobListingsFilter {
 // #45) and sortByRAL/ralMin/ralMax/ralCurrency (issue #51) through to GET
 // /api/job-listings's matching optional query params — omitted entirely
 // when not given, matching the endpoint's own unfiltered/unsorted default.
-export function listJobListings(filter?: JobListingsFilter & RALListQuery): Promise<JobListingWithApplication[]> {
+// Each row's Job Listing is a summary without the Job Description text
+// (issue #97); getJobListing is where that text comes from.
+export function listJobListings(
+  filter?: JobListingsFilter & RALListQuery,
+): Promise<JobListingSummaryWithApplication[]> {
   const params = new URLSearchParams()
   if (filter?.status) params.set('status', filter.status)
   if (filter?.company) params.set('company', filter.company)
@@ -194,9 +199,10 @@ export function getApplicationsStats(): Promise<ApplicationStats> {
   return request('/api/applications/stats')
 }
 
-// getJobListing returns a Job Listing paired with its Application — the same
+// getJobListing returns a Job Listing paired with its Application — the
 // shape listJobListings returns per row, stale-Entry information included
-// (issue #94), so the Job Listing detail page needs one request.
+// (issue #94), but with the whole Job Listing, Job Description text
+// included (issue #97), so the Job Listing detail page needs one request.
 export function getJobListing(id: string): Promise<JobListingWithApplication> {
   return request(`/api/job-listings/${encodeURIComponent(id)}`)
 }

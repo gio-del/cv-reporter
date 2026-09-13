@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import JobListingsListPage from './JobListingsListPage'
-import type { JobListingWithApplication } from '@/api/types'
-import { listingWithApplication } from '@/test/fixtures'
+import type { JobListingSummaryWithApplication } from '@/api/types'
+import { listingSummaryWithApplication, listingWithApplication } from '@/test/fixtures'
 import { browserBack, currentPath, currentSearch, renderApp, renderPage } from '@/test/render'
 import { recordedRequests, requestsTo, server } from '@/test/server'
 
-function showList(listings: JobListingWithApplication[]) {
+function showList(listings: JobListingSummaryWithApplication[]) {
   server.use(http.get('/api/job-listings', () => HttpResponse.json(listings)))
 }
 
@@ -16,8 +16,8 @@ describe('JobListingsListPage', () => {
     server.use(
       http.get('/api/job-listings', () =>
         HttpResponse.json([
-          listingWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' }),
-          listingWithApplication({ id: 'globex', company: 'Globex' }),
+          listingSummaryWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' }),
+          listingSummaryWithApplication({ id: 'globex', company: 'Globex', hasJobDescription: false }),
         ]),
       ),
     )
@@ -27,6 +27,8 @@ describe('JobListingsListPage', () => {
     expect(await screen.findByText('Backend Engineer — Acme')).toBeInTheDocument()
     expect(screen.getByText('Globex')).toBeInTheDocument()
 
+    // One summary request, and no per-row fetch of a Job Description the
+    // list does not display (issue #97).
     const requests = await recordedRequests()
     expect(requests).toHaveLength(1)
     expect(requests[0]).toMatchObject({ method: 'GET', path: '/api/job-listings', search: '' })
@@ -52,13 +54,13 @@ describe('JobListingsListPage', () => {
 describe('Job Listing rows', () => {
   it('Row_Shown_KeepsOnlyTheTriageAffordances', async () => {
     showList([
-      listingWithApplication(
+      listingSummaryWithApplication(
         {
           id: 'acme',
           company: 'Acme',
           title: 'Backend Engineer',
           url: 'https://acme.example/jobs/1',
-          jobDescription: 'We are hiring a Backend Engineer.',
+          hasJobDescription: true,
           ral: { min: 45000, max: 55000, currency: 'EUR', source: 'stated' },
         },
         {
@@ -81,7 +83,6 @@ describe('Job Listing rows', () => {
     for (const detailOnly of ['Delete', 'View description', 'Check freshness', 'Correct', 'Resolve']) {
       expect(within(row).queryByRole('button', { name: detailOnly })).not.toBeInTheDocument()
     }
-    expect(within(row).queryByText('We are hiring a Backend Engineer.')).not.toBeInTheDocument()
     expect(within(row).queryByRole('link', { name: 'View posting' })).not.toBeInTheDocument()
     expect(within(row).queryByRole('link', { name: 'CV' })).not.toBeInTheDocument()
   })
@@ -89,10 +90,10 @@ describe('Job Listing rows', () => {
 
 describe('Opening a Job Listing from the list', () => {
   function serveListAndDetail() {
-    const record = listingWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' })
+    const listing = { id: 'acme', company: 'Acme', title: 'Backend Engineer' }
     server.use(
-      http.get('/api/job-listings', () => HttpResponse.json([record])),
-      http.get('/api/job-listings/acme', () => HttpResponse.json(record)),
+      http.get('/api/job-listings', () => HttpResponse.json([listingSummaryWithApplication(listing)])),
+      http.get('/api/job-listings/acme', () => HttpResponse.json(listingWithApplication(listing))),
     )
   }
 
