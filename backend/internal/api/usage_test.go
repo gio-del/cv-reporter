@@ -1,9 +1,12 @@
 package api_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
@@ -84,5 +87,43 @@ func TestGetUsage_NothingRecordedYet_ReturnsZeroValue(t *testing.T) {
 	}
 	if got["estimatedCostUsd"] != float64(0) {
 		t.Errorf("estimatedCostUsd = %v, want 0", got["estimatedCostUsd"])
+	}
+}
+
+// usageReportingClient returns a fake generation client whose next drain
+// reports one standalone RAL-estimation call, as a Job Listing save does.
+func usageReportingClient() *fakeGenerationClientWithUsage {
+	return &fakeGenerationClientWithUsage{
+		usage: []generation.CallUsage{
+			{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
+		},
+	}
+}
+
+func TestSaveJobListing_CorruptUsageLog_LeavesLogUntouched(t *testing.T) {
+	dataDir := seedDataDir(t)
+	logPath := filepath.Join(dataDir, "usage-log.json")
+	corrupt := []byte(`[{"callType": "ral_estimation", "estimatedCostUsd": 0.5}, {"callType": tru`)
+	if err := os.WriteFile(logPath, corrupt, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, usageReportingClient()))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"company":        "Acme Corp",
+		"jobDescription": "Some role.",
+	})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected the save to still succeed with 201, got %d", resp.StatusCode)
+	}
+
+	after, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, corrupt) {
+		t.Errorf("corrupt usage log was overwritten:\nbefore: %s\nafter:  %s", corrupt, after)
 	}
 }
