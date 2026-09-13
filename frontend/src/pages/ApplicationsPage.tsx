@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { jobListingLogoUrl, listApplications } from '@/api/client'
-import type { ApplicationGroups, JobListingSummaryWithApplication } from '@/api/types'
+import { jobListingLogoUrl, listApplications, updateApplicationStatus } from '@/api/client'
+import type { ApplicationGroups, ApplicationStatus, JobListingSummaryWithApplication } from '@/api/types'
+import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import RALBadge from '@/components/RALBadge'
 import StaleBadge from '@/components/StaleBadge'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +10,10 @@ import { Button } from '@/components/ui/button'
 import { methodKindLabel } from '@/lib/applicationMethod'
 import { statusLabel } from '@/lib/applicationStatus'
 import { cn, jobListingHeading } from '@/lib/utils'
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
 
 function applicationsCount(count: number): string {
   return `${count} ${count === 1 ? 'Application' : 'Applications'}`
@@ -38,12 +43,37 @@ function statusChangedLabel(statusUpdatedAt?: string): string {
 export default function ApplicationsPage() {
   const [data, setData] = useState<ApplicationGroups | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
     listApplications()
       .then(setData)
       .catch((e) => setError(e.message))
   }, [])
+
+  // A move goes through the same per-Application PATCH every page uses, and
+  // the backend stays the authority on whether it is legal. Only once it has
+  // persisted is the view re-read, so the row lands where the server's
+  // grouping puts it and a failed move never shows as a moved row.
+  async function handleStatusChange(id: string, status: ApplicationStatus) {
+    setStatusError(null)
+    setUpdatingId(id)
+    try {
+      await updateApplicationStatus(id, status)
+    } catch (err) {
+      setStatusError(errorMessage(err))
+      setUpdatingId(null)
+      return
+    }
+    try {
+      setData(await listApplications())
+    } catch (err) {
+      setStatusError(`Status changed, but the Applications view could not refresh: ${errorMessage(err)}`)
+    } finally {
+      setUpdatingId(null)
+    }
+  }
 
   if (error)
     return (
@@ -56,6 +86,12 @@ export default function ApplicationsPage() {
   return (
     <>
       <h1>Applications</h1>
+
+      {statusError && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {statusError}
+        </p>
+      )}
 
       {data.total === 0 ? (
         <p>
@@ -82,7 +118,12 @@ export default function ApplicationsPage() {
                 ) : (
                   <ul className="flex flex-col gap-3">
                     {group.items.map((item) => (
-                      <ApplicationRow key={item.jobListing.id} item={item} />
+                      <ApplicationRow
+                        key={item.jobListing.id}
+                        item={item}
+                        updating={updatingId === item.application.id}
+                        onMove={(next) => handleStatusChange(item.application.id, next)}
+                      />
                     ))}
                   </ul>
                 )}
@@ -95,7 +136,15 @@ export default function ApplicationsPage() {
   )
 }
 
-function ApplicationRow({ item }: { item: JobListingSummaryWithApplication }) {
+function ApplicationRow({
+  item,
+  updating,
+  onMove,
+}: {
+  item: JobListingSummaryWithApplication
+  updating: boolean
+  onMove: (next: ApplicationStatus) => void
+}) {
   const { jobListing, application } = item
   const generationCount = application.generations?.length ?? 0
   const methodUnresolved = application.method.kind === 'unresolved'
@@ -114,7 +163,15 @@ function ApplicationRow({ item }: { item: JobListingSummaryWithApplication }) {
             {jobListingHeading(jobListing)}
           </Link>
         </span>
-        <div className="flex flex-wrap items-center gap-2">{application.isStale && <StaleBadge />}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {application.isStale && <StaleBadge />}
+          <ApplicationStatusControl
+            company={jobListing.company}
+            status={application.status}
+            disabled={updating}
+            onMove={onMove}
+          />
+        </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className={cn(methodUnresolved && 'font-medium text-unresolved')}>

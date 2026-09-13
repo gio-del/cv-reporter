@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { MemoryRouter } from 'react-router-dom'
 import ApplicationsPage from './ApplicationsPage'
-import type { ApplicationGroups } from '@/api/types'
+import type { ApplicationGroups, ApplicationStatus } from '@/api/types'
 import AppNav from '@/components/AppNav'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { applicationGroups, listingSummaryWithApplication, listingWithApplication } from '@/test/fixtures'
+import {
+  application,
+  applicationGroups,
+  listingSummaryWithApplication,
+  listingWithApplication,
+} from '@/test/fixtures'
 import { currentPath, renderApp, renderPage } from '@/test/render'
-import { recordedRequests, server } from '@/test/server'
+import { recordedRequests, requestsTo, server } from '@/test/server'
 
 function showApplications(groups: ApplicationGroups) {
   server.use(http.get('/api/applications', () => HttpResponse.json(groups)))
@@ -184,5 +190,92 @@ describe('Primary nav', () => {
     expect(applications).toBeGreaterThan(labels.indexOf('Job Listings'))
     expect(applications).toBeLessThan(labels.indexOf('Stats'))
     expect(screen.getByRole('link', { name: 'Applications' })).toHaveAttribute('href', '/applications')
+  })
+})
+
+// A row moves its Application with the same constrained control the Job
+// Listings list and detail page use (its full confirmation matrix is covered
+// in ApplicationStatusControl.test.tsx), then the row lands in its new group
+// from a fresh, server-ordered snapshot.
+describe('Moving an Application from its row', () => {
+  const STATUS_PATH = '/api/applications/acme/status'
+
+  /** serveStatefully answers GET /api/applications with Acme in its current Status. */
+  function serveStatefully(initial: ApplicationStatus) {
+    let current = initial
+    server.use(
+      http.get('/api/applications', () =>
+        HttpResponse.json(
+          applicationGroups({
+            [current]: [listingSummaryWithApplication({ id: 'acme', company: 'Acme' }, { status: current })],
+          }),
+        ),
+      ),
+      http.patch(STATUS_PATH, async ({ request }) => {
+        const { status } = (await request.json()) as { status: ApplicationStatus }
+        current = status
+        return HttpResponse.json(application({ status }))
+      }),
+    )
+  }
+
+  async function moveTo(user: UserEvent, status: string) {
+    await user.click(await screen.findByRole('combobox', { name: 'Move Acme to a new status' }))
+    await user.click(await screen.findByRole('option', { name: status }))
+  }
+
+  it('StatusControl_Sent_OffersOnlyTheStateMachinesNextMoves', async () => {
+    serveStatefully('sent')
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await user.click(await screen.findByRole('combobox', { name: 'Move Acme to a new status' }))
+
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Interviewing', 'Rejected', 'Withdrawn'])
+  })
+
+  it('StatusMove_NoConfirmationNeeded_MovesTheRowIntoItsNewGroupWithoutAReload', async () => {
+    serveStatefully('sent')
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await moveTo(user, 'Interviewing')
+
+    expect(await screen.findByRole('region', { name: 'Interviewing, 1 Application' })).toBeInTheDocument()
+    expect(within(group('Interviewing')).getByRole('link', { name: 'Acme' })).toBeInTheDocument()
+    expect(within(group('Sent')).queryByRole('link', { name: 'Acme' })).not.toBeInTheDocument()
+    expect(await requestsTo(STATUS_PATH)).toEqual([
+      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'interviewing' } },
+    ])
+    expect(await requestsTo('/api/applications')).toHaveLength(2)
+  })
+
+  it('StatusMove_ToRejected_AsksForConfirmationBeforeSendingAnything', async () => {
+    serveStatefully('sent')
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await moveTo(user, 'Rejected')
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText('Mark this Application Rejected?')).toBeInTheDocument()
+    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Yes, mark Rejected' }))
+
+    expect(await screen.findByRole('region', { name: 'Rejected, 1 Application' })).toBeInTheDocument()
+    expect(await requestsTo(STATUS_PATH)).toEqual([
+      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'rejected' } },
+    ])
+  })
+
+  it('StatusMove_UpdateFails_LeavesTheRowWhereItWasAndSaysWhy', async () => {
+    serveStatefully('sent')
+    server.use(http.patch(STATUS_PATH, () => new HttpResponse('invalid status transition', { status: 400 })))
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await moveTo(user, 'Interviewing')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('invalid status transition')
+    expect(within(group('Sent')).getByRole('link', { name: 'Acme' })).toBeInTheDocument()
+    expect(group('Interviewing')).toHaveAttribute('aria-label', 'Interviewing, 0 Applications')
+    expect(await requestsTo('/api/applications')).toHaveLength(1)
   })
 })
