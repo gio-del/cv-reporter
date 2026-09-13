@@ -652,9 +652,138 @@ func TestGetJobListing_AfterContactAndGeneration_CarriesTheWholeApplication(t *t
 	}
 }
 
+// listJobListingsJSON reads GET /api/job-listings decoded generically, so a
+// test can assert on which fields the list response does and does not carry.
+func listJobListingsJSON(t *testing.T, serverURL string) []map[string]any {
+	t.Helper()
+	resp, err := http.Get(serverURL + "/api/job-listings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	var listed []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&listed); err != nil {
+		t.Fatal(err)
+	}
+	return listed
+}
+
+// The list returns a summary of each Job Listing (issue #97): the Job
+// Description text stays behind the detail endpoint, so the list payload
+// does not grow by a full posting with every save.
+func TestListJobListings_OmitsTheJobDescriptionText(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveJobListing(t, server.URL, "Acme Corp")
+
+	listed := listJobListingsJSON(t, server.URL)
+	if len(listed) != 1 {
+		t.Fatalf("expected 1 job listing, got %d", len(listed))
+	}
+	listing := listed[0]["jobListing"].(map[string]any)
+	if description, present := listing["jobDescription"]; present {
+		t.Errorf("expected the list response to omit jobDescription, got %v", description)
+	}
+}
+
+func TestListJobListings_ReportsWhetherEachListingHasAJobDescription(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	withDescription := saveJobListing(t, server.URL, "Acme Corp")
+	withoutDescription := saveJobListing(t, server.URL, "Beta Inc")
+	// The save endpoints require a Job Description, but a Job Listing file
+	// edited by hand can be left with an empty body: cut it after the
+	// frontmatter's closing delimiter.
+	path := filepath.Join(dataDir, "jobs", withoutDescription+".md")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closing := []byte("\n---\n")
+	end := bytes.Index(content[len("---"):], closing)
+	if end == -1 {
+		t.Fatalf("expected frontmatter in %s, got %q", path, content)
+	}
+	if err := os.WriteFile(path, content[:len("---")+end+len(closing)], 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	hasJobDescription := map[string]any{}
+	for _, row := range listJobListingsJSON(t, server.URL) {
+		listing := row["jobListing"].(map[string]any)
+		hasJobDescription[listing["id"].(string)] = listing["hasJobDescription"]
+	}
+	if hasJobDescription[withDescription] != true {
+		t.Errorf("expected hasJobDescription true for %s, got %v", withDescription, hasJobDescription[withDescription])
+	}
+	if hasJobDescription[withoutDescription] != false {
+		t.Errorf("expected hasJobDescription false for %s, got %v", withoutDescription, hasJobDescription[withoutDescription])
+	}
+}
+
+func TestListJobListings_SummaryKeepsEveryFieldTheListRenders(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
+		"title":          "Backend Engineer",
+		"company":        "Acme Corp",
+		"url":            "https://acme.example/jobs/1",
+		"jobDescription": "Some role. Salary: €40,000.",
+	})
+	resp.Body.Close()
+
+	listing := listJobListingsJSON(t, server.URL)[0]["jobListing"].(map[string]any)
+	want := map[string]any{
+		"id":              "acme-corp",
+		"title":           "Backend Engineer",
+		"company":         "Acme Corp",
+		"url":             "https://acme.example/jobs/1",
+		"source":          "manual",
+		"freshnessStatus": "not-yet-checked",
+	}
+	for field, value := range want {
+		if listing[field] != value {
+			t.Errorf("expected %s %v on the list summary, got %v", field, value, listing[field])
+		}
+	}
+	if savedAt, _ := listing["savedAt"].(string); savedAt == "" {
+		t.Errorf("expected savedAt on the list summary, got %v", listing["savedAt"])
+	}
+	if ral, ok := listing["ral"].(map[string]any); !ok || ral["source"] != "stated" {
+		t.Errorf("expected the stated RAL Range on the list summary, got %v", listing["ral"])
+	}
+}
+
+// The detail endpoint stays the one place a Job Description comes from, and
+// carries it verbatim.
+func TestGetJobListing_CarriesTheFullJobDescriptionVerbatim(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	description := "We are hiring.\n\n**Requirements**\n\n- Go\n- [Postgres](https://postgres.example)"
+	id := saveListing(t, server.URL, "Acme Corp", description)
+
+	listing := getJobListingDetail(t, server.URL, id)["jobListing"].(map[string]any)
+	if listing["jobDescription"] != description {
+		t.Errorf("expected the detail response to carry the Job Description verbatim, got %q", listing["jobDescription"])
+	}
+}
+
 // The detail page and the list row show the same record; a divergence
 // between the two responses would mean an affordance works in one place and
-// not the other (issue #94's "the two cannot drift").
+// not the other (issue #94's "the two cannot drift"). The one deliberate
+// difference is the Job Description (issue #97): the list row reports only
+// whether there is one.
 func TestGetJobListing_MatchesWhatTheListEndpointReturnsForTheSameRecord(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
@@ -662,20 +791,15 @@ func TestGetJobListing_MatchesWhatTheListEndpointReturnsForTheSameRecord(t *test
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
 
-	listResp, err := http.Get(server.URL + "/api/job-listings")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer listResp.Body.Close()
-	var listed []map[string]any
-	if err := json.NewDecoder(listResp.Body).Decode(&listed); err != nil {
-		t.Fatal(err)
-	}
+	listed := listJobListingsJSON(t, server.URL)
 	if len(listed) != 1 {
 		t.Fatalf("expected 1 job listing, got %d", len(listed))
 	}
 
 	detail := getJobListingDetail(t, server.URL, id)
+	detailListing := detail["jobListing"].(map[string]any)
+	delete(detailListing, "jobDescription")
+	detailListing["hasJobDescription"] = true
 	if !reflect.DeepEqual(detail, listed[0]) {
 		t.Errorf("detail response differs from the list entry for the same record:\ndetail: %v\nlist:   %v", detail, listed[0])
 	}

@@ -64,7 +64,11 @@ Once an Application is matched (step 1 above), any of the four actions below can
   ```
   Returns the updated Application.
 
-2. **Use its Job Description.** The matched `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another.
+2. **Use its Job Description.** The list in step 1 carries only a summary of each Job Listing — `jobListing.hasJobDescription` says whether there is one, not what it says — so fetch the matched record in full:
+   ```
+   curl -sf http://127.0.0.1:8080/api/job-listings/<id>
+   ```
+   It returns the same `{"jobListing": {...}, "application": {...}}` shape, and its `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another.
 
 3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
 

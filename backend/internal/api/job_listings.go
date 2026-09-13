@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -181,16 +182,68 @@ func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 			listings = tracking.SortListingsByRAL(listings, order)
 		}
 
+		summaries := make([]jobListingSummaryWithApplication, len(listings))
 		for i := range listings {
 			attachStaleEntries(&listings[i].Application, dataDir, projectRoot)
+			summaries[i] = summarizeListing(listings[i])
 		}
-		writeJSON(w, http.StatusOK, listings)
+		writeJSON(w, http.StatusOK, summaries)
+	}
+}
+
+// jobListingSummary is a Job Listing as GET /api/job-listings returns it
+// (issue #97): every field the list view renders, and only whether the Job
+// Listing holds a Job Description rather than the text itself, which can be
+// several kilobytes per posting. GET /api/job-listings/{id} stays the one
+// place the Job Description text comes from.
+type jobListingSummary struct {
+	ID                 string                   `json:"id"`
+	Title              string                   `json:"title,omitempty"`
+	Company            string                   `json:"company"`
+	URL                string                   `json:"url,omitempty"`
+	Source             string                   `json:"source"`
+	SavedAt            string                   `json:"savedAt"`
+	HasJobDescription  bool                     `json:"hasJobDescription"`
+	RAL                generation.RALRange      `json:"ral"`
+	Logo               string                   `json:"logo,omitempty"`
+	FreshnessStatus    tracking.FreshnessStatus `json:"freshnessStatus"`
+	FreshnessCheckedAt string                   `json:"freshnessCheckedAt,omitempty"`
+}
+
+// jobListingSummaryWithApplication is one list row: a Job Listing summary
+// paired with its whole Application, Generation history and stale-Entry
+// information included, since list rows read both.
+type jobListingSummaryWithApplication struct {
+	JobListing  jobListingSummary    `json:"jobListing"`
+	Application tracking.Application `json:"application"`
+}
+
+// summarizeListing projects a whole record down to its list row. It runs
+// after filtering and sorting, none of which read the Job Description.
+func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithApplication {
+	listing := l.JobListing
+	return jobListingSummaryWithApplication{
+		JobListing: jobListingSummary{
+			ID:                 listing.ID,
+			Title:              listing.Title,
+			Company:            listing.Company,
+			URL:                listing.URL,
+			Source:             listing.Source,
+			SavedAt:            listing.SavedAt,
+			HasJobDescription:  listing.JobDescription != "",
+			RAL:                listing.RAL,
+			Logo:               listing.Logo,
+			FreshnessStatus:    listing.FreshnessStatus,
+			FreshnessCheckedAt: listing.FreshnessCheckedAt,
+		},
+		Application: l.Application,
 	}
 }
 
 // getJobListingHandler returns a Job Listing paired with its 1:1
-// Application — the same shape the list endpoint returns per row, including
-// the read-time stale-Entry attachment — so the Job Listing detail page
+// Application — the list endpoint's row shape, including the read-time
+// stale-Entry attachment, but with the whole Job Listing and its Job
+// Description text rather than a summary (issue #97) — so the Job Listing detail page
 // (issue #94) can render Status, Application Method, Contact, Generation
 // history and the stale-Entry notice from one request. projectRoot is what
 // that attachment compares Master Data modification times against, exactly
