@@ -293,6 +293,16 @@ export function recordApplicationGeneration(id: string, req: RecordGenerationReq
   })
 }
 
+// addApplicationNote writes a Note (issue #96) and answers with the whole
+// updated Application, as every other Application action does.
+export function addApplicationNote(id: string, body: string): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+}
+
 export function listAtsListings(provider: AtsProvider, boardSlug: string): Promise<AtsListing[]> {
   return request(`/api/ats/${encodeURIComponent(provider)}/${encodeURIComponent(boardSlug)}/listings`)
 }

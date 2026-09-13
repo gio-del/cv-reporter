@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
+import ApplicationNotes from '@/components/ApplicationNotes'
 import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import ApplyGuidance from '@/components/ApplyGuidance'
@@ -298,6 +299,12 @@ export default function JobListingDetailPage() {
         <ApplicationMethodEditor method={application.method} onSave={handleMethodChange} />
         <ApplyGuidance jobListing={jobListing} application={application} onSaveContact={handleContactChange} />
       </section>
+
+      <ApplicationNotes
+        applicationId={application.id}
+        notes={application.notes}
+        onApplicationChange={(updated) => setRecord((prev) => (prev ? { ...prev, application: updated } : prev))}
+      />
 
       <section className="mt-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
