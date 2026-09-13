@@ -304,6 +304,21 @@ func getApplication(dataDir, slug string) (Application, error) {
 // masterdata's Entry file shape (ADR-0003 extended to Job Listings by
 // ADR-0008).
 func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
+	frontmatter, closingAndBody, err := locateFrontmatter(content)
+	if err != nil {
+		return nil, nil, err
+	}
+	after := closingAndBody[len("---"):]
+	after = bytes.TrimPrefix(after, []byte("\r\n"))
+	after = bytes.TrimPrefix(after, []byte("\n"))
+	return frontmatter, after, nil
+}
+
+// locateFrontmatter finds a Job Listing file's frontmatter and returns it
+// alongside the untouched remainder of the file, starting at the closing
+// "---" delimiter — so MigrateRecords can rewrite the frontmatter while
+// keeping the Job Description body byte for byte.
+func locateFrontmatter(content []byte) (frontmatter, closingAndBody []byte, err error) {
 	trimmed := bytes.TrimLeft(content, "\n")
 	if !bytes.HasPrefix(trimmed, []byte("---")) {
 		return nil, nil, fmt.Errorf("missing frontmatter delimiter")
@@ -316,13 +331,7 @@ func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
 	if idx == -1 {
 		return nil, nil, fmt.Errorf("missing closing frontmatter delimiter")
 	}
-	frontmatter = rest[:idx]
-
-	after := rest[idx+len("\n---"):]
-	after = bytes.TrimPrefix(after, []byte("\r\n"))
-	after = bytes.TrimPrefix(after, []byte("\n"))
-	body = after
-	return frontmatter, body, nil
+	return rest[:idx], rest[idx+1:], nil
 }
 
 func renderJobListing(l JobListing) []byte {
