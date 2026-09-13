@@ -112,3 +112,74 @@ describe('Notes on the Job Listing page', () => {
     expect(within(section).getByText('No Notes yet.')).toBeInTheDocument()
   })
 })
+
+describe('Correcting a Note', () => {
+  const NOTE_PATH = '/api/applications/acme/notes/n1'
+
+  it('EditNote_Saved_SendsTheNewBodyAndShowsItMarkedAsEdited', async () => {
+    const original = note({ body: 'Budget tops out at 84k.' })
+    const { user } = open(listingWithApplication({}, { notes: [original] }))
+    server.use(
+      http.patch(NOTE_PATH, () =>
+        HttpResponse.json(
+          application({ notes: [{ ...original, body: 'Budget tops out at 48k.', editedAt: '2026-03-02T10:00:00Z' }] }),
+        ),
+      ),
+    )
+
+    const [item] = shownNotes(await notesSection())
+    expect(within(item).queryByText('(edited)')).not.toBeInTheDocument()
+    await user.click(within(item).getByRole('button', { name: 'Edit Note' }))
+    const editor = within(item).getByRole('textbox', { name: 'Edit Note' })
+    expect(editor).toHaveValue('Budget tops out at 84k.')
+    await user.clear(editor)
+    await user.type(editor, 'Budget tops out at 48k.')
+    await user.click(within(item).getByRole('button', { name: 'Save Note' }))
+
+    const [updated] = shownNotes(await notesSection())
+    expect(await within(updated).findByText('Budget tops out at 48k.')).toBeInTheDocument()
+    expect(within(updated).getByText('(edited)')).toBeInTheDocument()
+    expect(within(updated).getByText(new Date(original.createdAt).toLocaleString())).toBeInTheDocument()
+    expect(within(updated).queryByRole('textbox', { name: 'Edit Note' })).not.toBeInTheDocument()
+    expect(await requestsTo(NOTE_PATH)).toEqual([
+      { method: 'PATCH', path: NOTE_PATH, search: '', body: { body: 'Budget tops out at 48k.' } },
+    ])
+  })
+
+  it('EditNote_Cancelled_SendsNothingAndKeepsTheOriginal', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note({ body: 'Keep me.' })] }))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Edit Note' }))
+    await user.type(within(item).getByRole('textbox', { name: 'Edit Note' }), ' changed')
+    await user.click(within(item).getByRole('button', { name: 'Cancel' }))
+
+    expect(within(item).getByText('Keep me.')).toBeInTheDocument()
+    expect(await requestsTo(NOTE_PATH)).toHaveLength(0)
+  })
+
+  it('EditNote_EmptiedOut_CannotBeSaved', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note()] }))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Edit Note' }))
+    await user.clear(within(item).getByRole('textbox', { name: 'Edit Note' }))
+
+    expect(within(item).getByRole('button', { name: 'Save Note' })).toBeDisabled()
+  })
+
+  it('EditNote_SaveFails_SaysSoAndKeepsTheCorrectionOpen', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note({ body: 'Typo hre.' })] }))
+    server.use(http.patch(NOTE_PATH, () => new HttpResponse('note not found', { status: 404 })))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Edit Note' }))
+    const editor = within(item).getByRole('textbox', { name: 'Edit Note' })
+    await user.clear(editor)
+    await user.type(editor, 'Typo here.')
+    await user.click(within(item).getByRole('button', { name: 'Save Note' }))
+
+    expect(await within(item).findByRole('alert')).toHaveTextContent('note not found')
+    expect(within(item).getByRole('textbox', { name: 'Edit Note' })).toHaveValue('Typo here.')
+  })
+})

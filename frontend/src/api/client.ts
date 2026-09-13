@@ -303,6 +303,15 @@ export function addApplicationNote(id: string, body: string): Promise<Applicatio
   })
 }
 
+// editApplicationNote corrects a Note's body; its createdAt never changes.
+export function editApplicationNote(id: string, noteId: string, body: string): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body }),
+  })
+}
+
 export function listAtsListings(provider: AtsProvider, boardSlug: string): Promise<AtsListing[]> {
   return request(`/api/ats/${encodeURIComponent(provider)}/${encodeURIComponent(boardSlug)}/listings`)
 }
