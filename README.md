@@ -170,6 +170,7 @@ Every record is read and checked before anything is written, so an unparseable r
 | DELETE | `/api/applications/{id}/notes/{noteId}` | hard-delete one Note (no tombstone), returning 200 with the updated Application; an unknown Application or Note id is a 404. Deleting the last Note removes the `notes` key from the Application file |
 | POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
 | POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
+| GET | `/api/usage` | running-total Claude API usage/estimated cost across every Generation plus standalone calls (RAL Range/Application Method resolution, Contact suggestion) from `data/usage-log.json` — the usage totals plus `incomplete: true` and a human-readable `incompleteReason` when some usage is known to be missing (unreadable log, or a failed log write); both fields are omitted when the total is complete (issue #102) |
 | GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |
 | GET | `/api/ats/{provider}/{slug}/listings` | list public job-board listings from an ATS (Greenhouse/Lever/Ashby) |
 | GET | `/api/ats/tracked-boards` | list tracked ATS boards |

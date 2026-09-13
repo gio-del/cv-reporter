@@ -59,10 +59,10 @@ func RecordStandaloneUsage(dataDir string, client any) {
 // (Generations across every Application) plus the standalone usage log
 // (RAL/Method/Contact calls made outside a Generation) — into one running
 // total (PRD story 11).
-func TotalUsage(dataDir string) (generation.GenerationUsage, error) {
+func TotalUsage(dataDir string) (UsageTotal, error) {
 	listings, err := List(dataDir)
 	if err != nil {
-		return generation.GenerationUsage{}, err
+		return UsageTotal{}, err
 	}
 
 	var calls []generation.CallUsage
@@ -71,10 +71,23 @@ func TotalUsage(dataDir string) (generation.GenerationUsage, error) {
 			calls = append(calls, g.Usage.Calls...)
 		}
 	}
-	logged, _ := ReadUsageLog(dataDir)
+	total := UsageTotal{}
+	logged, err := ReadUsageLog(dataDir)
+	if err != nil {
+		total.IncompleteReason = fmt.Sprintf("The standalone usage log (%s) is unreadable, so its calls are missing from this total and new ones are not being recorded until it is fixed or removed: %v", usageLogFile, err)
+	}
 	calls = append(calls, logged...)
 
-	return generation.NewGenerationUsage(calls), nil
+	total.Usage = generation.NewGenerationUsage(calls)
+	return total, nil
+}
+
+// UsageTotal is TotalUsage's result: the aggregated usage plus, when some
+// usage is known to be missing from it, why (issue #102). An empty
+// IncompleteReason means the total is complete.
+type UsageTotal struct {
+	Usage            generation.GenerationUsage
+	IncompleteReason string
 }
 
 // ReadUsageLog returns every standalone (non-Generation) CallUsage recorded

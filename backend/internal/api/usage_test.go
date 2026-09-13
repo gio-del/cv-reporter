@@ -65,6 +65,7 @@ func TestGetUsage_SumsGenerationAndStandaloneUsage(t *testing.T) {
 	if !ok || len(calls) != 2 {
 		t.Fatalf("expected 2 calls in the breakdown (1 standalone + 1 generation), got %v", got["calls"])
 	}
+	assertUsageComplete(t, got)
 }
 
 func TestGetUsage_NothingRecordedYet_ReturnsZeroValue(t *testing.T) {
@@ -72,21 +73,57 @@ func TestGetUsage_NothingRecordedYet_ReturnsZeroValue(t *testing.T) {
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/usage")
+	got := getUsage(t, server.URL)
+	if got["estimatedCostUsd"] != float64(0) {
+		t.Errorf("estimatedCostUsd = %v, want 0", got["estimatedCostUsd"])
+	}
+	assertUsageComplete(t, got)
+}
+
+func TestGetUsage_CorruptUsageLog_ReportsIncomplete(t *testing.T) {
+	dataDir := seedDataDir(t)
+	if err := os.WriteFile(filepath.Join(dataDir, "usage-log.json"), []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	assertUsageIncomplete(t, getUsage(t, server.URL))
+}
+
+// getUsage fetches GET /api/usage and decodes its body, failing on non-200.
+func getUsage(t *testing.T, serverURL string) map[string]any {
+	t.Helper()
+	resp, err := http.Get(serverURL + "/api/usage")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.StatusCode)
+		t.Fatalf("expected 200 from /api/usage, got %d", resp.StatusCode)
 	}
-
 	var got map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got["estimatedCostUsd"] != float64(0) {
-		t.Errorf("estimatedCostUsd = %v, want 0", got["estimatedCostUsd"])
+	return got
+}
+
+func assertUsageComplete(t *testing.T, usage map[string]any) {
+	t.Helper()
+	if usage["incomplete"] == true || usage["incompleteReason"] != nil {
+		t.Errorf("expected a complete usage total with no incompleteness signal, got incomplete=%v incompleteReason=%v",
+			usage["incomplete"], usage["incompleteReason"])
+	}
+}
+
+func assertUsageIncomplete(t *testing.T, usage map[string]any) {
+	t.Helper()
+	if usage["incomplete"] != true {
+		t.Errorf("incomplete = %v, want true", usage["incomplete"])
+	}
+	if reason, _ := usage["incompleteReason"].(string); reason == "" {
+		t.Errorf("incompleteReason = %v, want a non-empty explanation", usage["incompleteReason"])
 	}
 }
 
@@ -126,4 +163,5 @@ func TestSaveJobListing_CorruptUsageLog_LeavesLogUntouched(t *testing.T) {
 	if !bytes.Equal(after, corrupt) {
 		t.Errorf("corrupt usage log was overwritten:\nbefore: %s\nafter:  %s", corrupt, after)
 	}
+	assertUsageIncomplete(t, getUsage(t, server.URL))
 }
