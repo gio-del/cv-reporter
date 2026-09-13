@@ -23,9 +23,9 @@ This mode needs the backend running (`docker-compose up` — `http://127.0.0.1:8
 
 1. **Look up the Application.** Run:
    ```
-   curl -sf http://127.0.0.1:8080/api/job-listings
+   curl -sf 'http://127.0.0.1:8080/api/job-listings?archived=all'
    ```
-   This returns every tracked Job Listing paired 1:1 with its Application: `[{ "jobListing": {...}, "application": {...} }, ...]`. A connection error or non-2xx here means the backend isn't running — stop and tell the user to run `docker-compose up`. Otherwise, match the user's text case-insensitively against each entry's `jobListing.company` and `jobListing.title`.
+   This returns every tracked Job Listing paired 1:1 with its Application: `[{ "jobListing": {...}, "application": {...} }, ...]`. Keep `archived=all`: without it the endpoint leaves out Archived Job Listings, and the user can still mean one of those. A connection error or non-2xx here means the backend isn't running — stop and tell the user to run `docker-compose up`. Otherwise, match the user's text case-insensitively against each entry's `jobListing.company` and `jobListing.title`.
    - **No match**: stop and tell the user you couldn't find it — don't silently fall through to Default Mode or treat their text as a Job Description.
    - **One match**: proceed with it.
    - **More than one match**: list the candidates (company, title, `application.status`) and ask the user which one they mean before doing anything else.
