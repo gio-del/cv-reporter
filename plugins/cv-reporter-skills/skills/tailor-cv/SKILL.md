@@ -1,6 +1,6 @@
 ---
 name: tailor-cv
-description: Generate a tailored, one-page CV (PDF) from this repo's Master Data, for a specific job (paste text or a URL), for a role already tracked as a Job Listing/Application in the web app (by company or job title), or, with no job given, a general-purpose Default Mode CV. Use when the user wants to apply for a job, update their CV, or asks to run/build/tailor a CV.
+description: Generate a tailored, one-page CV (PDF), plus a Cover Letter when a job is given, from this repo's Master Data, for a specific job (paste text or a URL), for a role already tracked as a Job Listing/Application in the web app (by company or job title), or, with no job given, a general-purpose Default Mode CV. Use when the user wants to apply for a job, update their CV, or asks to run/build/tailor a CV.
 ---
 
 # Tailor CV
@@ -198,4 +198,5 @@ Once an Application is matched (step 1 above), any of the four actions below can
 - `output/` is gitignored — it's derived, not Master Data. Never edit it as if it were a source of truth.
 - `scripts/quality-check.sh` wraps the backend's `cvcheck` CLI (`backend/cmd/cvcheck`) so this skill runs the web app's automated checks through the app's own Go code rather than a prose re-description of them (ADR-0028). Every check is advisory: exit `0` = ran clean, `1` = ran and flagged something, `2` = couldn't run — and none of them is a reason to stop the pipeline.
 - To add new Master Data (a new job, a new project), create a new file under `data/experience/` or `data/projects/` following the frontmatter shape of the existing files — this is normal manual editing, not something this skill automates.
-- This skill never drafts Cover Letters, edits Master Data, or captures new Job Listings — those stay website/extension-only (see the FE's own Generate button, ADR-0005).
+- A Tailored-mode run produces a complete Generation — Tailored CV and Cover Letter — the same outputs as the web app's Generate button (CONTEXT.md's Generation and Cover Letter entries). ADR-0005 decides how the *app* runs Generation and keeps this skill as a parallel path; it doesn't narrow what the skill does, so the two stay aligned by mirroring the app's drafting contract (step 3).
+- This skill never edits Master Data (including creating or editing Cover Letter Snippets) and never captures new Job Listings — those are data entry, done in the web app or the LinkedIn extension.
