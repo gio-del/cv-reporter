@@ -1,8 +1,18 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
-import { addApplicationNote, editApplicationNote } from '@/api/client'
+import { addApplicationNote, deleteApplicationNote, editApplicationNote } from '@/api/client'
 import type { Application, Note } from '@/api/types'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -113,6 +123,23 @@ function NoteItem({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  // On success the Note leaves the list and this item unmounts, so only the
+  // failure path resets local state.
+  async function handleConfirmDelete() {
+    setError(null)
+    setDeleting(true)
+    try {
+      onApplicationChange(await deleteApplicationNote(applicationId, note.id))
+    } catch (err) {
+      setError(errorMessage(err))
+      setDeleting(false)
+      setDeleteOpen(false)
+    }
+  }
+
   function startEditing() {
     setDraft(note.body)
     setError(null)
@@ -145,9 +172,20 @@ function NoteItem({
           )}
         </p>
         {!editing && (
-          <Button size="sm" variant="ghost" aria-label="Edit Note" onClick={startEditing}>
-            Edit
-          </Button>
+          <span className="flex gap-1">
+            <Button size="sm" variant="ghost" aria-label="Edit Note" onClick={startEditing} disabled={deleting}>
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label="Delete Note"
+              onClick={() => setDeleteOpen(true)}
+              disabled={deleting}
+            >
+              Delete
+            </Button>
+          </span>
         )}
       </div>
 
@@ -177,6 +215,32 @@ function NoteItem({
           {error}
         </p>
       )}
+
+      {/* Deleting is permanent — no tombstone — so it asks first (story 12). */}
+      <AlertDialog open={deleteOpen} onOpenChange={(open) => !deleting && setDeleteOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this Note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The Note written {formatDate(note.createdAt)} will be removed from this Application. This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmDelete()
+              }}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Yes, delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </li>
   )
 }

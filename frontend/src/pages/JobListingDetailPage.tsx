@@ -370,8 +370,8 @@ export default function JobListingDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {heading}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will also remove its Application (Status, Method, Contact, and Generation history). This action
-              cannot be undone.
+              This will also remove its Application (Status, Method, Contact, Notes, and Generation history). This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

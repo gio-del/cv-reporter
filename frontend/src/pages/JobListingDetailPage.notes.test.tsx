@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import JobListingDetailPage from './JobListingDetailPage'
 import type { JobListingWithApplication, Note } from '@/api/types'
@@ -181,5 +181,68 @@ describe('Correcting a Note', () => {
 
     expect(await within(item).findByRole('alert')).toHaveTextContent('note not found')
     expect(within(item).getByRole('textbox', { name: 'Edit Note' })).toHaveValue('Typo here.')
+  })
+})
+
+describe('Deleting a Note', () => {
+  const NOTE_PATH = '/api/applications/acme/notes/n1'
+
+  it('DeleteNote_Confirmed_DeletesOnlyThatNote', async () => {
+    const wrong = note({ id: 'n1', createdAt: '2026-03-09T16:00:00Z', body: 'Typed into the wrong Application.' })
+    const keep = note({ id: 'n2', createdAt: '2026-03-02T09:30:00Z', body: 'Screening call booked.' })
+    const { user } = open(listingWithApplication({}, { notes: [wrong, keep] }))
+    server.use(http.delete(NOTE_PATH, () => HttpResponse.json(application({ notes: [keep] }))))
+
+    const [first] = shownNotes(await notesSection())
+    await user.click(within(first).getByRole('button', { name: 'Delete Note' }))
+
+    const dialog = await screen.findByRole('alertdialog')
+    expect(within(dialog).getByText('Delete this Note?')).toBeInTheDocument()
+    expect(await requestsTo(NOTE_PATH)).toHaveLength(0)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Yes, delete' }))
+
+    await waitFor(() => expect(screen.queryByText('Typed into the wrong Application.')).not.toBeInTheDocument())
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(shownNotes(await notesSection())).toHaveLength(1)
+    expect(screen.getByText('Screening call booked.')).toBeInTheDocument()
+    expect(await requestsTo(NOTE_PATH)).toEqual([{ method: 'DELETE', path: NOTE_PATH, search: '', body: undefined }])
+  })
+
+  it('DeleteNote_ConfirmationCancelled_DeletesNothing', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note()] }))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Delete Note' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(within(item).getByText('Screening call booked.')).toBeInTheDocument()
+    expect(await requestsTo(NOTE_PATH)).toHaveLength(0)
+  })
+
+  it('DeleteNote_LastOne_LeavesThePlainEmptyState', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note()] }))
+    server.use(http.delete(NOTE_PATH, () => HttpResponse.json(application())))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Delete Note' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Yes, delete' }))
+
+    const section = await notesSection()
+    expect(await within(section).findByText('No Notes yet.')).toBeInTheDocument()
+  })
+
+  it('DeleteNote_Fails_SaysSoAndKeepsTheNote', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note()] }))
+    server.use(http.delete(NOTE_PATH, () => new HttpResponse('permission denied', { status: 500 })))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Delete Note' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Yes, delete' }))
+
+    expect(await within(item).findByRole('alert')).toHaveTextContent('permission denied')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(within(item).getByText('Screening call booked.')).toBeInTheDocument()
   })
 })

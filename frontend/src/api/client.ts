@@ -312,6 +312,14 @@ export function editApplicationNote(id: string, noteId: string, body: string): P
   })
 }
 
+// deleteApplicationNote hard-deletes one Note, answering with the updated
+// Application.
+export function deleteApplicationNote(id: string, noteId: string): Promise<Application> {
+  return request(`/api/applications/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, {
+    method: 'DELETE',
+  })
+}
+
 export function listAtsListings(provider: AtsProvider, boardSlug: string): Promise<AtsListing[]> {
   return request(`/api/ats/${encodeURIComponent(provider)}/${encodeURIComponent(boardSlug)}/listings`)
 }

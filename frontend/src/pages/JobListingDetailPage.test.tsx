@@ -351,7 +351,7 @@ describe('Job Listing deletion', () => {
     const dialog = await screen.findByRole('alertdialog')
     expect(within(dialog).getByText('Delete Backend Engineer — Acme?')).toBeInTheDocument()
     expect(
-      within(dialog).getByText(/also remove its Application \(Status, Method, Contact, and Generation history\)/),
+      within(dialog).getByText(/also remove its Application \(Status, Method, Contact, Notes, and Generation history\)/),
     ).toBeInTheDocument()
     expect(await requestsTo(DETAIL_PATH)).toEqual([{ method: 'GET', path: DETAIL_PATH, search: '', body: undefined }])
 
