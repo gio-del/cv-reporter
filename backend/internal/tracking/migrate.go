@@ -6,9 +6,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"gopkg.in/yaml.v3"
 )
 
@@ -118,6 +121,7 @@ func MigrateRecords(dataDir string, opts MigrationOptions) (MigrationReport, err
 	}
 
 	var writes []migrationWrite
+	savedAt := make(map[string]string, len(listingSlugs))
 	for _, slug := range listingSlugs {
 		rel := path.Join(jobsDir, slug+".md")
 		content, err := os.ReadFile(filepath.Join(dataDir, filepath.FromSlash(rel)))
@@ -126,15 +130,43 @@ func MigrateRecords(dataDir string, opts MigrationOptions) (MigrationReport, err
 		}
 		report.Scanned++
 
-		migrated, change, err := migrateJobListing(content)
+		migrated, listingSavedAt, change, err := migrateJobListing(content)
 		if err != nil {
 			return report, fmt.Errorf("%s: %w", rel, err)
 		}
+		savedAt[slug] = listingSavedAt
 		if !hasApplication[slug] {
 			report.Inconsistencies = append(report.Inconsistencies, Inconsistency{
 				Path:    rel,
 				Problem: fmt.Sprintf("no Application file at %s", path.Join(applicationsDir, slug+".md")),
 			})
+		}
+		if change == nil {
+			continue
+		}
+		change.Path = rel
+		report.Migrated = append(report.Migrated, *change)
+		writes = append(writes, migrationWrite{path: filepath.Join(dataDir, filepath.FromSlash(rel)), content: migrated})
+	}
+
+	for _, slug := range applicationSlugs {
+		rel := path.Join(applicationsDir, slug+".md")
+		content, err := os.ReadFile(filepath.Join(dataDir, filepath.FromSlash(rel)))
+		if err != nil {
+			return report, fmt.Errorf("%s: %w", rel, err)
+		}
+		report.Scanned++
+
+		listingSavedAt, hasListing := savedAt[slug]
+		if !hasListing {
+			report.Inconsistencies = append(report.Inconsistencies, Inconsistency{
+				Path:    rel,
+				Problem: fmt.Sprintf("no Job Listing file at %s", path.Join(jobsDir, slug+".md")),
+			})
+		}
+		migrated, change, err := migrateApplication(content, listingSavedAt, hasListing)
+		if err != nil {
+			return report, fmt.Errorf("%s: %w", rel, err)
 		}
 		if change == nil {
 			continue
@@ -157,33 +189,37 @@ func MigrateRecords(dataDir string, opts MigrationOptions) (MigrationReport, err
 
 // migrateJobListing returns content rewritten at CurrentSchemaVersion and
 // what changed, or a nil change when the Job Listing is already current.
-func migrateJobListing(content []byte) ([]byte, *RecordMigration, error) {
+// It also returns the Job Listing's savedAt, which the paired Application's
+// migration may backfill from.
+func migrateJobListing(content []byte) ([]byte, string, *RecordMigration, error) {
 	fm, closingAndBody, err := locateFrontmatter(content)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
+	}
+	// Parsing the node tree first also rejects a frontmatter that is not a
+	// mapping, which the typed decode below would not always notice.
+	doc, mapping, err := parseMapping(fm)
+	if err != nil {
+		return nil, "", nil, err
 	}
 	var raw rawJobListingFrontmatter
 	if err := yaml.Unmarshal(fm, &raw); err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	if err := checkSchemaVersion(raw.SchemaVersion); err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	if raw.SchemaVersion == CurrentSchemaVersion {
-		return nil, nil, nil
+		return nil, raw.SavedAt, nil, nil
 	}
 
-	doc, mapping, err := parseMapping(fm)
-	if err != nil {
-		return nil, nil, err
-	}
 	change := &RecordMigration{Kind: RecordJobListing, FromVersion: raw.SchemaVersion, ToVersion: CurrentSchemaVersion}
 
 	// Every reader already treats a missing freshnessStatus as
 	// not-yet-checked; writing it down is recovery, not estimation.
 	if raw.FreshnessStatus == "" {
 		if err := setMappingValue(mapping, "freshnessStatus", FreshnessNotYetChecked); err != nil {
-			return nil, nil, err
+			return nil, "", nil, err
 		}
 		change.Backfilled = append(change.Backfilled, BackfilledField{Field: "freshnessStatus", Value: string(FreshnessNotYetChecked)})
 	}
@@ -191,13 +227,116 @@ func migrateJobListing(content []byte) ([]byte, *RecordMigration, error) {
 
 	encoded, err := yaml.Marshal(doc)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 	var buf bytes.Buffer
 	buf.WriteString("---\n")
 	buf.Write(encoded)
 	buf.Write(closingAndBody)
-	return buf.Bytes(), change, nil
+	return buf.Bytes(), raw.SavedAt, change, nil
+}
+
+// migrateApplication returns content rewritten at CurrentSchemaVersion and
+// what changed, or a nil change when the Application is already current.
+// listingSavedAt is the paired Job Listing's savedAt (hasListing false when
+// there is no Job Listing file).
+//
+// Only an Application still at Status Saved gets statusUpdatedAt and a
+// statusHistory backfilled: no Status moves back to Saved, so it has
+// provably never transitioned and its Job Listing's saved date is the date
+// its Status was set. Past Saved, the transitions were never written down,
+// and inventing them would make time-in-stage (stats.go) and the stale
+// nudges (staleness.go) confidently wrong — so those stay empty and are
+// reported. Existing Generations are left legacy, with their absent
+// Selection/Snippet/usage/language fields reported the same way.
+func migrateApplication(content []byte, listingSavedAt string, hasListing bool) ([]byte, *RecordMigration, error) {
+	doc, mapping, err := parseMapping(content)
+	if err != nil {
+		return nil, nil, err
+	}
+	var raw rawApplication
+	if err := yaml.Unmarshal(content, &raw); err != nil {
+		return nil, nil, err
+	}
+	if err := checkApplicationSchemaVersions(raw); err != nil {
+		return nil, nil, err
+	}
+	if raw.SchemaVersion == CurrentSchemaVersion {
+		return nil, nil, nil
+	}
+
+	change := &RecordMigration{Kind: RecordApplication, FromVersion: raw.SchemaVersion, ToVersion: CurrentSchemaVersion}
+	unknowable := func(field, reason string) {
+		change.Unknowable = append(change.Unknowable, UnknowableField{Field: field, Reason: reason})
+	}
+
+	missingUpdatedAt := raw.StatusUpdatedAt == ""
+	missingHistory := len(raw.StatusHistory) == 0
+	if missingUpdatedAt || missingHistory {
+		reason := ""
+		var savedTime time.Time
+		switch {
+		case raw.Status != StatusSaved:
+			reason = fmt.Sprintf("Status is %s: the transitions since Saved were never recorded, and inventing them would skew time-in-stage and stale nudges", raw.Status)
+		case !hasListing:
+			reason = "Status is Saved, but there is no paired Job Listing to take the saved date from"
+		default:
+			parsed, parseErr := time.Parse(time.RFC3339Nano, listingSavedAt)
+			if parseErr != nil {
+				reason = fmt.Sprintf("Status is Saved, but the Job Listing's savedAt %q is not a valid timestamp", listingSavedAt)
+			}
+			savedTime = parsed.UTC()
+		}
+
+		if missingUpdatedAt {
+			if reason != "" {
+				unknowable("statusUpdatedAt", reason)
+			} else {
+				if err := setMappingValueAfter(mapping, "statusUpdatedAt", listingSavedAt, "status"); err != nil {
+					return nil, nil, err
+				}
+				change.Backfilled = append(change.Backfilled, BackfilledField{Field: "statusUpdatedAt", Value: listingSavedAt})
+			}
+		}
+		if missingHistory {
+			if reason != "" {
+				unknowable("statusHistory", reason)
+			} else {
+				history := []StatusChange{{Status: StatusSaved, ChangedAt: savedTime}}
+				if err := setMappingValue(mapping, "statusHistory", history); err != nil {
+					return nil, nil, err
+				}
+				change.Backfilled = append(change.Backfilled, BackfilledField{Field: "statusHistory", Value: fmt.Sprintf("[%s at %s]", StatusSaved, listingSavedAt)})
+			}
+		}
+	}
+
+	for i, g := range raw.Generations {
+		if !g.IsLegacy() {
+			continue
+		}
+		const reason = "recorded before Generations carried this field; nothing on disk records it"
+		prefix := fmt.Sprintf("generations[%d].", i)
+		if len(g.SourceSnippetIDs) == 0 {
+			unknowable(prefix+"sourceSnippetIds", reason)
+		}
+		if len(g.EntryIDs) == 0 {
+			unknowable(prefix+"entryIds", reason)
+		}
+		if reflect.DeepEqual(g.Usage, generation.GenerationUsage{}) {
+			unknowable(prefix+"usage", reason)
+		}
+		if g.Language == "" {
+			unknowable(prefix+"language", reason)
+		}
+	}
+
+	stampSchemaVersion(mapping)
+	encoded, err := yaml.Marshal(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return encoded, change, nil
 }
 
 // recordSlugs lists the record ids under dir: every regular *.md file,
@@ -258,6 +397,24 @@ func setMappingValue(mapping *yaml.Node, key string, value any) error {
 		}
 	}
 	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, &encoded)
+	return nil
+}
+
+// setMappingValueAfter adds key (absent from mapping) directly after the
+// key named after, or at the end when after is absent.
+func setMappingValueAfter(mapping *yaml.Node, key string, value any, after string) error {
+	if err := setMappingValue(mapping, key, value); err != nil {
+		return err
+	}
+	n := len(mapping.Content)
+	pair := []*yaml.Node{mapping.Content[n-2], mapping.Content[n-1]}
+	for i := 0; i+1 < n-2; i += 2 {
+		if mapping.Content[i].Value == after {
+			rest := append(pair, mapping.Content[i+2:n-2]...)
+			mapping.Content = append(mapping.Content[:i+2], rest...)
+			return nil
+		}
+	}
 	return nil
 }
 
