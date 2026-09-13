@@ -17,6 +17,7 @@ import {
   getJobListing,
   jobListingLogoUrl,
   resolveJobListing,
+  setJobListingArchived,
   updateApplicationContact,
   updateApplicationMethod,
   updateApplicationStatus,
@@ -32,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { jobListingHeading } from '@/lib/utils'
@@ -89,6 +91,7 @@ export default function JobListingDetailPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [checkingFreshness, setCheckingFreshness] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -189,6 +192,21 @@ export default function JobListingDetailPage() {
     }
   }
 
+  // Archive/Unarchive (issue #98) needs no confirmation: it deletes nothing
+  // and is undone by the same button, unlike Delete below.
+  async function handleArchiveToggle() {
+    setActionError(null)
+    setArchiving(true)
+    try {
+      const updated = await setJobListingArchived(id, !jobListing.archived)
+      setRecord((prev) => (prev ? { ...prev, jobListing: updated } : prev))
+    } catch (err) {
+      setActionError(errorMessage(err))
+    } finally {
+      setArchiving(false)
+    }
+  }
+
   async function handleConfirmDelete() {
     setDeleteError(null)
     setDeleting(true)
@@ -214,6 +232,7 @@ export default function JobListingDetailPage() {
           <h1 className="mb-0 break-words">{heading}</h1>
         </span>
         <div className="flex flex-wrap items-center gap-2">
+          {jobListing.archived && <Badge variant="outline">Archived</Badge>}
           <ApplicationStatusBadges application={application} needsResolve={needsResolve} />
           {needsResolve && (
             <Tooltip>
@@ -330,7 +349,10 @@ export default function JobListingDetailPage() {
         </section>
       )}
 
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="outline" onClick={handleArchiveToggle} disabled={archiving || deleting}>
+          {jobListing.archived ? 'Unarchive' : 'Archive'}
+        </Button>
         <Button variant="outline" onClick={() => setDeleteOpen(true)} disabled={deleting}>
           Delete
         </Button>
