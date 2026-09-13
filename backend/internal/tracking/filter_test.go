@@ -36,6 +36,24 @@ func TestFilterListings_NoFilters_ReturnsAllUnchanged(t *testing.T) {
 	}
 }
 
+// TestFilterListings_NoFilters_KeepsArchived pins the zero-value contract
+// issue #98 must not break: an empty FilterParams keeps archived Job
+// Listings too, since only the API handler defaults to excluding them.
+func TestFilterListings_NoFilters_KeepsArchived(t *testing.T) {
+	archived := listing("1", tracking.StatusRejected, "Acme Corp", "2026-01-01T00:00:00Z")
+	archived.JobListing.Archived = true
+	items := []tracking.ListingWithApplication{
+		archived,
+		listing("2", tracking.StatusSaved, "Beta Inc", "2026-02-01T00:00:00Z"),
+	}
+
+	got := tracking.FilterListings(items, tracking.FilterParams{})
+
+	if len(got) != 2 {
+		t.Fatalf("expected an empty FilterParams to keep archived listings, got %d items", len(got))
+	}
+}
+
 func TestFilterListings_ByStatus_ReturnsOnlyMatching(t *testing.T) {
 	items := []tracking.ListingWithApplication{
 		listing("1", tracking.StatusSaved, "Acme Corp", "2026-01-01T00:00:00Z"),

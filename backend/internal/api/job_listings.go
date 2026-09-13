@@ -115,10 +115,25 @@ type captureJobListingRequest struct {
 }
 
 // parseJobListingsFilter reads the optional status/company/savedFrom/savedTo
-// query parameters (issue #45), returning a descriptive error for any value
-// that can't be parsed rather than silently ignoring it.
+// query parameters (issue #45) and archived (issue #98), returning a
+// descriptive error for any value that can't be parsed rather than silently
+// ignoring it.
 func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
 	var params tracking.FilterParams
+
+	// An absent archived parameter means the safe default, non-archived
+	// only. The default lives here rather than in tracking.FilterParams,
+	// whose zero value must keep matching everything.
+	switch archived := query.Get("archived"); archived {
+	case "", string(tracking.ArchivedExclude):
+		params.Archived = tracking.ArchivedExclude
+	case string(tracking.ArchivedOnly):
+		params.Archived = tracking.ArchivedOnly
+	case "all":
+		params.Archived = tracking.ArchivedAll
+	default:
+		return params, fmt.Errorf("invalid archived: %q (want exclude, only or all)", archived)
+	}
 
 	if status := query.Get("status"); status != "" {
 		switch tracking.Status(status) {
