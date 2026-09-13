@@ -105,7 +105,7 @@ A Generation run without a Job Description. Selection falls back to the most rec
 _Avoid_: generic CV, general CV (that's the output; this is the mode that produces it)
 
 **Text Review**:
-The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render.
+The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render. Alongside it, an automated groundedness check scores every rewritten bullet against its source bullet and flags likely-invented content — the same check whether the Generation came from the web app or the `tailor-cv` skill (ADR-0028). A signal shown here, not a second checkpoint; the human decision stays Text Review's alone.
 _Avoid_: draft review
 
 **Render**:

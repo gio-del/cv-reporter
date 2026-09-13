@@ -94,6 +94,12 @@ func runGroundedness(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result, err := generation.CheckSelectionGroundedness(*dataDir, selection)
+	if errors.Is(err, generation.ErrInvalidSelection) {
+		// The sentinel's wording is written for the app's Claude client;
+		// here the artifact's author is the skill, so name the file instead.
+		detail := strings.TrimPrefix(err.Error(), generation.ErrInvalidSelection.Error()+": ")
+		return unavailable(stderr, fmt.Errorf("groundedness: selection artifact %s is not traceable to Master Data in %s: %s (source bullets must be copied verbatim)", *selectionPath, *dataDir, detail))
+	}
 	if err != nil {
 		return unavailable(stderr, fmt.Errorf("groundedness: %w", err))
 	}
