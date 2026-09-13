@@ -4,6 +4,7 @@ import type {
   ApplicationMethod,
   ApplicationStats,
   ApplicationStatus,
+  ArchivedView,
   AtsListing,
   AtsProvider,
   Contact,
@@ -164,10 +165,11 @@ export interface JobListingsFilter {
   company?: string
   savedFrom?: string
   savedTo?: string
+  archived?: ArchivedView
 }
 
 // listJobListings passes filter's status/company/savedFrom/savedTo (issue
-// #45) and sortByRAL/ralMin/ralMax/ralCurrency (issue #51) through to GET
+// #45), archived (issue #98) and sortByRAL/ralMin/ralMax/ralCurrency (issue #51) through to GET
 // /api/job-listings's matching optional query params — omitted entirely
 // when not given, matching the endpoint's own unfiltered/unsorted default.
 // Each row's Job Listing is a summary without the Job Description text
@@ -180,6 +182,8 @@ export function listJobListings(
   if (filter?.company) params.set('company', filter.company)
   if (filter?.savedFrom) params.set('savedFrom', filter.savedFrom)
   if (filter?.savedTo) params.set('savedTo', filter.savedTo)
+  // exclude is the backend's own default, so it is left off the request.
+  if (filter?.archived && filter.archived !== 'exclude') params.set('archived', filter.archived)
   if (filter?.sortByRAL) {
     params.set('sort', 'ral')
     params.set('order', filter.sortByRAL)
@@ -238,6 +242,16 @@ export function resolveJobListing(jobListingId: string): Promise<JobListingWithA
 export async function checkJobListingFreshness(jobListingId: string): Promise<JobListing> {
   const result = await request<{ jobListing: JobListing }>(
     `/api/job-listings/${encodeURIComponent(jobListingId)}/check-freshness`,
+    { method: 'POST' },
+  )
+  return result.jobListing
+}
+
+// setJobListingArchived archives (true) or unarchives (false) a Job Listing
+// (issue #98). Both calls are idempotent and never touch the Application.
+export async function setJobListingArchived(jobListingId: string, archived: boolean): Promise<JobListing> {
+  const result = await request<{ jobListing: JobListing }>(
+    `/api/job-listings/${encodeURIComponent(jobListingId)}/${archived ? 'archive' : 'unarchive'}`,
     { method: 'POST' },
   )
   return result.jobListing

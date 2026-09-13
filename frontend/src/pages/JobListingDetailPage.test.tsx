@@ -357,7 +357,9 @@ describe('Job Listing deletion', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Yes, delete' }))
 
-    expect(await screen.findByText('No Job Listings saved yet.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No active Job Listings. Archived ones are under Show: Archived.'),
+    ).toBeInTheDocument()
     expect(currentPath()).toBe('/jobs')
     expect(currentSearch()).toBe('')
     expect((await requestsTo(DETAIL_PATH)).map((r) => r.method)).toEqual(['GET', 'DELETE'])
