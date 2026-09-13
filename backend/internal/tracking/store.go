@@ -243,6 +243,9 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 	if err := yaml.Unmarshal(fm, &raw); err != nil {
 		return JobListing{}, err
 	}
+	if err := checkSchemaVersion(raw.SchemaVersion); err != nil {
+		return JobListing{}, fmt.Errorf("job listing %s: %w", slug, err)
+	}
 	// Existing Job Listing files predate FreshnessStatus (issue #59) and
 	// have no value for it in their frontmatter — default them (and any
 	// listing saved without ever being checked) to FreshnessNotYetChecked,
@@ -276,6 +279,9 @@ func getApplication(dataDir, slug string) (Application, error) {
 	var raw rawApplication
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return Application{}, err
+	}
+	if err := checkApplicationSchemaVersions(raw); err != nil {
+		return Application{}, fmt.Errorf("application %s: %w", slug, err)
 	}
 	sortNotesNewestFirst(raw.Notes)
 	return Application{

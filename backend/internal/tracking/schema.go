@@ -1,5 +1,10 @@
 package tracking
 
+import (
+	"errors"
+	"fmt"
+)
+
 // Schema versions of the persisted Job Listing and Application records
 // (issue #100, ADR-0034). Each record carries its own schemaVersion key —
 // in a Job Listing's frontmatter, at the top level of an Application — and
@@ -38,6 +43,34 @@ const (
 	// optional keys whose absence means false and no Notes respectively.
 	CurrentSchemaVersion = 1
 )
+
+// ErrUnsupportedSchemaVersion marks a record stamped at a version this
+// build does not know — typically a corpus written by newer code. It is an
+// error rather than being read as legacy, so older code fails loudly
+// instead of misreading (or rewriting) a record it does not understand.
+var ErrUnsupportedSchemaVersion = errors.New("unsupported schema version")
+
+// checkSchemaVersion rejects any version outside [Legacy, Current].
+func checkSchemaVersion(version int) error {
+	if version < LegacySchemaVersion || version > CurrentSchemaVersion {
+		return fmt.Errorf("%w: schemaVersion %d (this build reads up to %d)", ErrUnsupportedSchemaVersion, version, CurrentSchemaVersion)
+	}
+	return nil
+}
+
+// checkApplicationSchemaVersions checks an Application's own version and
+// that of every Generation it holds.
+func checkApplicationSchemaVersions(raw rawApplication) error {
+	if err := checkSchemaVersion(raw.SchemaVersion); err != nil {
+		return err
+	}
+	for i, g := range raw.Generations {
+		if err := checkSchemaVersion(g.SchemaVersion); err != nil {
+			return fmt.Errorf("generations[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
 
 // IsLegacy reports whether g was recorded before GenerationRecords carried
 // a schema version, in which case an absent SourceSnippetIDs, EntryIDs,

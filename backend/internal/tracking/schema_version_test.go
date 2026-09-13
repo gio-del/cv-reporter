@@ -2,11 +2,55 @@ package tracking_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
+
+func TestRead_NewerSchemaVersionFailsLoudly(t *testing.T) {
+	newer := tracking.CurrentSchemaVersion + 1
+
+	t.Run("job listing", func(t *testing.T) {
+		dataDir := seedLegacyPair(t)
+		writeRecord(t, dataDir, "jobs", legacyFixtureID+".md", fmt.Sprintf("---\nschemaVersion: %d\ncompany: Example Co\nsource: manual\n---\n\nBody.\n", newer))
+
+		if _, err := tracking.GetJobListing(dataDir, legacyFixtureID); !errors.Is(err, tracking.ErrUnsupportedSchemaVersion) {
+			t.Errorf("GetJobListing: expected ErrUnsupportedSchemaVersion, got %v", err)
+		}
+		if _, err := tracking.List(dataDir); !errors.Is(err, tracking.ErrUnsupportedSchemaVersion) {
+			t.Errorf("List: expected ErrUnsupportedSchemaVersion, got %v", err)
+		}
+	})
+
+	t.Run("application", func(t *testing.T) {
+		dataDir := seedLegacyPair(t)
+		writeRecord(t, dataDir, "applications", legacyFixtureID+".md", fmt.Sprintf("schemaVersion: %d\n%s", newer, legacyApplicationFixture))
+
+		_, err := tracking.Get(dataDir, legacyFixtureID)
+		if !errors.Is(err, tracking.ErrUnsupportedSchemaVersion) {
+			t.Fatalf("Get: expected ErrUnsupportedSchemaVersion, got %v", err)
+		}
+		if !strings.Contains(err.Error(), fmt.Sprint(newer)) {
+			t.Errorf("expected the error to name the version it found, got %q", err)
+		}
+		if _, err := tracking.UpdateApplicationStatus(dataDir, legacyFixtureID, tracking.StatusTailoring); !errors.Is(err, tracking.ErrUnsupportedSchemaVersion) {
+			t.Errorf("a write path must refuse to rewrite a newer record, got %v", err)
+		}
+	})
+
+	t.Run("generation", func(t *testing.T) {
+		dataDir := seedLegacyPair(t)
+		writeRecord(t, dataDir, "applications", legacyFixtureID+".md", legacyApplicationFixture+fmt.Sprintf("generations:\n    - schemaVersion: %d\n      slug: s\n", newer))
+
+		if _, err := tracking.Get(dataDir, legacyFixtureID); !errors.Is(err, tracking.ErrUnsupportedSchemaVersion) {
+			t.Errorf("expected ErrUnsupportedSchemaVersion, got %v", err)
+		}
+	})
+}
 
 func TestSchemaVersion_LegacyIsTheZeroValue(t *testing.T) {
 	if tracking.LegacySchemaVersion != 0 {
