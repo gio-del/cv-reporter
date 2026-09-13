@@ -246,12 +246,12 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 	if err := checkSchemaVersion(raw.SchemaVersion); err != nil {
 		return JobListing{}, fmt.Errorf("job listing %s: %w", slug, err)
 	}
-	// Existing Job Listing files predate FreshnessStatus (issue #59) and
-	// have no value for it in their frontmatter — default them (and any
-	// listing saved without ever being checked) to FreshnessNotYetChecked,
-	// distinct from FreshnessUnknown (story 9).
+	// A legacy Job Listing may predate FreshnessStatus (issue #59), so it
+	// reads as FreshnessNotYetChecked — exactly what MigrateRecords writes
+	// down for it. A current record always carries the field (Save writes
+	// it, migration backfills it), so it is read as stored (issue #100).
 	freshnessStatus := raw.FreshnessStatus
-	if freshnessStatus == "" {
+	if freshnessStatus == "" && raw.SchemaVersion == LegacySchemaVersion {
 		freshnessStatus = FreshnessNotYetChecked
 	}
 	return JobListing{

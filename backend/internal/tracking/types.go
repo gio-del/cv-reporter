@@ -36,8 +36,9 @@ type JobListing struct {
 	// captured or the download failed.
 	Logo string `json:"logo,omitempty"`
 	// FreshnessStatus is the URL's most recent on-demand liveness check
-	// result (issue #59), defaulting to FreshnessNotYetChecked until a
-	// check is run via CheckFreshness. Kept independent of Logo/ADR-0013 —
+	// result (issue #59), FreshnessNotYetChecked until a check is run via
+	// CheckFreshness. Always stored on a current record; only a legacy one
+	// may lack it, and reads as FreshnessNotYetChecked. Kept independent of Logo/ADR-0013 —
 	// a broken freshness check can never affect the stored logo file.
 	FreshnessStatus FreshnessStatus `json:"freshnessStatus"`
 	// FreshnessCheckedAt is when FreshnessStatus was last updated (UTC,
@@ -130,18 +131,18 @@ type GenerationRecord struct {
 
 	// SourceSnippetIDs are the Cover Letter Snippet ids this Generation's
 	// Cover Letter drew from, as returned by POST /api/generations at
-	// generation time. Empty/absent means either no Snippet was used (fresh
-	// prose) or this record predates the field — the two are indistinguishable,
-	// and both must be treated as "no usage signal from this record" rather
-	// than "never used" (issue #48).
+	// generation time. On a current record (see IsLegacy) empty means no
+	// Snippet was used (fresh prose); on a legacy record it is unknowable
+	// whether one was — "no usage signal from this record" rather than
+	// "never used" (issue #48, issue #100).
 	SourceSnippetIDs []string `json:"sourceSnippetIds,omitempty"`
 
 	// Usage is the Claude API usage/cost the Generate call that produced this
 	// Generation caused, as returned in GenerateResult.Usage — passed through
 	// verbatim by the FE at record time (issue #39: cost/usage visibility
 	// persisted per-Generation, not just shown transiently at Generate time).
-	// Zero-value (omitted) for a Default Mode Generation, or one recorded
-	// before this field existed.
+	// Zero-value (omitted) for a Default Mode Generation; unknowable on a
+	// legacy record (see IsLegacy).
 	Usage generation.GenerationUsage `json:"usage,omitempty"`
 
 	// Language is the final, normalized target language the CV/Cover
@@ -153,8 +154,9 @@ type GenerationRecord struct {
 	// EntryIDs are the Master Data Entry ids Selection chose for this
 	// Generation (issue #52), populated at record time from the Selection
 	// result the caller already has (RecordGeneration adds no new
-	// Selection logic of its own). Nil for GenerationRecords persisted
-	// before this field existed — the durable source of truth a later
+	// Selection logic of its own). On a current record nil means Selection
+	// recorded none; on a legacy record (see IsLegacy) it is unknowable. The
+	// durable source of truth a later
 	// staleness check compares against, since the assembled per-Generation
 	// JSON under output/ is gitignored and not guaranteed to still exist
 	// (ADR-0008).
@@ -201,8 +203,9 @@ type Application struct {
 	Status        Status `json:"status"`
 	// StatusUpdatedAt (RFC3339Nano) is when Status last changed — set at
 	// Application creation and on every successful Transition, including
-	// Reopen (story 1-3, 8). Empty for records written before this field
-	// existed; IsStale treats that as not stale rather than erroring.
+	// Reopen (story 1-3, 8). Empty only on a record written before this
+	// field existed that was past Saved when migrated (or is still legacy):
+	// the date is unknowable, and IsStale treats it as not stale.
 	StatusUpdatedAt string            `json:"statusUpdatedAt,omitempty"`
 	Method          ApplicationMethod `json:"method"`
 	Contact         *Contact          `json:"contact,omitempty"`
@@ -213,8 +216,10 @@ type Application struct {
 	Generations []GenerationRecord `json:"generations,omitempty"`
 	// StatusHistory is append-only: one entry per Status the Application has
 	// ever moved to (including its initial Saved entry at creation), oldest
-	// first. Applications saved before this field existed simply have an
-	// empty slice — there is nothing to backfill it from.
+	// first. Empty only on an Application saved before this field existed
+	// that was already past Saved when migrated (or is still legacy): its
+	// transitions were never recorded, and MigrateRecords never invents
+	// them (issue #100).
 	StatusHistory []StatusChange `json:"statusHistory,omitempty"`
 	// Notes are the user's own timestamped observations on this Application
 	// (issue #96), newest first. Absent means no Notes: a record written

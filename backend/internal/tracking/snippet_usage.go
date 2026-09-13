@@ -5,10 +5,12 @@ import "time"
 // SnippetLastUsed scans every Application's recorded Generation history and
 // returns, per Cover Letter Snippet id, the CreatedAt of the most recent
 // Generation that cited it (RFC3339Nano string, matching GenerationRecord).
-// A Generation record with no SourceSnippetIDs contributes nothing — that's
-// either "no Snippet was used" or "recorded before this field existed", and
-// both must stay indistinguishable from "never used" here; the caller (the
-// Snippets list) is what decides how to label an id absent from this map.
+// A Generation record with no SourceSnippetIDs contributes nothing — on a
+// current record that's "no Snippet was used", on a legacy one (see
+// GenerationRecord.IsLegacy) "unknowable"; this map folds both into "never
+// used" and the caller (the Snippets list) decides how to label an id
+// absent from it. Telling the two apart in what the list shows is issue
+// #48's follow-up.
 func SnippetLastUsed(applications []Application) map[string]string {
 	lastUsed := make(map[string]string)
 	for _, app := range applications {

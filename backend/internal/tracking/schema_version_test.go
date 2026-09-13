@@ -98,6 +98,29 @@ func TestRead_UnversionedRecordsLoadAsLegacy(t *testing.T) {
 	}
 }
 
+// The not-yet-checked default is a legacy-record rule only: a current Job
+// Listing always has freshnessStatus written down (by Save, or by
+// migration), so the reader no longer invents one for it.
+func TestRead_FreshnessDefaultAppliesToLegacyJobListingsOnly(t *testing.T) {
+	dataDir := seedLegacyPair(t)
+	legacy, err := tracking.GetJobListing(dataDir, legacyFixtureID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.FreshnessStatus != tracking.FreshnessNotYetChecked {
+		t.Errorf("legacy Job Listing: expected not-yet-checked, got %q", legacy.FreshnessStatus)
+	}
+
+	writeRecord(t, dataDir, "jobs", legacyFixtureID+".md", "---\nschemaVersion: 1\ncompany: Example Co\nsource: manual\n---\n\nBody.\n")
+	current, err := tracking.GetJobListing(dataDir, legacyFixtureID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.FreshnessStatus != "" {
+		t.Errorf("current Job Listing: expected freshnessStatus read exactly as stored (absent), got %q", current.FreshnessStatus)
+	}
+}
+
 func TestRecordGeneration_StampsTheGenerationAtCurrentSchemaVersion(t *testing.T) {
 	dataDir := seedLegacyPair(t)
 
