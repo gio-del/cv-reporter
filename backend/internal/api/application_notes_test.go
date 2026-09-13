@@ -1,8 +1,10 @@
 package api_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -474,6 +476,38 @@ func TestDeleteNote_UnknownNoteID_Returns404AndLeavesNotesAlone(t *testing.T) {
 	}
 	if got := noteBodies(notesOf(t, storedApplication(t, server.URL, id))); !equalStrings(got, []string{"Real Note."}) {
 		t.Errorf("expected the existing Note untouched, got %v", got)
+	}
+}
+
+func TestExportData_IncludesTheApplicationsNotes(t *testing.T) {
+	_, server := newNotesServer(t)
+	id := saveJobListing(t, server.URL, "Acme Corp")
+	addNoteOK(t, server.URL, id, "Offer call went well; they will send numbers Monday.")
+
+	resp, err := http.Get(server.URL + "/api/export")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	archive, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	zr, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
+	if err != nil {
+		t.Fatalf("expected a zip archive: %v", err)
+	}
+	f, err := zr.Open("applications/" + id + ".md")
+	if err != nil {
+		t.Fatalf("expected the Application file in the export: %v", err)
+	}
+	defer f.Close()
+	content, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(content, []byte("they will send numbers Monday")) {
+		t.Errorf("expected the exported Application to carry its Note, got:\n%s", content)
 	}
 }
 
