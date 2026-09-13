@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { suggestContact } from '@/api/client'
+import { isConflict, suggestContact } from '@/api/client'
 import type { Contact } from '@/api/types'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -14,17 +15,22 @@ export default function ContactSection({
   contact,
   inferredEmail,
   onSave,
+  onReload,
 }: {
   jobListingId: string
   contact: Contact | undefined
   inferredEmail: string | undefined
   onSave: (contact: Contact) => Promise<void>
+  // onReload re-reads the Application after a conflict (issue #89).
+  onReload: () => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Contact>({ name: contact?.name ?? '', email: contact?.email ?? inferredEmail ?? '' })
   const [saving, setSaving] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   function startManualEntry() {
     setDraft({ name: contact?.name ?? '', email: contact?.email ?? inferredEmail ?? '' })
@@ -49,13 +55,33 @@ export default function ContactSection({
   async function handleSave() {
     setSaving(true)
     setError(null)
+    setConflict(false)
     try {
       await onSave(draft)
       setEditing(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      // A conflict keeps the draft on screen: the user decides whether to
+      // reload (which closes the draft onto the current value) or copy it.
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleReload() {
+    setReloading(true)
+    try {
+      await onReload()
+      setConflict(false)
+      setEditing(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
     }
   }
 
@@ -113,6 +139,14 @@ export default function ContactSection({
       <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
         Cancel
       </Button>
+      {conflict && (
+        <ConflictAlert
+          record="Application"
+          className="mb-0 basis-full"
+          onReload={handleReload}
+          reloading={reloading}
+        />
+      )}
       {error && (
         <p role="alert" className="mb-0 basis-full text-sm font-medium text-destructive">
           {error}

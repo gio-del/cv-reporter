@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { isConflict } from '@/api/client'
 import type { ApplicationMethod, ApplicationMethodKind } from '@/api/types'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -18,14 +20,19 @@ const correctableMethodKinds: ApplicationMethodKind[] = ['portal', 'email', 'eas
 export default function ApplicationMethodEditor({
   method,
   onSave,
+  onReload,
 }: {
   method: ApplicationMethod
   onSave: (method: ApplicationMethod) => Promise<void>
+  // onReload re-reads the Application after a conflict (issue #89).
+  onReload: () => Promise<void>
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<ApplicationMethod>(method)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   function startEditing() {
     setDraft(method)
@@ -36,13 +43,33 @@ export default function ApplicationMethodEditor({
   async function handleSave() {
     setSaving(true)
     setError(null)
+    setConflict(false)
     try {
       await onSave({ kind: draft.kind, value: draft.value?.trim() || undefined })
       setEditing(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      // A conflict keeps the draft on screen: the user decides whether to
+      // reload (which closes the draft onto the current value) or copy it.
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleReload() {
+    setReloading(true)
+    try {
+      await onReload()
+      setConflict(false)
+      setEditing(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
     }
   }
 
@@ -92,6 +119,14 @@ export default function ApplicationMethodEditor({
       <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
         Cancel
       </Button>
+      {conflict && (
+        <ConflictAlert
+          record="Application"
+          className="mb-0 basis-full"
+          onReload={handleReload}
+          reloading={reloading}
+        />
+      )}
       {error && (
         <p role="alert" className="mb-0 basis-full text-sm font-medium text-destructive">
           {error}
