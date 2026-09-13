@@ -203,11 +203,17 @@ export default function JobListingsListPage() {
     })
   }
 
+  // findListing returns the row as last read, whose version tokens every
+  // write on it presents (issue #89).
+  function findListing(jobListingId: string): JobListingSummaryWithApplication | undefined {
+    return listings?.find((l) => l.jobListing.id === jobListingId)
+  }
+
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
     setStatusError(null)
     setUpdatingId(jobListingId)
     try {
-      const application = await updateApplicationStatus(jobListingId, status)
+      const application = await updateApplicationStatus(jobListingId, status, findListing(jobListingId)?.application.version)
       setListings((prev) =>
         prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
       )

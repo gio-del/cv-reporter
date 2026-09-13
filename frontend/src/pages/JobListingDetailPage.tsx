@@ -183,7 +183,7 @@ export default function JobListingDetailPage() {
     setActionError(null)
     setUpdatingStatus(true)
     try {
-      const updated = await updateApplicationStatus(id, status)
+      const updated = await updateApplicationStatus(id, status, application.version)
       setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
     } catch (err) {
       setActionError(errorMessage(err))
@@ -193,12 +193,12 @@ export default function JobListingDetailPage() {
   }
 
   async function handleMethodChange(method: ApplicationMethod) {
-    const updated = await updateApplicationMethod(id, method)
+    const updated = await updateApplicationMethod(id, method, application.version)
     setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
   }
 
   async function handleContactChange(contact: Contact) {
-    const updated = await updateApplicationContact(id, contact)
+    const updated = await updateApplicationContact(id, contact, application.version)
     setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
   }
 
@@ -246,7 +246,7 @@ export default function JobListingDetailPage() {
     setDeleteError(null)
     setDeleting(true)
     try {
-      await deleteJobListing(id)
+      await deleteJobListing(id, jobListing.version, application.version)
       navigate(backTo)
     } catch (err) {
       setDeleteError(errorMessage(err))

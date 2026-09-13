@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { updateSnippet } from '@/api/client'
+import { getSnippet, isConflict, updateSnippet } from '@/api/client'
 import type { Snippet, SnippetInput } from '@/api/types'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -26,15 +27,22 @@ function toSnippetInput(form: FormState): SnippetInput {
 export default function SnippetEditForm({
   snippet,
   onSaved,
+  onReloaded,
   onCancel,
 }: {
   snippet: Snippet
   onSaved: (snippet: Snippet) => void
+  onReloaded?: (snippet: Snippet) => void
   onCancel: () => void
 }) {
+  // base is the Snippet as last read: its version token is what the save
+  // presents as If-Match (issue #89).
+  const [base, setBase] = useState<Snippet>(snippet)
   const [form, setForm] = useState<FormState>(toFormState(snippet))
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -43,19 +51,41 @@ export default function SnippetEditForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setConflict(false)
     setSaving(true)
     try {
-      const saved = await updateSnippet(snippet.id, toSnippetInput(form))
+      const saved = await updateSnippet(base.id, toSnippetInput(form), base.version)
       onSaved(saved)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSaving(false)
     }
   }
 
+  async function handleReload() {
+    setReloading(true)
+    try {
+      const fresh = await getSnippet(base.id)
+      setBase(fresh)
+      setForm(toFormState(fresh))
+      setConflict(false)
+      setError(null)
+      onReloaded?.(fresh)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit}>
+      {conflict && <ConflictAlert record="Cover Letter Snippet" onReload={handleReload} reloading={reloading} />}
       {error && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {error}

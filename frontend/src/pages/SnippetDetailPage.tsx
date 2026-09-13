@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { deleteSnippet, getSnippet } from '@/api/client'
+import { deleteSnippet, getSnippet, isConflict } from '@/api/client'
 import type { Snippet } from '@/api/types'
 import {
   AlertDialog,
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import SnippetEditForm from './SnippetEditForm'
@@ -25,12 +26,15 @@ export default function SnippetDetailPage() {
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConflict, setDeleteConflict] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   useEffect(() => {
     setSnippet(null)
     setError(null)
     setEditing(false)
     setDeleteOpen(false)
+    setDeleteConflict(false)
     getSnippet(id)
       .then(setSnippet)
       .catch((e) => setError(e.message))
@@ -39,12 +43,31 @@ export default function SnippetDetailPage() {
   async function handleDelete() {
     setDeleting(true)
     try {
-      await deleteSnippet(id)
+      await deleteSnippet(id, snippet?.version)
       navigate('/snippets')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      // A refused delete leaves the record on disk and the page usable, so
+      // it shows the conflict alert rather than replacing the page with an
+      // error (issue #89, story 18).
+      if (isConflict(e)) {
+        setDeleteConflict(true)
+      } else {
+        setError(e instanceof Error ? e.message : String(e))
+      }
       setDeleting(false)
       setDeleteOpen(false)
+    }
+  }
+
+  async function handleReload() {
+    setReloading(true)
+    try {
+      setSnippet(await getSnippet(id))
+      setDeleteConflict(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReloading(false)
     }
   }
 
@@ -71,6 +94,7 @@ export default function SnippetDetailPage() {
             setSnippet(saved)
             setEditing(false)
           }}
+          onReloaded={setSnippet}
           onCancel={() => setEditing(false)}
         />
       </>
@@ -84,6 +108,9 @@ export default function SnippetDetailPage() {
           ← Back to Cover Letter Snippets
         </Link>
       </p>
+      {deleteConflict && (
+        <ConflictAlert record="Cover Letter Snippet" action="delete" keepsEdits={false} onReload={handleReload} reloading={reloading} />
+      )}
       <h1>{snippet.kind}</h1>
       <div className="flex flex-wrap gap-1">
         {snippet.tags.map((tag) => (

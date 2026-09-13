@@ -59,8 +59,9 @@ export default function ApplicationsPage() {
   async function handleStatusChange(id: string, status: ApplicationStatus) {
     setStatusError(null)
     setUpdatingId(id)
+    const row = data?.groups.flatMap((group) => group.items).find((item) => item.application.id === id)
     try {
-      await updateApplicationStatus(id, status)
+      await updateApplicationStatus(id, status, row?.application.version)
     } catch (err) {
       setStatusError(errorMessage(err))
       setUpdatingId(null)

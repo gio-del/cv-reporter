@@ -32,10 +32,11 @@ import type {
 
 // ApiError is what request() throws for a non-2xx response: the message is
 // still the backend's body (what every page shows today), and status lets a
-// page tell "this record does not exist" apart from any other failure — the
-// Job Listing detail page's not-found state (issue #94).
+// page branch on the status rather than on message text — the Job Listing
+// detail page's not-found state (issue #94), and 409, a write refused
+// because the record changed on disk since it was read (issue #89).
 export class ApiError extends Error {
-  status: number
+  readonly status: number
 
   constructor(message: string, status: number) {
     super(message)
@@ -44,13 +45,35 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, init)
+// isConflict reports whether err is a write the backend refused because
+// its version token no longer matches the file on disk.
+export function isConflict(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 409
+}
+
+async function ensureOk(res: Response, fallback: string): Promise<void> {
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new ApiError(body || `Request to ${path} failed (${res.status})`, res.status)
+    throw new ApiError(body || `${fallback} (${res.status})`, res.status)
   }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init)
+  await ensureOk(res, `Request to ${path} failed`)
   return res.json()
+}
+
+// jsonHeaders builds a JSON write's headers, adding If-Match when the
+// caller holds a version token from its read. Every FE write path passes
+// the token it read — the header is optional only on the wire, for non-FE
+// callers such as the tailor-cv skill (issue #89).
+function jsonHeaders(version?: string): HeadersInit {
+  return version ? { 'Content-Type': 'application/json', 'If-Match': version } : { 'Content-Type': 'application/json' }
+}
+
+function versionHeaders(version?: string): HeadersInit {
+  return version ? { 'If-Match': version } : {}
 }
 
 export function listEntries(): Promise<Entry[]> {
@@ -61,10 +84,10 @@ export function getEntry(id: string): Promise<Entry> {
   return request(`/api/master-data/entries/${id}`)
 }
 
-export function updateEntry(id: string, input: EntryInput): Promise<Entry> {
+export function updateEntry(id: string, input: EntryInput, version: string | undefined): Promise<Entry> {
   return request(`/api/master-data/entries/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify(input),
   })
 }
@@ -77,12 +100,9 @@ export function createEntry(input: EntryInput): Promise<Entry> {
   })
 }
 
-export async function deleteEntry(id: string): Promise<void> {
-  const res = await fetch(`/api/master-data/entries/${id}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(body || `Delete failed (${res.status})`)
-  }
+export async function deleteEntry(id: string, version: string | undefined): Promise<void> {
+  const res = await fetch(`/api/master-data/entries/${id}`, { method: 'DELETE', headers: versionHeaders(version) })
+  await ensureOk(res, 'Delete failed')
 }
 
 export function getTagLint(): Promise<TagLintReport> {
@@ -94,10 +114,11 @@ export function getProfile(): Promise<Profile> {
 }
 
 export function updateProfile(profile: Profile): Promise<Profile> {
+  const { version, ...body } = profile
   return request('/api/master-data/profile', {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(profile),
+    headers: jsonHeaders(version),
+    body: JSON.stringify(body),
   })
 }
 
@@ -117,20 +138,20 @@ export function createSnippet(input: SnippetInput): Promise<Snippet> {
   })
 }
 
-export function updateSnippet(id: string, input: SnippetInput): Promise<Snippet> {
+export function updateSnippet(id: string, input: SnippetInput, version: string | undefined): Promise<Snippet> {
   return request(`/api/master-data/cover-letter-snippets/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify(input),
   })
 }
 
-export async function deleteSnippet(id: string): Promise<void> {
-  const res = await fetch(`/api/master-data/cover-letter-snippets/${id}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(body || `Delete failed (${res.status})`)
-  }
+export async function deleteSnippet(id: string, version: string | undefined): Promise<void> {
+  const res = await fetch(`/api/master-data/cover-letter-snippets/${id}`, {
+    method: 'DELETE',
+    headers: versionHeaders(version),
+  })
+  await ensureOk(res, 'Delete failed')
 }
 
 export function createGeneration(req: GenerateRequest): Promise<GenerateResult> {
@@ -246,12 +267,19 @@ export function saveJobListing(req: SaveJobListingRequest): Promise<SaveJobListi
   })
 }
 
-export async function deleteJobListing(id: string): Promise<void> {
-  const res = await fetch(`/api/job-listings/${encodeURIComponent(id)}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(body || `Delete failed (${res.status})`)
-  }
+// deleteJobListing removes the Job Listing and its Application together,
+// so it presents both tokens: the Job Listing's as If-Match and the
+// Application's as Application-If-Match (issue #89, story 19).
+export async function deleteJobListing(
+  id: string,
+  jobListingVersion: string | undefined,
+  applicationVersion: string | undefined,
+): Promise<void> {
+  const headers: Record<string, string> = {}
+  if (jobListingVersion) headers['If-Match'] = jobListingVersion
+  if (applicationVersion) headers['Application-If-Match'] = applicationVersion
+  const res = await fetch(`/api/job-listings/${encodeURIComponent(id)}`, { method: 'DELETE', headers })
+  await ensureOk(res, 'Delete failed')
 }
 
 export function suggestContact(jobListingId: string): Promise<Contact> {
@@ -280,18 +308,18 @@ export async function setJobListingArchived(jobListingId: string, archived: bool
   return result.jobListing
 }
 
-export function updateApplicationStatus(id: string, status: ApplicationStatus): Promise<Application> {
+export function updateApplicationStatus(id: string, status: ApplicationStatus, version: string | undefined): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify({ status }),
   })
 }
 
-export function updateApplicationMethod(id: string, method: ApplicationMethod): Promise<Application> {
+export function updateApplicationMethod(id: string, method: ApplicationMethod, version: string | undefined): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/method`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify(method),
   })
 }
@@ -300,10 +328,10 @@ export function getApplicationMailto(id: string): Promise<{ uri: string }> {
   return request(`/api/applications/${encodeURIComponent(id)}/mailto`)
 }
 
-export function updateApplicationContact(id: string, contact: Contact): Promise<Application> {
+export function updateApplicationContact(id: string, contact: Contact, version: string | undefined): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/contact`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify(contact),
   })
 }
@@ -361,10 +389,7 @@ export function addTrackedBoard(req: AddTrackedBoardRequest): Promise<TrackedBoa
 
 export async function removeTrackedBoard(id: string): Promise<void> {
   const res = await fetch(`/api/ats/tracked-boards/${encodeURIComponent(id)}`, { method: 'DELETE' })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(body || `Delete failed (${res.status})`)
-  }
+  await ensureOk(res, 'Delete failed')
 }
 
 export function getUsageSummary(): Promise<UsageSummary> {

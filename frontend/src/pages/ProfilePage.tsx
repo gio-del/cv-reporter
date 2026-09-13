@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getProfile, updateProfile } from '@/api/client'
+import { getProfile, isConflict, updateProfile } from '@/api/client'
 import type { Activity, Award, Education, Language, Profile, Publication } from '@/api/types'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -73,10 +74,24 @@ function ListSection<T>({
   )
 }
 
-function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onSaved: (p: Profile) => void; onCancel: () => void }) {
+function ProfileEditForm({
+  profile,
+  onSaved,
+  onReloaded,
+  onCancel,
+}: {
+  profile: Profile
+  onSaved: (p: Profile) => void
+  onReloaded: (p: Profile) => void
+  onCancel: () => void
+}) {
+  // form carries the Profile's version token from its read; updateProfile
+  // sends it as If-Match rather than in the body (issue #89).
   const [form, setForm] = useState<Profile>(profile)
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -85,19 +100,40 @@ function ProfileEditForm({ profile, onSaved, onCancel }: { profile: Profile; onS
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setConflict(false)
     setSaving(true)
     try {
       const saved = await updateProfile(form)
       onSaved(saved)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSaving(false)
     }
   }
 
+  async function handleReload() {
+    setReloading(true)
+    try {
+      const fresh = await getProfile()
+      setForm(fresh)
+      setConflict(false)
+      setError(null)
+      onReloaded(fresh)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit}>
+      {conflict && <ConflictAlert record="Profile" onReload={handleReload} reloading={reloading} />}
       {error && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {error}
@@ -383,6 +419,7 @@ export default function ProfilePage() {
             setProfile(saved)
             setEditing(false)
           }}
+          onReloaded={setProfile}
           onCancel={() => setEditing(false)}
         />
       </>
