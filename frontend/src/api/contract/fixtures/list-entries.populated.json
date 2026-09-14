@@ -6,11 +6,13 @@
     "client": "Amplifon",
     "employer": "Quantyca S.p.A.",
     "end": null,
+    "flagship": true,
     "id": "experience/quantyca-amplifon",
     "lastModified": {
       "at": "2026-01-02T03:04:05Z",
       "subject": "edit amplifon"
     },
+    "location": "Monza",
     "role": "Data Engineer",
     "start": "2024-10",
     "tags": [

@@ -33,6 +33,7 @@ import (
 //	cd backend && UPDATE_CONTRACT_FIXTURES=1 go test ./internal/api -run TestContract
 const (
 	contractFixturesDir   = "../../../frontend/src/api/contract/fixtures"
+	contractAssertionFile = "../../../frontend/src/api/contract/contract.ts"
 	contractUpdateEnv     = "UPDATE_CONTRACT_FIXTURES"
 	contractRegenerateCmd = "cd backend && UPDATE_CONTRACT_FIXTURES=1 go test ./internal/api -run TestContract"
 )
@@ -377,7 +378,7 @@ func TestContractRoutesAllCovered(t *testing.T) {
 }
 
 // TestContractFixtureFilesMatchRegistry fails on a fixture file nothing
-// produces any more.
+// produces any more, and on a fixture contract.ts never type-checks.
 func TestContractFixtureFilesMatchRegistry(t *testing.T) {
 	want := map[string]bool{}
 	for _, f := range contractFixtures() {
@@ -403,6 +404,16 @@ func TestContractFixtureFilesMatchRegistry(t *testing.T) {
 			continue
 		}
 		t.Errorf("fixture %s is not produced by contractFixtures any more; delete it or run: %s", filepath.Base(file), contractRegenerateCmd)
+	}
+
+	assertions, err := os.ReadFile(contractAssertionFile)
+	if err != nil {
+		t.Fatalf("reading %s: %v", contractAssertionFile, err)
+	}
+	for name := range want {
+		if !strings.Contains(string(assertions), "./fixtures/"+name+".json'") {
+			t.Errorf("fixture %s.json is never type-checked: import and assert it in frontend/src/api/contract/contract.ts", name)
+		}
 	}
 }
 
@@ -626,7 +637,7 @@ func newPopulatedScenario(t *testing.T) populatedScenario {
 	// Edit a source Entry after the Generation was recorded, so it reads as
 	// stale.
 	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"),
-		"---\nemployer: Quantyca S.p.A.\nrole: Data Engineer\nclient: Amplifon\nstart: \"2024-10\"\nend: null\ntags:\n  - React\n---\n\n- Designed and built an AI Platform.\n",
+		"---\nemployer: Quantyca S.p.A.\nrole: Data Engineer\nclient: Amplifon\nlocation: Monza\nstart: \"2024-10\"\nend: null\nflagship: true\ntags:\n  - React\n---\n\n- Designed and built an AI Platform.\n",
 		"edit amplifon", time.Now().UTC().Add(48*time.Hour))
 
 	initech := call(t, http.MethodPost, server.URL+"/api/job-listings", map[string]any{

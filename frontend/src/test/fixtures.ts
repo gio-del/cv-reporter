@@ -4,6 +4,7 @@ import type {
   ApplicationStatus,
   Entry,
   GenerateResult,
+  GenerationRecord,
   JobListing,
   JobListingSummary,
   JobListingSummaryWithApplication,
@@ -30,6 +31,7 @@ export const APPLICATION_VERSION = 'application-v1'
  */
 export function jobListing(overrides: Partial<JobListing> = {}): JobListing {
   return {
+    schemaVersion: 1,
     id: 'acme',
     company: 'Acme',
     source: 'manual',
@@ -45,12 +47,28 @@ export function jobListing(overrides: Partial<JobListing> = {}): JobListing {
 
 export function application(overrides: Partial<Application> = {}): Application {
   return {
+    schemaVersion: 1,
     id: 'acme',
     jobListingId: 'acme',
     status: 'saved',
     method: { kind: 'portal', value: 'https://acme.example/apply' },
     isStale: false,
     version: APPLICATION_VERSION,
+    ...overrides,
+  }
+}
+
+/**
+ * generationRecord is one Generation recorded against an Application, with
+ * the zero-valued usage the backend always sends and no optional field set.
+ */
+export function generationRecord(overrides: Partial<GenerationRecord> = {}): GenerationRecord {
+  return {
+    schemaVersion: 1,
+    slug: 'acme-1',
+    createdAt: '2026-01-10T10:00:00Z',
+    cvPath: 'output/acme-1/cv.pdf',
+    usage: { inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
     ...overrides,
   }
 }
@@ -73,6 +91,7 @@ export function listingWithApplication(
  */
 export function jobListingSummary(overrides: Partial<JobListingSummary> = {}): JobListingSummary {
   return {
+    schemaVersion: 1,
     id: 'acme',
     company: 'Acme',
     source: 'manual',
