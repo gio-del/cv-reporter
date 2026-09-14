@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 	"gopkg.in/yaml.v3"
 )
@@ -432,32 +433,10 @@ func removeMappingKey(mapping *yaml.Node, key string) {
 // old file or the new one, never a truncated one. It keeps the existing
 // file's permissions. Narrow on purpose: once issue #88's shared atomic
 // write helper lands, this should be replaced by it.
-func writeFileAtomic(path string, content []byte) (err error) {
+func writeFileAtomic(path string, content []byte) error {
 	perm := os.FileMode(0o644)
 	if info, statErr := os.Stat(path); statErr == nil {
 		perm = info.Mode().Perm()
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			tmp.Close()
-			os.Remove(tmp.Name())
-		}
-	}()
-	if _, err = tmp.Write(content); err != nil {
-		return err
-	}
-	if err = tmp.Sync(); err != nil {
-		return err
-	}
-	if err = tmp.Chmod(perm); err != nil {
-		return err
-	}
-	if err = tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), path)
+	return atomicfile.WriteFile(path, content, perm)
 }
