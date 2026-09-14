@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import JobListingsListPage from './JobListingsListPage'
-import { listingWithApplication } from '@/test/fixtures'
+import { listingSummaryWithApplication } from '@/test/fixtures'
 import { currentSearch, renderPage } from '@/test/render'
 import { recordedRequests, server } from '@/test/server'
 
@@ -13,7 +13,7 @@ import { recordedRequests, server } from '@/test/server'
 function showList() {
   server.use(
     http.get('/api/job-listings', () =>
-      HttpResponse.json([listingWithApplication({ id: 'acme', company: 'Acme' })]),
+      HttpResponse.json([listingSummaryWithApplication({ id: 'acme', company: 'Acme' })]),
     ),
   )
 }

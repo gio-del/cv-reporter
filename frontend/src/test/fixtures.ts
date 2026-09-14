@@ -3,6 +3,8 @@ import type {
   Entry,
   GenerateResult,
   JobListing,
+  JobListingSummary,
+  JobListingSummaryWithApplication,
   JobListingWithApplication,
   RenderResult,
 } from '@/api/types'
@@ -46,6 +48,35 @@ export function listingWithApplication(
   applicationOverrides: Partial<Application> = {},
 ): JobListingWithApplication {
   const listing = jobListing(listingOverrides)
+  return {
+    jobListing: listing,
+    application: application({ id: listing.id, jobListingId: listing.id, ...applicationOverrides }),
+  }
+}
+
+/**
+ * jobListingSummary is a Job Listing as GET /api/job-listings returns it
+ * (issue #97): the same fields as jobListing, but only whether there is a Job
+ * Description rather than its text.
+ */
+export function jobListingSummary(overrides: Partial<JobListingSummary> = {}): JobListingSummary {
+  return {
+    id: 'acme',
+    company: 'Acme',
+    source: 'manual',
+    savedAt: '2026-01-05T10:00:00Z',
+    hasJobDescription: true,
+    ral: { source: 'n/a' },
+    freshnessStatus: 'not-yet-checked',
+    ...overrides,
+  }
+}
+
+export function listingSummaryWithApplication(
+  listingOverrides: Partial<JobListingSummary> = {},
+  applicationOverrides: Partial<Application> = {},
+): JobListingSummaryWithApplication {
+  const listing = jobListingSummary(listingOverrides)
   return {
     jobListing: listing,
     application: application({ id: listing.id, jobListingId: listing.id, ...applicationOverrides }),

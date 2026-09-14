@@ -332,6 +332,21 @@ export interface JobListingWithApplication {
   application: Application
 }
 
+// JobListingSummary is a Job Listing as GET /api/job-listings returns it
+// (issue #97): every field but the Job Description text, which only the
+// detail endpoint carries — a separate type rather than an optional field,
+// so reading a Job Description off a list row does not compile.
+export type JobListingSummary = Omit<JobListing, 'jobDescription'> & {
+  hasJobDescription: boolean
+}
+
+// JobListingSummaryWithApplication is one Job Listings list row: the
+// summary paired with its whole Application.
+export interface JobListingSummaryWithApplication {
+  jobListing: JobListingSummary
+  application: Application
+}
+
 export type SaveJobListingResult = JobListingWithApplication & {
   duplicateWarning?: DuplicateMatch
 }

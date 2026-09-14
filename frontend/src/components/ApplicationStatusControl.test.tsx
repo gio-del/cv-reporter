@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import type { ApplicationStatus } from '@/api/types'
 import JobListingDetailPage from '@/pages/JobListingDetailPage'
 import JobListingsListPage from '@/pages/JobListingsListPage'
-import { application, listingWithApplication } from '@/test/fixtures'
+import { application, listingSummaryWithApplication, listingWithApplication } from '@/test/fixtures'
 import { renderPage } from '@/test/render'
 import { requestsTo, server } from '@/test/server'
 
@@ -33,7 +33,7 @@ const pages: StatusPage[] = [
     show: (status) =>
       server.use(
         http.get('/api/job-listings', () =>
-          HttpResponse.json([listingWithApplication({ id: 'acme', company: 'Acme' }, { status })]),
+          HttpResponse.json([listingSummaryWithApplication({ id: 'acme', company: 'Acme' }, { status })]),
         ),
       ),
     render: () => renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' }),
