@@ -113,6 +113,12 @@ A per-call-site variable wins over `CV_REPORTER_MODEL_DEFAULT`, which wins over 
 
 The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. The Selection preview's call is recorded too, as `selection_preview`, in the standalone usage log (it is never persisted against an Application). Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
 
+#### Stopping it
+
+`docker compose down` (or Ctrl-C in a local `go run ./cmd/server`) is a graceful stop: the backend stops accepting connections, gives requests already in flight up to 15 seconds to finish, and only then exits — so a Job Listing save that is one Claude call from completing lands instead of being thrown away. Anything still running when that window expires has its request context cancelled, which stops its outbound Claude call rather than leaving it to bill for a response nobody will receive. `docker-compose.yml` sets `stop_grace_period: 30s` so Docker's 10-second default doesn't cut the drain short.
+
+A Generation that has only just started will not survive a stop — the drain is a bound, not a queue; there is no resume. The connection limits that come with this (10s to send request headers, 60s to send a body, 120s idle keep-alive) are deliberately paired with *no* total-response cap, because a Generation legitimately runs for minutes; those routes are bounded by a 10-minute request deadline of their own instead. See `docs/adr/0021-no-total-response-timeout-bounded-drain-instead.md` for the reasoning.
+
 #### Optional: LAN-reachable mode
 
 By default the web app is localhost-only with no auth, per ADR-0004. To check or update Job Listings/Applications from another device on your home network (e.g. a phone), opt in explicitly by setting `BIND_ADDR` and `LAN_AUTH_TOKEN` in `.env` (see `.env.example`) and starting with the `lan` profile:
