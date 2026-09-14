@@ -2,7 +2,7 @@
 # so this Dockerfile can also COPY the root-level typst-version.txt below
 # (single source of truth for the pinned typst version, see ADR-0012 and
 # issue #55) — hence the backend/ prefixes on these COPYs.
-FROM golang:1.26 AS build
+FROM golang:1.27 AS build
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
