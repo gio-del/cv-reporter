@@ -106,7 +106,7 @@ This is a single static shared secret, not a login/session system — proportion
 | GET | `/api/job-listings` | list Job Listings (with their Application) — optional `sort=ral&order=asc\|desc` and `ral_min`/`ral_max`/`ral_currency` (defaults to `EUR`) query params sort/filter by RAL Range (issue #51); `n/a`/`unresolved`/`conflict` listings always trail a sort and are excluded from a filter |
 | POST | `/api/job-listings` | save a Job Listing (URL/text) — creates its Application; RAL Range + Application Method are best-effort (see ADR-0011; failures persist as `unresolved`, never block the save) |
 | POST | `/api/job-listings/from-extension` | save a Job Listing captured by the browser extension (`extension/`) — same best-effort save as above |
-| GET | `/api/job-listings/{id}` | get a Job Listing |
+| GET | `/api/job-listings/{id}` | get a Job Listing with its Application — the same `{jobListing, application}` shape (stale-Entry information included) the list endpoint returns per row |
 | POST | `/api/job-listings/{id}/resolve` | retry RAL Range/Application Method resolution for whatever is still `unresolved` on a Job Listing (no-op if both already resolved) |
 | POST | `/api/job-listings/{id}/suggest-contact` | suggest an Application contact for a Job Listing |
 | POST | `/api/job-listings/{id}/check-freshness` | on-demand check of whether a Job Listing's source URL is still live (`live`/`unreachable`/`unknown`), persisting the result and a checked-at timestamp |

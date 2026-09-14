@@ -175,6 +175,22 @@ func GetJobListing(dataDir, id string) (JobListing, error) {
 	return getJobListing(dataDir, id)
 }
 
+// Get reads a single Job Listing by id paired with its 1:1 Application —
+// the same pairing List builds per row and Resolve returns, for the Job
+// Listing detail page (issue #94). A missing Job Listing surfaces as
+// os.ErrNotExist exactly as GetJobListing does.
+func Get(dataDir, id string) (ListingWithApplication, error) {
+	listing, err := getJobListing(dataDir, id)
+	if err != nil {
+		return ListingWithApplication{}, err
+	}
+	application, err := getApplication(dataDir, id)
+	if err != nil {
+		return ListingWithApplication{}, err
+	}
+	return ListingWithApplication{JobListing: listing, Application: application}, nil
+}
+
 // Delete removes a Job Listing and its 1:1 Application together (story 9):
 // the Company Logo file (if any), the Application file, then the Job
 // Listing file — in that order so a partial failure never leaves the Job

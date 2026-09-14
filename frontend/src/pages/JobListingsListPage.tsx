@@ -1,135 +1,31 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkBreaks from 'remark-breaks'
-import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
-import ApplyGuidance from '@/components/ApplyGuidance'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
+import ApplicationStatusControl from '@/components/ApplicationStatusControl'
+import FreshnessBadge from '@/components/FreshnessBadge'
 import RALBadge from '@/components/RALBadge'
-import StaleEntriesNotice from '@/components/StaleEntriesNotice'
-import {
-  checkJobListingFreshness,
-  deleteJobListing,
-  exportDataUrl,
-  generationFileUrl,
-  jobListingLogoUrl,
-  listJobListings,
-  resolveJobListing,
-  updateApplicationContact,
-  updateApplicationMethod,
-  updateApplicationStatus,
-} from '@/api/client'
-import type { ApplicationMethod, ApplicationStatus, Contact, FreshnessStatus, JobListingWithApplication } from '@/api/types'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
+import { exportDataUrl, jobListingLogoUrl, listJobListings, updateApplicationStatus } from '@/api/client'
+import type { ApplicationStatus, JobListingWithApplication } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { statusLabel } from '@/lib/applicationStatus'
 import { jobListingHeading } from '@/lib/utils'
+import type { JobListingDetailLocationState } from '@/pages/JobListingDetailPage'
 
 const ALL_STATUSES_VALUE = 'all'
 
-const statusLabel: Record<ApplicationStatus, string> = {
-  saved: 'Saved',
-  tailoring: 'Tailoring',
-  sent: 'Sent',
-  interviewing: 'Interviewing',
-  rejected: 'Rejected',
-  offer: 'Offer',
-  withdrawn: 'Withdrawn',
-}
-
-const freshnessLabel: Record<FreshnessStatus, string> = {
-  'not-yet-checked': 'Not yet checked',
-  live: 'Live',
-  unreachable: 'Unreachable',
-  unknown: 'Unknown',
-}
-
-// 'destructive'/'outline'/'secondary' are the existing Badge variants
-// (see components/ui/badge.tsx) — reused as-is rather than inventing a new
-// color for "live" (issue #59).
-const freshnessBadgeVariant: Record<FreshnessStatus, 'secondary' | 'destructive' | 'outline'> = {
-  'not-yet-checked': 'outline',
-  live: 'secondary',
-  unreachable: 'destructive',
-  unknown: 'outline',
-}
-
-// Mirrors the backend's Status state machine (see tracking.allowedTransitions)
-// so the FE only ever offers a valid next move — the backend remains the
-// source of truth and re-validates on PATCH regardless (story 4). Exported
-// so JobListingsListPage.test.tsx can pin its exact content transition by
-// transition: the duplication is deliberate, so drift from the backend has
-// to fail loudly rather than silently (issue #90).
-// It is a lookup table, not a component: Fast Refresh's constant-export
-// allowance covers primitives only, hence the directive below.
-// oxlint-disable-next-line react/only-export-components
-export const allowedNextStatuses: Record<ApplicationStatus, ApplicationStatus[]> = {
-  saved: ['tailoring', 'withdrawn'],
-  tailoring: ['sent', 'withdrawn'],
-  sent: ['interviewing', 'rejected', 'withdrawn'],
-  interviewing: ['rejected', 'offer', 'withdrawn'],
-  rejected: ['interviewing'],
-  offer: [],
-  withdrawn: ['interviewing'],
-}
-
-// Moving into Rejected/Withdrawn, and Reopening out of either back to
-// Interviewing, each reverse the other and need explicit confirmation
-// before the PATCH fires (stories 2-4, PRD stories 3 and 5).
-function needsConfirmation(from: ApplicationStatus, to: ApplicationStatus): boolean {
-  return (
-    to === 'rejected' ||
-    to === 'withdrawn' ||
-    ((from === 'rejected' || from === 'withdrawn') && to === 'interviewing')
-  )
-}
-
-interface PendingStatusChange {
-  jobListingId: string
-  company: string
-  from: ApplicationStatus
-  to: ApplicationStatus
-}
-
-interface PendingDelete {
-  jobListingId: string
-  heading: string
-}
-
 type RALSortChoice = 'none' | 'asc' | 'desc'
 
-interface AppliedRALFilter {
-  min: number
-  max: number
-  currency: string
-}
+const RAL_SORT_CHOICES: RALSortChoice[] = ['none', 'asc', 'desc']
 
 export default function JobListingsListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
   const [listings, setListings] = useState<JobListingWithApplication[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [resolveError, setResolveError] = useState<string | null>(null)
-  const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const [freshnessError, setFreshnessError] = useState<string | null>(null)
-  const [checkingFreshnessId, setCheckingFreshnessId] = useState<string | null>(null)
-  const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null)
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Filter state lives in the URL (story 7: bookmarkable/reload-safe views).
   const statusFilter = (searchParams.get('status') as ApplicationStatus | null) ?? ''
@@ -151,22 +47,46 @@ export default function JobListingsListPage() {
   }
 
   function clearFilters() {
-    setSearchParams(new URLSearchParams())
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const key of ['status', 'company', 'savedFrom', 'savedTo']) next.delete(key)
+      return next
+    })
   }
 
-  // RAL Range sort/filter (issue #51): appliedRALFilter/ralSort together
-  // drive the fetch below, so applying a filter or sort doesn't get
-  // silently reset by anything else on the page (story 9). knownCurrencies
-  // is (re)derived only from an *unfiltered* fetch, so it keeps reflecting
-  // every currency actually in use even while a currency-scoped filter is
-  // active (story 8, currency-handling decision).
-  const [ralSort, setRalSort] = useState<RALSortChoice>('none')
-  const [ralMinInput, setRalMinInput] = useState('')
-  const [ralMaxInput, setRalMaxInput] = useState('')
-  const [ralCurrency, setRalCurrency] = useState('EUR')
+  // RAL Range sort/filter (issue #51): the applied sort and bounds live in
+  // the URL alongside the filters above, so a detour into one Job Listing's
+  // page and back — by its back link or by browser Back — restores the view
+  // as it was (issue #94, stories 5-6). Only *applied* bounds are written
+  // there: the Min/Max inputs stay local until "Apply RAL filter", so typing
+  // never fires a request per keystroke. A bound left blank is absent from
+  // the URL and falls back to 0 / no ceiling when the request is built.
+  // knownCurrencies is (re)derived only from an *unfiltered* fetch, so it
+  // keeps reflecting every currency actually in use even while a
+  // currency-scoped filter is active (story 8, currency-handling decision).
+  const ralSortParam = searchParams.get('ralSort') as RALSortChoice | null
+  const ralSort: RALSortChoice = ralSortParam && RAL_SORT_CHOICES.includes(ralSortParam) ? ralSortParam : 'none'
+  const appliedRALMin = searchParams.get('ralMin') ?? ''
+  const appliedRALMax = searchParams.get('ralMax') ?? ''
+  const appliedRALCurrency = searchParams.get('ralCurrency') ?? ''
+  const hasAppliedRALFilter = Boolean(appliedRALMin || appliedRALMax)
+  const [ralMinInput, setRalMinInput] = useState(appliedRALMin)
+  const [ralMaxInput, setRalMaxInput] = useState(appliedRALMax)
+  const [ralCurrency, setRalCurrency] = useState(appliedRALCurrency || 'EUR')
   const [knownCurrencies, setKnownCurrencies] = useState<string[]>([])
-  const [appliedRALFilter, setAppliedRALFilter] = useState<AppliedRALFilter | null>(null)
   const [ralFilterError, setRalFilterError] = useState<string | null>(null)
+
+  function setRalSort(choice: RALSortChoice) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (choice === 'none') {
+        next.delete('ralSort')
+      } else {
+        next.set('ralSort', choice)
+      }
+      return next
+    })
+  }
 
   useEffect(() => {
     listJobListings({
@@ -175,13 +95,13 @@ export default function JobListingsListPage() {
       savedFrom: savedFromFilter || undefined,
       savedTo: savedToFilter || undefined,
       sortByRAL: ralSort === 'none' ? undefined : ralSort,
-      ralMin: appliedRALFilter?.min,
-      ralMax: appliedRALFilter?.max,
-      ralCurrency: appliedRALFilter?.currency,
+      ralMin: hasAppliedRALFilter ? Number(appliedRALMin || 0) : undefined,
+      ralMax: hasAppliedRALFilter ? (appliedRALMax === '' ? Number.MAX_SAFE_INTEGER : Number(appliedRALMax)) : undefined,
+      ralCurrency: hasAppliedRALFilter ? appliedRALCurrency || 'EUR' : undefined,
     })
       .then((l) => {
         setListings(l ?? [])
-        if (!appliedRALFilter) {
+        if (!hasAppliedRALFilter) {
           const currencies = Array.from(
             new Set(
               (l ?? [])
@@ -196,7 +116,17 @@ export default function JobListingsListPage() {
         }
       })
       .catch((e) => setError(e.message))
-  }, [statusFilter, companyFilter, savedFromFilter, savedToFilter, ralSort, appliedRALFilter])
+  }, [
+    statusFilter,
+    companyFilter,
+    savedFromFilter,
+    savedToFilter,
+    ralSort,
+    hasAppliedRALFilter,
+    appliedRALMin,
+    appliedRALMax,
+    appliedRALCurrency,
+  ])
 
   function handleApplyRALFilter() {
     setRalFilterError(null)
@@ -210,14 +140,28 @@ export default function JobListingsListPage() {
       setRalFilterError('Min RAL must not exceed Max RAL.')
       return
     }
-    setAppliedRALFilter({ min, max, currency: ralCurrency || knownCurrencies[0] || 'EUR' })
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set('ralMin', String(min))
+      if (ralMaxInput.trim() === '') {
+        next.delete('ralMax')
+      } else {
+        next.set('ralMax', String(max))
+      }
+      next.set('ralCurrency', ralCurrency || knownCurrencies[0] || 'EUR')
+      return next
+    })
   }
 
   function handleClearRALFilter() {
     setRalMinInput('')
     setRalMaxInput('')
     setRalFilterError(null)
-    setAppliedRALFilter(null)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      for (const key of ['ralMin', 'ralMax', 'ralCurrency']) next.delete(key)
+      return next
+    })
   }
 
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
@@ -232,90 +176,6 @@ export default function JobListingsListPage() {
       setStatusError(err instanceof Error ? err.message : String(err))
     } finally {
       setUpdatingId(null)
-    }
-  }
-
-  function handleStatusSelect(jobListingId: string, company: string, from: ApplicationStatus, to: ApplicationStatus) {
-    if (needsConfirmation(from, to)) {
-      setPendingChange({ jobListingId, company, from, to })
-      return
-    }
-    handleStatusChange(jobListingId, to)
-  }
-
-  function handleConfirmPendingChange() {
-    if (!pendingChange) return
-    handleStatusChange(pendingChange.jobListingId, pendingChange.to)
-    setPendingChange(null)
-  }
-
-  function toggleDescription(jobListingId: string) {
-    setExpandedDescriptions((prev) => {
-      const next = new Set(prev)
-      if (next.has(jobListingId)) {
-        next.delete(jobListingId)
-      } else {
-        next.add(jobListingId)
-      }
-      return next
-    })
-  }
-
-  async function handleMethodChange(jobListingId: string, method: ApplicationMethod) {
-    const application = await updateApplicationMethod(jobListingId, method)
-    setListings((prev) =>
-      prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
-    )
-  }
-
-  async function handleContactChange(jobListingId: string, contact: Contact) {
-    const application = await updateApplicationContact(jobListingId, contact)
-    setListings((prev) =>
-      prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
-    )
-  }
-
-  async function handleConfirmDelete() {
-    if (!pendingDelete) return
-    const { jobListingId } = pendingDelete
-    setDeleteError(null)
-    setDeletingId(jobListingId)
-    try {
-      await deleteJobListing(jobListingId)
-      setListings((prev) => (prev ? prev.filter((l) => l.jobListing.id !== jobListingId) : prev))
-      setPendingDelete(null)
-    } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
-  async function handleResolve(jobListingId: string) {
-    setResolveError(null)
-    setResolvingId(jobListingId)
-    try {
-      const resolved = await resolveJobListing(jobListingId)
-      setListings((prev) => (prev ? prev.map((l) => (l.jobListing.id === jobListingId ? resolved : l)) : prev))
-    } catch (err) {
-      setResolveError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setResolvingId(null)
-    }
-  }
-
-  async function handleCheckFreshness(jobListingId: string) {
-    setFreshnessError(null)
-    setCheckingFreshnessId(jobListingId)
-    try {
-      const updated = await checkJobListingFreshness(jobListingId)
-      setListings((prev) =>
-        prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, jobListing: updated } : l)) : prev,
-      )
-    } catch (err) {
-      setFreshnessError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setCheckingFreshnessId(null)
     }
   }
 
@@ -346,24 +206,6 @@ export default function JobListingsListPage() {
       {statusError && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {statusError}
-        </p>
-      )}
-
-      {resolveError && (
-        <p role="alert" className="mb-4 font-medium text-destructive">
-          {resolveError}
-        </p>
-      )}
-
-      {freshnessError && (
-        <p role="alert" className="mb-4 font-medium text-destructive">
-          {freshnessError}
-        </p>
-      )}
-
-      {deleteError && (
-        <p role="alert" className="mb-4 font-medium text-destructive">
-          {deleteError}
         </p>
       )}
 
@@ -508,7 +350,7 @@ export default function JobListingsListPage() {
           Apply RAL filter
         </Button>
 
-        {appliedRALFilter && (
+        {hasAppliedRALFilter && (
           <Button size="sm" variant="ghost" onClick={handleClearRALFilter}>
             Clear RAL filter
           </Button>
@@ -521,16 +363,15 @@ export default function JobListingsListPage() {
         )}
       </div>
 
-      {listings.length === 0 && (hasActiveFilter || appliedRALFilter) && (
+      {listings.length === 0 && (hasActiveFilter || hasAppliedRALFilter) && (
         <p>No Job Listings match the current filters.</p>
       )}
-      {listings.length === 0 && !hasActiveFilter && !appliedRALFilter && <p>No Job Listings saved yet.</p>}
+      {listings.length === 0 && !hasActiveFilter && !hasAppliedRALFilter && <p>No Job Listings saved yet.</p>}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
-          const nextStatuses = allowedNextStatuses[application.status]
           const needsResolve = jobListing.ral.source === 'unresolved' || application.method.kind === 'unresolved'
-          const isDescriptionExpanded = expandedDescriptions.has(jobListing.id)
+          const detailState: JobListingDetailLocationState = { from: location.pathname + location.search }
           return (
             <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -542,260 +383,40 @@ export default function JobListingsListPage() {
                       className="h-8 w-8 shrink-0 rounded object-contain"
                     />
                   )}
-                  <strong className="break-words font-semibold">{jobListingHeading(jobListing)}</strong>
+                  <Link
+                    to={`/jobs/${encodeURIComponent(jobListing.id)}`}
+                    state={detailState}
+                    className="break-words font-semibold no-underline hover:underline"
+                  >
+                    {jobListingHeading(jobListing)}
+                  </Link>
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
-                  {needsResolve && (
-                    <Badge variant="outline" className="border-unresolved text-unresolved">
-                      Needs attention
-                    </Badge>
-                  )}
-                  {application.status === 'withdrawn' ? (
-                    <Badge variant="outline" className="border-withdrawn text-withdrawn">
-                      {statusLabel[application.status]}
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">{statusLabel[application.status]}</Badge>
-                  )}
-                  {application.isStale && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge variant="outline" className="border-accent text-accent">
-                          Follow-up overdue
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>No Status change in over 14 days</TooltipContent>
-                    </Tooltip>
-                  )}
-                  {needsResolve && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleResolve(jobListing.id)}
-                          disabled={resolvingId === jobListing.id}
-                        >
-                          {resolvingId === jobListing.id ? 'Resolving…' : 'Resolve'}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Retries RAL Range and Application Method resolution</TooltipContent>
-                    </Tooltip>
-                  )}
-                  {nextStatuses.length > 0 && (
-                    <Select
-                      value=""
-                      onValueChange={(value) =>
-                        handleStatusSelect(
-                          jobListing.id,
-                          jobListing.company,
-                          application.status,
-                          value as ApplicationStatus,
-                        )
-                      }
-                      disabled={updatingId === jobListing.id}
-                    >
-                      <SelectTrigger size="sm" aria-label={`Move ${jobListing.company} to a new status`}>
-                        <SelectValue placeholder="Move to…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {nextStatuses.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {statusLabel[status]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <ApplicationStatusBadges application={application} needsResolve={needsResolve} />
+                  <ApplicationStatusControl
+                    company={jobListing.company}
+                    status={application.status}
+                    disabled={updatingId === jobListing.id}
+                    onMove={(next) => handleStatusChange(jobListing.id, next)}
+                  />
                 </div>
-              </div>
-              <p className="mb-0 text-sm text-muted-foreground">
-                Saved {new Date(jobListing.savedAt).toLocaleDateString()}
-                {jobListing.url && (
-                  <>
-                    {' · '}
-                    <a href={jobListing.url} target="_blank" rel="noreferrer">
-                      View posting
-                    </a>
-                  </>
-                )}
-              </p>
-              {jobListing.url && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant={freshnessBadgeVariant[jobListing.freshnessStatus]}>
-                    {freshnessLabel[jobListing.freshnessStatus]}
-                  </Badge>
-                  {jobListing.freshnessCheckedAt && (
-                    <span className="text-muted-foreground">
-                      Checked {new Date(jobListing.freshnessCheckedAt).toLocaleString()}
-                    </span>
-                  )}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleCheckFreshness(jobListing.id)}
-                        disabled={checkingFreshnessId === jobListing.id}
-                      >
-                        {checkingFreshnessId === jobListing.id ? 'Checking…' : 'Check freshness'}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Re-fetches the source URL to see if the posting is still live</TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
-              {jobListing.jobDescription && (
-                <div className="mt-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-auto p-0 text-sm font-normal underline-offset-2 hover:underline"
-                    onClick={() => toggleDescription(jobListing.id)}
-                  >
-                    {isDescriptionExpanded ? 'Hide description' : 'View description'}
-                  </Button>
-                  {isDescriptionExpanded && (
-                    <div
-                      className="mt-2 overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 text-sm
-                        break-words [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_p+ul]:mt-2
-                        [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5"
-                    >
-                      <ReactMarkdown remarkPlugins={[remarkBreaks]}>{jobListing.jobDescription}</ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="mt-2">
-                <ApplicationMethodEditor
-                  method={application.method}
-                  onSave={(method) => handleMethodChange(jobListing.id, method)}
-                />
-              </div>
-              <div className="mt-2">
-                <ApplyGuidance
-                  jobListing={jobListing}
-                  application={application}
-                  onSaveContact={(contact) => handleContactChange(jobListing.id, contact)}
-                />
-              </div>
-              <div className="mt-2">
-                <RALBadge ral={jobListing.ral} />
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                <Button asChild size="sm" variant="outline">
+                <span className="text-muted-foreground">Saved {new Date(jobListing.savedAt).toLocaleDateString()}</span>
+                {jobListing.url && <FreshnessBadge status={jobListing.freshnessStatus} />}
+                <Button asChild size="sm" variant="outline" className="ml-auto">
                   <Link to={`/jobs/${jobListing.id}/generate`}>
                     {application.generations?.length ? 'Regenerate CV' : 'Generate CV'}
                   </Link>
                 </Button>
-                {application.generations && application.generations.length > 0 && (
-                  <span className="text-muted-foreground">
-                    {application.generations.length} generation{application.generations.length > 1 ? 's' : ''} · latest:{' '}
-                    <a
-                      href={generationFileUrl(
-                        application.generations[application.generations.length - 1].slug,
-                        'cv.pdf',
-                      )}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      CV
-                    </a>
-                    {application.generations[application.generations.length - 1].coverLetterPath && (
-                      <>
-                        {' · '}
-                        <a
-                          href={generationFileUrl(
-                            application.generations[application.generations.length - 1].slug,
-                            'cover-letter.pdf',
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Cover Letter
-                        </a>
-                      </>
-                    )}
-                  </span>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="ml-auto"
-                  onClick={() =>
-                    setPendingDelete({ jobListingId: jobListing.id, heading: jobListingHeading(jobListing) })
-                  }
-                  disabled={deletingId === jobListing.id}
-                >
-                  Delete
-                </Button>
               </div>
-              <StaleEntriesNotice generations={application.generations} />
+              <div className="mt-2">
+                <RALBadge ral={jobListing.ral} />
+              </div>
             </li>
           )
         })}
       </ul>
-
-      <AlertDialog open={pendingChange !== null} onOpenChange={(open) => !open && setPendingChange(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {pendingChange?.to === 'rejected'
-                ? 'Mark this Application Rejected?'
-                : pendingChange?.to === 'withdrawn'
-                  ? 'Mark this Application Withdrawn?'
-                  : 'Reopen this Application to Interviewing?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingChange?.to === 'rejected'
-                ? `${pendingChange.company} will be marked Rejected. You can Reopen it back to Interviewing later if this turns out to be premature.`
-                : pendingChange?.to === 'withdrawn'
-                  ? `${pendingChange.company} will be marked Withdrawn. You can Reopen it back to Interviewing later if you change your mind.`
-                  : `${pendingChange?.company} will move back to Interviewing.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmPendingChange()
-              }}
-            >
-              {pendingChange?.to === 'rejected'
-                ? 'Yes, mark Rejected'
-                : pendingChange?.to === 'withdrawn'
-                  ? 'Yes, mark Withdrawn'
-                  : 'Yes, reopen'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {pendingDelete?.heading}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will also remove its Application (Status, Method, Contact, and Generation history). This action
-              cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingId !== null}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmDelete()
-              }}
-              disabled={deletingId !== null}
-            >
-              {deletingId !== null ? 'Deleting…' : 'Yes, delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

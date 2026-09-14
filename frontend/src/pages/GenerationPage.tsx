@@ -134,7 +134,7 @@ export default function GenerationPage() {
   useEffect(() => {
     if (!jobListingId) return
     getJobListing(jobListingId)
-      .then((listing) => {
+      .then(({ jobListing: listing }) => {
         setJobListing(listing)
         setJobDescription(listing.jobDescription)
       })

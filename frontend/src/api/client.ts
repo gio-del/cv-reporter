@@ -27,11 +27,25 @@ import type {
   TrackedBoard,
 } from './types'
 
+// ApiError is what request() throws for a non-2xx response: the message is
+// still the backend's body (what every page shows today), and status lets a
+// page tell "this record does not exist" apart from any other failure — the
+// Job Listing detail page's not-found state (issue #94).
+export class ApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init)
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(body || `Request to ${path} failed (${res.status})`)
+    throw new ApiError(body || `Request to ${path} failed (${res.status})`, res.status)
   }
   return res.json()
 }
@@ -180,7 +194,10 @@ export function getApplicationsStats(): Promise<ApplicationStats> {
   return request('/api/applications/stats')
 }
 
-export function getJobListing(id: string): Promise<JobListing> {
+// getJobListing returns a Job Listing paired with its Application — the same
+// shape listJobListings returns per row, stale-Entry information included
+// (issue #94), so the Job Listing detail page needs one request.
+export function getJobListing(id: string): Promise<JobListingWithApplication> {
   return request(`/api/job-listings/${encodeURIComponent(id)}`)
 }
 

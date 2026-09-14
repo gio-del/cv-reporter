@@ -1,37 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
-import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import JobListingsListPage, { allowedNextStatuses } from './JobListingsListPage'
-import type { ApplicationStatus, JobListingWithApplication } from '@/api/types'
-import { application, listingWithApplication } from '@/test/fixtures'
-import { renderPage } from '@/test/render'
+import JobListingsListPage from './JobListingsListPage'
+import type { JobListingWithApplication } from '@/api/types'
+import { listingWithApplication } from '@/test/fixtures'
+import { browserBack, currentPath, currentSearch, renderApp, renderPage } from '@/test/render'
 import { recordedRequests, requestsTo, server } from '@/test/server'
-
-const STATUS_PATH = '/api/applications/acme/status'
-
-function listing(status: ApplicationStatus): JobListingWithApplication {
-  return listingWithApplication({ id: 'acme', company: 'Acme' }, { status })
-}
 
 function showList(listings: JobListingWithApplication[]) {
   server.use(http.get('/api/job-listings', () => HttpResponse.json(listings)))
-}
-
-/** patchStatusReturning answers the Status PATCH with the updated Application. */
-function patchStatusReturning(status: ApplicationStatus) {
-  server.use(http.patch(STATUS_PATH, () => HttpResponse.json(application({ status }))))
-}
-
-/** moveTo drives the Status dropdown the way a user does. */
-async function moveTo(user: UserEvent, status: string) {
-  await user.click(await screen.findByRole('combobox', { name: 'Move Acme to a new status' }))
-  await user.click(await screen.findByRole('option', { name: status }))
-}
-
-/** shownStatus asserts on the Status the Job Listing's own row displays. */
-function shownStatus(label: string): HTMLElement {
-  return within(screen.getByRole('listitem')).getByText(label)
 }
 
 describe('JobListingsListPage', () => {
@@ -66,191 +43,100 @@ describe('JobListingsListPage', () => {
   })
 })
 
-describe('Application Status transitions', () => {
-  // The frontend's table duplicates the backend's tracking.allowedTransitions
-  // by design (the UI needs it to offer a next move at all). Pinning its exact
-  // content is what stops the two drifting apart silently: a backend change
-  // that is not mirrored here fails with a readable diff.
-  it('AllowedNextStatuses_EveryStatus_MatchesTheBackendStateMachine', () => {
-    expect(allowedNextStatuses).toEqual({
-      saved: ['tailoring', 'withdrawn'],
-      tailoring: ['sent', 'withdrawn'],
-      sent: ['interviewing', 'rejected', 'withdrawn'],
-      interviewing: ['rejected', 'offer', 'withdrawn'],
-      rejected: ['interviewing'],
-      offer: [],
-      withdrawn: ['interviewing'],
-    })
-  })
-
-  it('StatusDropdown_Interviewing_OffersExactlyTheBackendsAllowedMoves', async () => {
-    showList([listing('interviewing')])
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await user.click(await screen.findByRole('combobox', { name: 'Move Acme to a new status' }))
-
-    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
-      'Rejected',
-      'Offer',
-      'Withdrawn',
+// The list is for triage across many Job Listings: each row identifies one,
+// shows its state at a glance, offers the Status move and the Generate
+// shortcut, and links to the Job Listing's own page for everything else
+// (issue #94). Deletion, the Job Description, Method/Contact editing, the
+// Resolve retry, the freshness check and Generation history are covered on
+// that page, in JobListingDetailPage.test.tsx.
+describe('Job Listing rows', () => {
+  it('Row_Shown_KeepsOnlyTheTriageAffordances', async () => {
+    showList([
+      listingWithApplication(
+        {
+          id: 'acme',
+          company: 'Acme',
+          title: 'Backend Engineer',
+          url: 'https://acme.example/jobs/1',
+          jobDescription: 'We are hiring a Backend Engineer.',
+          ral: { min: 45000, max: 55000, currency: 'EUR', source: 'stated' },
+        },
+        {
+          status: 'sent',
+          generations: [{ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' }],
+        },
+      ),
     ])
-  })
-
-  it('StatusDropdown_Offer_OffersNoStatusControlAtAll', async () => {
-    showList([listing('offer')])
     renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
 
-    await screen.findByText('Acme')
-    expect(screen.queryByRole('combobox', { name: 'Move Acme to a new status' })).not.toBeInTheDocument()
-  })
+    const row = await screen.findByRole('listitem')
+    expect(within(row).getByRole('link', { name: 'Backend Engineer — Acme' })).toHaveAttribute('href', '/jobs/acme')
+    expect(within(row).getByText('Sent')).toBeInTheDocument()
+    expect(within(row).getByText('Not yet checked')).toBeInTheDocument()
+    expect(within(row).getByText('RAL Range: EUR 45,000 – 55,000')).toBeInTheDocument()
+    expect(within(row).getByText(/^Saved /)).toBeInTheDocument()
+    expect(within(row).getByRole('combobox', { name: 'Move Acme to a new status' })).toBeInTheDocument()
+    expect(within(row).getByRole('link', { name: 'Regenerate CV' })).toHaveAttribute('href', '/jobs/acme/generate')
 
-  it('StatusChange_ToRejected_AsksForConfirmationBeforeSendingAnything', async () => {
-    showList([listing('interviewing')])
-    patchStatusReturning('rejected')
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Rejected')
-
-    const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText('Mark this Application Rejected?')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
-
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, mark Rejected' }))
-
-    expect(await screen.findByText('Rejected')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toEqual([
-      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'rejected' } },
-    ])
-  })
-
-  it('StatusChange_ToWithdrawn_AsksForConfirmationBeforeSendingAnything', async () => {
-    showList([listing('sent')])
-    patchStatusReturning('withdrawn')
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Withdrawn')
-
-    const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText('Mark this Application Withdrawn?')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
-
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, mark Withdrawn' }))
-
-    expect(await screen.findByText('Withdrawn')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toEqual([
-      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'withdrawn' } },
-    ])
-  })
-
-  // Both directions of each reversible pair are guarded, per CONTEXT.md's
-  // Status entry: Reopening is as deliberate an act as ending the process.
-  it('StatusChange_ReopenFromRejected_AsksForConfirmationBeforeSendingAnything', async () => {
-    showList([listing('rejected')])
-    patchStatusReturning('interviewing')
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Interviewing')
-
-    const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText('Reopen this Application to Interviewing?')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
-
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, reopen' }))
-
-    expect(await requestsTo(STATUS_PATH)).toEqual([
-      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'interviewing' } },
-    ])
-  })
-
-  it('StatusChange_ReopenFromWithdrawn_AsksForConfirmationBeforeSendingAnything', async () => {
-    showList([listing('withdrawn')])
-    patchStatusReturning('interviewing')
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Interviewing')
-
-    const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText('Reopen this Application to Interviewing?')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
-
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, reopen' }))
-
-    expect(await requestsTo(STATUS_PATH)).toEqual([
-      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'interviewing' } },
-    ])
-  })
-
-  it('StatusChange_ConfirmationCancelled_LeavesTheStatusUntouchedAndSendsNothing', async () => {
-    showList([listing('interviewing')])
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Rejected')
-    const dialog = await screen.findByRole('alertdialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(shownStatus('Interviewing')).toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toHaveLength(0)
-  })
-
-  it('StatusChange_NoConfirmationNeeded_AppliesDirectly', async () => {
-    showList([listing('saved')])
-    patchStatusReturning('tailoring')
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Tailoring')
-
-    expect(await screen.findByText('Tailoring')).toBeInTheDocument()
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(await requestsTo(STATUS_PATH)).toEqual([
-      { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'tailoring' } },
-    ])
-  })
-
-  it('StatusChange_UpdateFails_SurfacesTheErrorAndLeavesTheShownStatusUnchanged', async () => {
-    showList([listing('saved')])
-    server.use(http.patch(STATUS_PATH, () => new HttpResponse('invalid transition', { status: 409 })))
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
-
-    await moveTo(user, 'Tailoring')
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('invalid transition')
-    expect(shownStatus('Saved')).toBeInTheDocument()
+    for (const detailOnly of ['Delete', 'View description', 'Check freshness', 'Correct', 'Resolve']) {
+      expect(within(row).queryByRole('button', { name: detailOnly })).not.toBeInTheDocument()
+    }
+    expect(within(row).queryByText('We are hiring a Backend Engineer.')).not.toBeInTheDocument()
+    expect(within(row).queryByRole('link', { name: 'View posting' })).not.toBeInTheDocument()
+    expect(within(row).queryByRole('link', { name: 'CV' })).not.toBeInTheDocument()
   })
 })
 
-// Deleting a Job Listing takes its Application — Status, Method, Contact and
-// the whole Generation history — with it, so it is confirmation-gated and the
-// dialog names what is about to go.
-describe('Job Listing deletion', () => {
-  const DELETE_PATH = '/api/job-listings/acme'
+describe('Opening a Job Listing from the list', () => {
+  function serveListAndDetail() {
+    const record = listingWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' })
+    server.use(
+      http.get('/api/job-listings', () => HttpResponse.json([record])),
+      http.get('/api/job-listings/acme', () => HttpResponse.json(record)),
+    )
+  }
 
-  it('Delete_Requested_AsksForConfirmationNamingTheJobListing', async () => {
-    showList([listingWithApplication({ id: 'acme', company: 'Acme', title: 'Backend Engineer' })])
-    server.use(http.delete(DELETE_PATH, () => new HttpResponse(null, { status: 204 })))
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
+  const FILTERED = '?status=saved&company=acme&ralSort=desc'
 
-    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+  it('RowLink_Clicked_OpensTheJobListingsOwnPage', async () => {
+    serveListAndDetail()
+    const { user } = renderApp({ at: '/jobs' })
 
-    const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText('Delete Backend Engineer — Acme?')).toBeInTheDocument()
-    expect(await requestsTo(DELETE_PATH)).toHaveLength(0)
+    await user.click(await screen.findByRole('link', { name: 'Backend Engineer — Acme' }))
 
-    await user.click(within(dialog).getByRole('button', { name: 'Yes, delete' }))
-
-    await waitFor(() => expect(screen.queryByText('Backend Engineer — Acme')).not.toBeInTheDocument())
-    expect(await requestsTo(DELETE_PATH)).toHaveLength(1)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Backend Engineer — Acme' })).toBeInTheDocument()
+    expect(currentPath()).toBe('/jobs/acme')
+    expect(await requestsTo('/api/job-listings/acme')).toHaveLength(1)
   })
 
-  it('Delete_ConfirmationCancelled_DeletesNothingAndSendsNothing', async () => {
-    showList([listing('saved')])
-    const { user } = renderPage(<JobListingsListPage />, { at: '/jobs', pattern: '/jobs' })
+  it('BackLink_AfterOpeningFromAFilteredList_ReturnsToTheListAsItWasFiltered', async () => {
+    serveListAndDetail()
+    const { user } = renderApp({ at: `/jobs${FILTERED}` })
 
-    await user.click(await screen.findByRole('button', { name: 'Delete' }))
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Cancel' }))
+    await user.click(await screen.findByRole('link', { name: 'Backend Engineer — Acme' }))
+    const back = await screen.findByRole('link', { name: '← Back to Job Listings' })
+    expect(back).toHaveAttribute('href', `/jobs${FILTERED}`)
 
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-    expect(screen.getByText('Acme')).toBeInTheDocument()
-    expect(await requestsTo(DELETE_PATH)).toHaveLength(0)
+    await user.click(back)
+
+    expect(await screen.findByRole('link', { name: 'Backend Engineer — Acme' })).toBeInTheDocument()
+    expect(currentPath()).toBe('/jobs')
+    expect(currentSearch()).toBe(FILTERED)
+    const listRequests = await requestsTo('/api/job-listings')
+    expect(listRequests[listRequests.length - 1].search).toBe('?status=saved&company=acme&sort=ral&order=desc')
+  })
+
+  it('BrowserBack_AfterOpeningFromAFilteredList_ReturnsToTheListAsItWasFiltered', async () => {
+    serveListAndDetail()
+    const { user } = renderApp({ at: `/jobs${FILTERED}` })
+
+    await user.click(await screen.findByRole('link', { name: 'Backend Engineer — Acme' }))
+    await screen.findByRole('heading', { level: 1, name: 'Backend Engineer — Acme' })
+
+    browserBack()
+
+    await waitFor(() => expect(currentPath()).toBe('/jobs'))
+    expect(currentSearch()).toBe(FILTERED)
+    expect(await screen.findByRole('link', { name: 'Backend Engineer — Acme' })).toBeInTheDocument()
   })
 })

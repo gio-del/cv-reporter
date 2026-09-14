@@ -41,7 +41,9 @@ describe('Job Listing freshness', () => {
     expect(await screen.findByText('Unreachable')).toBeInTheDocument()
   })
 
-  it('FreshnessBadge_LiveUrl_ShowsWhenItWasLastChecked', async () => {
+  // The row's badge is read-only: the last-checked time and the Check
+  // freshness action live on the Job Listing's own page (issue #94).
+  it('FreshnessBadge_LiveUrl_IsShownReadOnlyOnTheRow', async () => {
     showList([
       listingWithApplication({
         url: 'https://acme.example/jobs/1',
@@ -51,7 +53,8 @@ describe('Job Listing freshness', () => {
     ])
 
     expect(await screen.findByText('Live')).toBeInTheDocument()
-    expect(screen.getByText(/^Checked /)).toBeInTheDocument()
+    expect(screen.queryByText(/^Checked /)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check freshness' })).not.toBeInTheDocument()
   })
 
   it('FreshnessBadge_NoSourceUrl_ShowsNoFreshnessControlAtAll', async () => {
@@ -59,25 +62,6 @@ describe('Job Listing freshness', () => {
 
     await screen.findByText('Acme')
     expect(screen.queryByRole('button', { name: 'Check freshness' })).not.toBeInTheDocument()
-    expect(screen.queryByText('Not yet checked')).not.toBeInTheDocument()
-  })
-
-  it('FreshnessCheck_ReturnsUnreachable_ReplacesTheBadgeWithTheNewStatus', async () => {
-    const { user } = showList([freshListing('not-yet-checked')])
-    server.use(
-      http.post('/api/job-listings/acme/check-freshness', () =>
-        HttpResponse.json({
-          jobListing: {
-            ...freshListing('unreachable').jobListing,
-            freshnessCheckedAt: '2026-02-02T08:00:00Z',
-          },
-        }),
-      ),
-    )
-
-    await user.click(await screen.findByRole('button', { name: 'Check freshness' }))
-
-    expect(await screen.findByText('Unreachable')).toBeInTheDocument()
     expect(screen.queryByText('Not yet checked')).not.toBeInTheDocument()
   })
 })
@@ -99,11 +83,14 @@ describe('Application staleness', () => {
 })
 
 describe('Job Listing RAL Range in the list', () => {
-  it('JobListingsListPage_UnresolvedRAL_OffersAResolveRetry', async () => {
+  // The flag stays on the row for triage; the Resolve retry itself is on the
+  // Job Listing's own page (issue #94).
+  it('JobListingsListPage_UnresolvedRAL_FlagsTheRowAsNeedingAttention', async () => {
     showList([listingWithApplication({ ral: { source: 'unresolved' } })])
 
-    expect(await screen.findByText('Needs attention')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Resolve' })).toBeInTheDocument()
+    const row = await screen.findByRole('listitem')
+    expect(within(row).getByText('Needs attention')).toBeInTheDocument()
+    expect(within(row).queryByRole('button', { name: 'Resolve' })).not.toBeInTheDocument()
   })
 
   it('JobListingsListPage_StatedRAL_ShowsTheRangeWithItsSourceLabelled', async () => {
