@@ -45,24 +45,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 		absDataDir = *dataDir
 	}
 	if *write {
-		fmt.Fprintf(stdout, "Migrating records under %s to schema version %d.\n", absDataDir, tracking.CurrentSchemaVersion)
+		fmt.Fprintf(stdout, "Migrating records under %s to schema version %d.\n", absDataDir, tracking.CurrentSchemaVersion) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 	} else {
-		fmt.Fprintf(stdout, "Dry run over %s: nothing will be written (pass -write to apply).\n", absDataDir)
+		fmt.Fprintf(stdout, "Dry run over %s: nothing will be written (pass -write to apply).\n", absDataDir) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 	}
 	if _, statErr := os.Stat(absDataDir); os.IsNotExist(statErr) {
-		fmt.Fprintf(stdout, "Note: %s does not exist.\n", absDataDir)
+		fmt.Fprintf(stdout, "Note: %s does not exist.\n", absDataDir) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 	}
 
 	report, err := tracking.MigrateRecords(*dataDir, tracking.MigrationOptions{DryRun: !*write})
 	if err != nil {
-		fmt.Fprintf(stderr, "migrate-records: %v\n", err)
+		fmt.Fprintf(stderr, "migrate-records: %v\n", err) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		// Every record is read and checked before the first write, so only
 		// an I/O failure while writing can leave the run half-applied — and
 		// each record it did write was replaced atomically.
 		if *write {
-			fmt.Fprintln(stderr, "If this failed while writing, some records may already be migrated; run the dry run again to see what is still pending.")
+			fmt.Fprintln(stderr, "If this failed while writing, some records may already be migrated; run the dry run again to see what is still pending.") //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		} else {
-			fmt.Fprintln(stderr, "Nothing was written.")
+			fmt.Fprintln(stderr, "Nothing was written.") //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		}
 		return 1
 	}
@@ -70,17 +70,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	switch {
 	case !report.Pending():
-		fmt.Fprintf(stdout, "\nAll %d records are already at schema version %d. Nothing to do.\n", report.Scanned, tracking.CurrentSchemaVersion)
+		fmt.Fprintf(stdout, "\nAll %d records are already at schema version %d. Nothing to do.\n", report.Scanned, tracking.CurrentSchemaVersion) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		return 0
 	case report.DryRun:
-		fmt.Fprintf(stdout, "\n%d of %d records would be migrated. Re-run with -write to apply.\n", len(report.Migrated), report.Scanned)
+		fmt.Fprintf(stdout, "\n%d of %d records would be migrated. Re-run with -write to apply.\n", len(report.Migrated), report.Scanned) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		return exitPending
 	default:
-		fmt.Fprintf(stdout, "\nMigrated %d of %d records.\n", len(report.Migrated), report.Scanned)
+		fmt.Fprintf(stdout, "\nMigrated %d of %d records.\n", len(report.Migrated), report.Scanned) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 		return 0
 	}
 }
 
+//nolint:errcheck // prints a CLI report; if the terminal write fails, the exit status still reports the outcome
 func printReport(w io.Writer, report tracking.MigrationReport) {
 	fmt.Fprintf(w, "Scanned %d records.\n", report.Scanned)
 	for _, m := range report.Migrated {

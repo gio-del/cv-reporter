@@ -71,7 +71,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 // check that ran and flagged something, so a tooling or input problem is
 // never mistaken for a verdict about the CV.
 func unavailable(stderr io.Writer, err error) int {
-	fmt.Fprintf(stderr, "cvcheck: check unavailable: %v\n", err)
+	fmt.Fprintf(stderr, "cvcheck: check unavailable: %v\n", err) //nolint:errcheck // CLI output; if the terminal write fails, the exit status still reports the outcome
 	return exitUnavailable
 }
 
@@ -136,6 +136,7 @@ func readSelection(path string) (generation.SelectionResult, error) {
 	return selection, nil
 }
 
+//nolint:errcheck // prints a CLI report; if the terminal write fails, the exit status still reports the outcome
 func printGroundedness(w io.Writer, selection generation.SelectionResult, result generation.GroundednessResult) {
 	total := 0
 	for _, e := range selection.Entries {
@@ -230,6 +231,7 @@ func runPDF(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
+//nolint:errcheck // prints a CLI report; if the terminal write fails, the exit status still reports the outcome
 func printPDF(w io.Writer, r generation.RenderedCVCheck) {
 	if r.PageCount == 1 {
 		fmt.Fprintln(w, "Page count: 1")
