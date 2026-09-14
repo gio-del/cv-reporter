@@ -281,6 +281,20 @@ export interface Application {
   contact?: Contact
   isStale: boolean
   generations?: GenerationRecord[]
+  // notes are the user's own log on this Application (issue #96), newest
+  // first. Absent means no Notes.
+  notes?: Note[]
+}
+
+// Note is one timestamped Markdown observation on an Application (issue
+// #96). id and createdAt are server-assigned: id is opaque and only ever
+// echoed back, createdAt never changes. editedAt appears once the body has
+// been corrected.
+export interface Note {
+  id: string
+  createdAt: string
+  editedAt?: string
+  body: string
 }
 
 export interface StatusCount {

@@ -32,6 +32,8 @@ This mode needs the backend running (`docker-compose up` — `http://127.0.0.1:8
 
    `jobListing` and `application` share the same `id` (they're 1:1) — keep it, it's needed in steps 4–5 below.
 
+   An Application may carry `application.notes`: the user's own log of the process (what a recruiter said, a salary figure discussed). Notes are not Master Data and not the Job Description — never feed them into Selection, Rewrite or the Cover Letter, so nothing from a Note can appear on a Tailored CV.
+
 ### Optional actions on a matched Application
 
 Once an Application is matched (step 1 above), any of the four actions below can be run before, after, or instead of the Pipeline (steps 2–5) — none of them require running Selection/Rewrite/Render, so e.g. "retry resolution for the Acme application" is a complete request on its own, with no CV generation involved. Each uses the same `<id>` from step 1 and inherits the same hard rule as the rest of this mode: a connection error, non-2xx response, or unexpected shape means stop and report — never continue as if it succeeded.

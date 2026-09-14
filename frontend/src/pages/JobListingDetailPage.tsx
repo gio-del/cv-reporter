@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import ApplicationMethodEditor from '@/components/ApplicationMethodEditor'
+import ApplicationNotes from '@/components/ApplicationNotes'
 import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import ApplyGuidance from '@/components/ApplyGuidance'
@@ -299,6 +300,12 @@ export default function JobListingDetailPage() {
         <ApplyGuidance jobListing={jobListing} application={application} onSaveContact={handleContactChange} />
       </section>
 
+      <ApplicationNotes
+        applicationId={application.id}
+        notes={application.notes}
+        onApplicationChange={(updated) => setRecord((prev) => (prev ? { ...prev, application: updated } : prev))}
+      />
+
       <section className="mt-6">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h2 className="my-0">Generations</h2>
@@ -363,8 +370,8 @@ export default function JobListingDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {heading}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will also remove its Application (Status, Method, Contact, and Generation history). This action
-              cannot be undone.
+              This will also remove its Application (Status, Method, Contact, Notes, and Generation history). This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
