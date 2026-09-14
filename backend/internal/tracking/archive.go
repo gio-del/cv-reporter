@@ -1,8 +1,9 @@
 package tracking
 
 import (
-	"os"
 	"path/filepath"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // SetArchived archives (archived true) or unarchives (archived false) the
@@ -22,7 +23,7 @@ func SetArchived(dataDir, id string, archived bool) (JobListing, error) {
 	}
 
 	listing.Archived = archived
-	if err := os.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(dataDir, jobsDir, id+".md"), renderJobListing(listing), 0o644); err != nil {
 		return JobListing{}, err
 	}
 	return listing, nil

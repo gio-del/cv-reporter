@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -102,7 +103,7 @@ func UpdateEntry(dataDir, id string, entry Entry) (Entry, error) {
 		return Entry{}, fmt.Errorf("%w: %v", ErrValidation, err)
 	}
 
-	if err := os.WriteFile(path, renderEntry(entry), 0o644); err != nil {
+	if err := atomicfile.WriteFile(path, renderEntry(entry), 0o644); err != nil {
 		return Entry{}, err
 	}
 	return entry, nil
@@ -129,7 +130,7 @@ func CreateEntry(dataDir string, entry Entry) (Entry, error) {
 	slug := uniqueSlug(fullDir, slugify(slugSource(entry)))
 	entry.ID = dir + "/" + slug
 
-	if err := os.WriteFile(filepath.Join(fullDir, slug+".md"), renderEntry(entry), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(fullDir, slug+".md"), renderEntry(entry), 0o644); err != nil {
 		return Entry{}, err
 	}
 	return entry, nil

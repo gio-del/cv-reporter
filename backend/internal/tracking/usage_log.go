@@ -10,10 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
 const usageLogFile = "usage-log.json"
+
+// writeUsageLogFile is swapped in tests: an atomic rename ignores the target
+// file's permissions, so no filesystem state fails the log write while the
+// incompleteness marker beside it still succeeds.
+var writeUsageLogFile = atomicfile.WriteFile
 
 // usageLogMu serializes read-modify-write access to dataDir's usage log
 // across concurrent requests (RAL resolution, Contact suggestion, ...).
@@ -51,7 +57,7 @@ func RecordStandaloneUsage(dataDir string, client any) {
 
 	data, err := json.MarshalIndent(existing, "", "  ")
 	if err == nil {
-		err = os.WriteFile(path, data, 0o644)
+		err = writeUsageLogFile(path, data, 0o644)
 	}
 	if err != nil {
 		log.Printf("usage log: failed to record %d Claude API call(s) to %s: %v", len(calls), path, err)
@@ -85,7 +91,7 @@ func markUsageIncomplete(dataDir, reason string) {
 	path := filepath.Join(dataDir, usageIncompleteFile)
 	data, err := json.MarshalIndent(usageIncompleteMarker{Reason: reason, RecordedAt: time.Now().UTC()}, "", "  ")
 	if err == nil {
-		err = os.WriteFile(path, data, 0o644)
+		err = atomicfile.WriteFile(path, data, 0o644)
 	}
 	if err != nil {
 		log.Printf("usage log: failed to write incompleteness marker %s: %v", path, err)

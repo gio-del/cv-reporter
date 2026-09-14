@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -105,7 +106,7 @@ func CreateSnippet(dataDir string, snippet Snippet) (Snippet, error) {
 	slug := uniqueSlug(fullDir, slugify(snippet.Kind))
 	snippet.ID = slug
 
-	if err := os.WriteFile(filepath.Join(fullDir, slug+".md"), renderSnippet(snippet), 0o644); err != nil {
+	if err := atomicfile.WriteFile(filepath.Join(fullDir, slug+".md"), renderSnippet(snippet), 0o644); err != nil {
 		return Snippet{}, err
 	}
 	return snippet, nil
@@ -126,7 +127,7 @@ func UpdateSnippet(dataDir, id string, snippet Snippet) (Snippet, error) {
 		return Snippet{}, fmt.Errorf("%w: %v", ErrValidation, err)
 	}
 
-	if err := os.WriteFile(path, renderSnippet(snippet), 0o644); err != nil {
+	if err := atomicfile.WriteFile(path, renderSnippet(snippet), 0o644); err != nil {
 		return Snippet{}, err
 	}
 	return snippet, nil
