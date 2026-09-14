@@ -8,6 +8,7 @@ skills-lock.json
 data/jobs/
 data/applications/
 data/usage-log.json
+data/usage-log.incomplete.json
 
 # frontend
 frontend/node_modules/

@@ -891,7 +891,10 @@ func TestCreateJobListing_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
 
-	logged := tracking.ReadUsageLog(dataDir)
+	logged, err := tracking.ReadUsageLog(dataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(logged) != 1 || logged[0].CallType != "ral_estimation" {
 		t.Fatalf("expected the standalone usage log to contain the RAL-estimation call, got %+v", logged)
 	}
@@ -899,8 +902,8 @@ func TestCreateJobListing_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing
 
 func TestReadUsageLog_NoLogYet_ReturnsNil(t *testing.T) {
 	dataDir := t.TempDir()
-	if got := tracking.ReadUsageLog(dataDir); got != nil {
-		t.Errorf("ReadUsageLog() on a fresh dataDir = %+v, want nil", got)
+	if got, err := tracking.ReadUsageLog(dataDir); got != nil || err != nil {
+		t.Errorf("ReadUsageLog() on a fresh dataDir = %+v, %v, want nil, nil", got, err)
 	}
 }
 
