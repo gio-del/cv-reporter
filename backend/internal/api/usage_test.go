@@ -195,15 +195,29 @@ func TestGetUsage_LogHealthyAndRecordingAgain_ClearsIncompleteness(t *testing.T)
 	}
 }
 
-func TestSaveJobListing_UsageLogWriteFails_SaveSucceedsAndIncompletenessSurvivesRestart(t *testing.T) {
+func TestSaveJobListing_UsageLogWriteFails_SaveStillSucceedsAndLogIsUntouched(t *testing.T) {
 	if os.Geteuid() == 0 {
-		t.Skip("root ignores file permission bits, so the usage log write can't be made to fail")
+		t.Skip("root ignores directory permission bits, so the usage log write can't be made to fail")
 	}
 	dataDir := seedDataDir(t)
-	if err := os.WriteFile(filepath.Join(dataDir, "usage-log.json"), []byte("[]"), 0o444); err != nil {
+	logPath := filepath.Join(dataDir, "usage-log.json")
+	if err := os.WriteFile(logPath, []byte("[]"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	for _, sub := range []string{"jobs", "applications"} {
+		if err := os.MkdirAll(filepath.Join(dataDir, sub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Usage-log writes are atomic (temp file + rename in the data dir), so
+	// only an unwritable data dir makes them fail; the Job Listing and its
+	// Application still save into their own writable subdirectories.
+	if err := os.Chmod(dataDir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dataDir, 0o755) })
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, usageReportingClient()))
+	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
 		"company":        "Acme Corp",
@@ -213,11 +227,7 @@ func TestSaveJobListing_UsageLogWriteFails_SaveSucceedsAndIncompletenessSurvives
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected the save to still succeed with 201, got %d", resp.StatusCode)
 	}
-	assertUsageIncomplete(t, getUsage(t, server.URL))
-	server.Close()
-
-	// A fresh router over the same dataDir stands in for an app restart.
-	restarted := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
-	defer restarted.Close()
-	assertUsageIncomplete(t, getUsage(t, restarted.URL))
+	if got, _ := os.ReadFile(logPath); string(got) != "[]" {
+		t.Errorf("expected the usage log left untouched by the failed write, got %q", got)
+	}
 }

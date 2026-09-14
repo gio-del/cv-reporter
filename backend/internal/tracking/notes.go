@@ -3,12 +3,13 @@ package tracking
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 )
 
 // ErrNoteNotFound marks an edit or delete addressing a Note id the
@@ -170,5 +171,5 @@ func sortNotesNewestFirst(notes []Note) {
 }
 
 func writeApplication(dataDir string, application Application) error {
-	return os.WriteFile(filepath.Join(dataDir, applicationsDir, application.ID+".md"), renderApplication(application), 0o644)
+	return atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, application.ID+".md"), renderApplication(application), 0o644)
 }

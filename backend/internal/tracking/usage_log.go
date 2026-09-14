@@ -16,6 +16,11 @@ import (
 
 const usageLogFile = "usage-log.json"
 
+// writeUsageLogFile is swapped in tests: an atomic rename ignores the target
+// file's permissions, so no filesystem state fails the log write while the
+// incompleteness marker beside it still succeeds.
+var writeUsageLogFile = atomicfile.WriteFile
+
 // usageLogMu serializes read-modify-write access to dataDir's usage log
 // across concurrent requests (RAL resolution, Contact suggestion, ...).
 var usageLogMu sync.Mutex
@@ -52,7 +57,7 @@ func RecordStandaloneUsage(dataDir string, client any) {
 
 	data, err := json.MarshalIndent(existing, "", "  ")
 	if err == nil {
-		err = atomicfile.WriteFile(path, data, 0o644)
+		err = writeUsageLogFile(path, data, 0o644)
 	}
 	if err != nil {
 		log.Printf("usage log: failed to record %d Claude API call(s) to %s: %v", len(calls), path, err)

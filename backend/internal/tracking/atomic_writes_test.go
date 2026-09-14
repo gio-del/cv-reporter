@@ -212,3 +212,43 @@ func TestSave_WrittenRecordsKeepTheirPermissionMode(t *testing.T) {
 		}
 	}
 }
+
+// The same guarantee for archiving a Job Listing (issue #98's write,
+// added after this helper existed).
+func TestSetArchived_FailedWriteLeavesJobListingIntact(t *testing.T) {
+	dataDir := t.TempDir()
+	plantListingAndApplication(t, dataDir)
+	makeReadOnly(t, filepath.Join(dataDir, "jobs"))
+
+	if _, err := tracking.SetArchived(dataDir, "acme-corp", true); err == nil {
+		t.Fatal("expected an error when the write cannot complete, got nil")
+	}
+
+	got, err := os.ReadFile(filepath.Join(dataDir, "jobs", "acme-corp.md"))
+	if err != nil {
+		t.Fatalf("reading job listing after failed write: %v", err)
+	}
+	if string(got) != sampleListingFile {
+		t.Errorf("job listing was damaged by a failed write:\nwant %q\ngot  %q", sampleListingFile, string(got))
+	}
+}
+
+// The same guarantee for a Note write (issue #96's write, added after this
+// helper existed); AddNote, EditNote and DeleteNote share one write path.
+func TestAddNote_FailedWriteLeavesApplicationIntact(t *testing.T) {
+	dataDir := t.TempDir()
+	plantListingAndApplication(t, dataDir)
+	makeReadOnly(t, filepath.Join(dataDir, "applications"))
+
+	if _, err := tracking.AddNote(dataDir, "acme-corp", "Recruiter call on Tuesday."); err == nil {
+		t.Fatal("expected an error when the write cannot complete, got nil")
+	}
+
+	got, err := os.ReadFile(filepath.Join(dataDir, "applications", "acme-corp.md"))
+	if err != nil {
+		t.Fatalf("reading application after failed write: %v", err)
+	}
+	if string(got) != sampleApplicationFile {
+		t.Errorf("application was damaged by a failed write:\nwant %q\ngot  %q", sampleApplicationFile, string(got))
+	}
+}
