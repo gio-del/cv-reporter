@@ -17,7 +17,7 @@ import (
 func TestListJobListings_SortByRALDesc_OrdersNumericFirstThenTrailsNonNumeric(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -68,7 +68,7 @@ func TestListJobListings_SortByRALDesc_OrdersNumericFirstThenTrailsNonNumeric(t 
 func TestListJobListings_FilterByRALMinMax_ExcludesOutOfRangeAndNonNumeric(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -107,7 +107,7 @@ func TestListJobListings_FilterByRALMinMax_ExcludesOutOfRangeAndNonNumeric(t *te
 
 func TestListJobListings_InvalidRALFilterParam_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings?ral_min=not-a-number")

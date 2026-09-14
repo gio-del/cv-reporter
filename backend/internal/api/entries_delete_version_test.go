@@ -12,7 +12,7 @@ import (
 
 func TestDeleteEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -30,7 +30,7 @@ func TestDeleteEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 
 func TestDeleteEntry_WithStaleVersion_Returns409AndTheFileSurvives(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -58,7 +58,7 @@ start: "2024-10"
 
 func TestDeleteEntry_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")

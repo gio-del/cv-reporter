@@ -46,7 +46,7 @@ method:
 
 func TestListJobListings_ReturnsATokenForBothTheListingAndItsApplication(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -65,7 +65,7 @@ func TestListJobListings_ReturnsATokenForBothTheListingAndItsApplication(t *test
 
 func TestUpdateApplicationStatus_WithCurrentVersion_Succeeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -83,7 +83,7 @@ func TestUpdateApplicationStatus_WithCurrentVersion_Succeeds(t *testing.T) {
 
 func TestUpdateApplicationStatus_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -106,7 +106,7 @@ func TestUpdateApplicationStatus_WithStaleVersion_Returns409AndLeavesFileUntouch
 
 func TestUpdateApplicationStatus_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -120,7 +120,7 @@ func TestUpdateApplicationStatus_WithNoVersion_IsUnconditional(t *testing.T) {
 
 func TestUpdateApplicationStatus_ApplicationDeletedOutOfBand_Returns404NotConflict(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -137,7 +137,7 @@ func TestUpdateApplicationStatus_ApplicationDeletedOutOfBand_Returns404NotConfli
 
 func TestUpdateApplicationMethod_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -159,7 +159,7 @@ func TestUpdateApplicationMethod_WithStaleVersion_Returns409AndLeavesFileUntouch
 
 func TestUpdateApplicationContact_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -185,7 +185,7 @@ func TestUpdateApplicationContact_WithStaleVersion_Returns409AndLeavesFileUntouc
 // Tailoring run (issue #89's Out of Scope).
 func TestRecordGeneration_StaysUnconditionalAfterAnOutOfBandChange(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -205,7 +205,7 @@ func TestRecordGeneration_StaysUnconditionalAfterAnOutOfBandChange(t *testing.T)
 // carries both tokens, the same ones the list rows do.
 func TestGetJobListing_ReturnsTheJobListingAndApplicationTokens(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -232,7 +232,7 @@ func TestGetJobListing_ReturnsTheJobListingAndApplicationTokens(t *testing.T) {
 // patch, then both for the delete, the detail page's exact sequence.
 func TestGetJobListing_PairTokensGuardTheDetailPageWrites(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")

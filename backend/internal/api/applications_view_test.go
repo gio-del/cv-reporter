@@ -51,7 +51,7 @@ func viewCompanies(body applicationsViewResponse) []string {
 
 func TestListApplications_ReturnsGroupedEnvelopeWithoutJobDescription(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Acme Corp")
@@ -109,7 +109,7 @@ func TestListApplications_ReturnsGroupedEnvelopeWithoutJobDescription(t *testing
 
 func TestListApplications_ArchivedJobListingsExcludedByDefault_IncludedOnRequest(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	seedActiveAndArchived(t, server.URL)
@@ -139,7 +139,7 @@ func TestListApplications_ArchivedJobListingsExcludedByDefault_IncludedOnRequest
 
 func TestListApplications_InvalidArchivedParam_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	if status, _ := getApplicationsView(t, server.URL, "?archived=sometimes"); status != http.StatusBadRequest {
@@ -150,7 +150,7 @@ func TestListApplications_InvalidArchivedParam_Returns400(t *testing.T) {
 func TestListApplications_ReadFailure_Returns500(t *testing.T) {
 	dataDir := seedDataDir(t)
 	writeFile(t, filepath.Join(dataDir, "jobs", "broken.md"), "no frontmatter here")
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	if status, _ := getApplicationsView(t, server.URL, ""); status != http.StatusInternalServerError {

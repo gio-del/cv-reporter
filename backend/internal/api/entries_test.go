@@ -108,7 +108,7 @@ languages:
 
 func TestListEntries_ReturnsEntriesSeededOnDisk(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries")
@@ -167,7 +167,7 @@ func TestListEntries_ReturnsEntriesSeededOnDisk(t *testing.T) {
 
 func TestGetEntry_ReturnsFrontmatterAndBullets(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/quantyca-amplifon")
@@ -211,7 +211,7 @@ func TestGetEntry_ReturnsFrontmatterAndBullets(t *testing.T) {
 
 func TestGetEntry_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/does-not-exist")
@@ -252,7 +252,7 @@ func seedGitProjectRoot(t *testing.T) (projectRoot, dataDir string) {
 
 func TestListEntries_IncludesLastModifiedFromGitHistory(t *testing.T) {
 	projectRoot, dataDir := seedGitProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries")
@@ -289,7 +289,7 @@ func TestListEntries_IncludesLastModifiedFromGitHistory(t *testing.T) {
 
 func TestGetEntry_IncludesLastModifiedFromGitHistory(t *testing.T) {
 	projectRoot, dataDir := seedGitProjectRoot(t)
-	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/quantyca-amplifon")
@@ -313,7 +313,7 @@ func TestGetEntry_IncludesLastModifiedFromGitHistory(t *testing.T) {
 
 func TestListEntries_UncommittedEntry_OmitsLastModified(t *testing.T) {
 	dataDir := seedDataDir(t) // no git repo at all behind this dataDir
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries")

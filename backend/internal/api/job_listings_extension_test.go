@@ -19,7 +19,7 @@ import (
 
 func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedApplication(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -78,7 +78,7 @@ func TestCaptureJobListingFromExtension_ValidPayload_WritesFilesAndCreatesSavedA
 
 func TestCaptureJobListingFromExtension_TitleCarriesThrough(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -111,7 +111,7 @@ func TestCaptureJobListingFromExtension_TitleCarriesThrough(t *testing.T) {
 // checks that the field is wired through.
 func TestCaptureJobListingFromExtension_ListingSalaryTextConflictsWithDescription_ReturnsConflictRAL(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -155,7 +155,7 @@ func TestCaptureJobListingFromExtension_ListingSalaryTextConflictsWithDescriptio
 // before (regression check) — Job Description alone still resolves Stated.
 func TestCaptureJobListingFromExtension_NoListingSalaryText_ResolvesFromDescriptionAlone(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -205,7 +205,7 @@ func TestCaptureJobListingFromExtension_LogoURLPresent_DownloadsAndPersistsLogo(
 			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
 		}, nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -248,7 +248,7 @@ func TestGetJobListingLogo_ServesDownloadedLogo(t *testing.T) {
 			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
 		}, nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	saveResp := postJSON(t, server.URL+"/api/job-listings/from-extension", map[string]any{
@@ -281,7 +281,7 @@ func TestGetJobListingLogo_ServesDownloadedLogo(t *testing.T) {
 
 func TestGetJobListingLogo_NoLogo_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -306,7 +306,7 @@ func TestCaptureJobListingFromExtension_LogoURLNotAnImage_StillSavesWithoutLogo(
 			Body:       io.NopCloser(strings.NewReader("not an image")),
 		}, nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -347,7 +347,7 @@ func TestCaptureJobListingFromExtension_LogoDownloadFails_StillSavesWithoutLogo(
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("connection refused")
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -374,7 +374,7 @@ func TestCaptureJobListingFromExtension_LogoDownloadFails_StillSavesWithoutLogo(
 
 func TestCaptureJobListingFromExtension_NoLogoURL_SavesWithoutLogo(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "description": "Go backend engineer, remote friendly."}
@@ -401,7 +401,7 @@ func TestCaptureJobListingFromExtension_MethodInferenceFails_StillSavesWithUnres
 			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "description": "Go backend engineer, remote friendly."}
@@ -425,7 +425,7 @@ func TestCaptureJobListingFromExtension_MethodInferenceFails_StillSavesWithUnres
 
 func TestCaptureJobListingFromExtension_MissingCompany_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"description": "Go backend engineer, remote friendly."}
@@ -439,7 +439,7 @@ func TestCaptureJobListingFromExtension_MissingCompany_Returns400(t *testing.T) 
 
 func TestCaptureJobListingFromExtension_MissingDescription_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp"}
@@ -459,7 +459,7 @@ func TestCaptureJobListingFromExtension_MissingDescription_Returns400(t *testing
 // rather than depending on that exemption holding.
 func TestCaptureJobListingFromExtension_PostResponseIncludesCORSHeader(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "description": "Go backend engineer."}
@@ -473,7 +473,7 @@ func TestCaptureJobListingFromExtension_PostResponseIncludesCORSHeader(t *testin
 
 func TestCaptureJobListingFromExtension_OptionsPreflight_Returns204WithCORSHeaders(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	req, err := http.NewRequest(http.MethodOptions, server.URL+"/api/job-listings/from-extension", nil)

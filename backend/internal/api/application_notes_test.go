@@ -22,7 +22,7 @@ import (
 func newNotesServer(t *testing.T) (dataDir string, server *httptest.Server) {
 	t.Helper()
 	dataDir = seedDataDir(t)
-	server = httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server = httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	t.Cleanup(server.Close)
 	return dataDir, server
 }
@@ -146,7 +146,7 @@ func TestAddNote_MultiLineMarkdown_SurvivesARereadFromDisk(t *testing.T) {
 	added := notesOf(t, addNoteOK(t, server.URL, id, body))[0]
 
 	// A brand-new server over the same directory stands in for a restart.
-	restarted := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	restarted := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer restarted.Close()
 
 	notes := notesOf(t, storedApplication(t, restarted.URL, id))

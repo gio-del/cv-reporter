@@ -120,7 +120,7 @@ func readFile(t *testing.T, path string) string {
 
 func TestGetEntry_ReturnsNonEmptyVersionToken(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	getVersion(t, server.URL+"/api/master-data/entries/"+entryID)
@@ -128,7 +128,7 @@ func TestGetEntry_ReturnsNonEmptyVersionToken(t *testing.T) {
 
 func TestListEntries_ReturnsVersionTokenPerEntry(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/entries")
@@ -153,7 +153,7 @@ func TestListEntries_ReturnsVersionTokenPerEntry(t *testing.T) {
 
 func TestUpdateEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -172,7 +172,7 @@ func TestUpdateEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 
 func TestUpdateEntry_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -209,7 +209,7 @@ tags:
 
 func TestUpdateEntry_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -237,7 +237,7 @@ start: "2024-10"
 
 func TestUpdateEntry_WithGarbageVersion_Returns409(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -250,7 +250,7 @@ func TestUpdateEntry_WithGarbageVersion_Returns409(t *testing.T) {
 
 func TestUpdateEntry_WithAnotherRecordsVersion_Returns409(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	other := getVersion(t, server.URL+"/api/master-data/entries/projects/emall")
@@ -264,7 +264,7 @@ func TestUpdateEntry_WithAnotherRecordsVersion_Returns409(t *testing.T) {
 
 func TestUpdateEntry_RecordDeletedOutOfBand_Returns404NotConflict(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -283,7 +283,7 @@ func TestUpdateEntry_RecordDeletedOutOfBand_Returns404NotConflict(t *testing.T) 
 
 func TestUpdateEntry_ReusingAVersion_SecondWriteReturns409(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
@@ -304,7 +304,7 @@ func TestUpdateEntry_ReusingAVersion_SecondWriteReturns409(t *testing.T) {
 
 func TestUpdateEntry_ResponseVersionIsUsableForTheNextWrite(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID

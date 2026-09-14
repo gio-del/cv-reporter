@@ -32,7 +32,7 @@ func putJSON(t *testing.T, url string, payload any) *http.Response {
 
 func TestUpdateEntry_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -84,7 +84,7 @@ func TestUpdateEntry_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 
 func TestUpdateEntry_MalformedDate_Returns400AndFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
@@ -117,7 +117,7 @@ func TestUpdateEntry_MalformedDate_Returns400AndFileUnchanged(t *testing.T) {
 
 func TestUpdateEntry_MissingRequiredField_Returns400AndFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
@@ -150,7 +150,7 @@ func TestUpdateEntry_MissingRequiredField_Returns400AndFileUnchanged(t *testing.
 
 func TestUpdateEntry_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{

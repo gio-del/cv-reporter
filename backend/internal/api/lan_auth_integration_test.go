@@ -14,7 +14,7 @@ import (
 // request that doesn't carry it.
 func TestLANAuth_TokenConfigured_RejectsRequestWithoutToken(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithAuth(dataDir, "s3cret"))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, LANAuthToken: "s3cret"}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/healthz")
@@ -33,7 +33,7 @@ func TestLANAuth_TokenConfigured_RejectsRequestWithoutToken(t *testing.T) {
 // token configured, the same request path works with no token at all.
 func TestLANAuth_NoTokenConfigured_RequestSucceedsUnauthenticated(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithAuth(dataDir, ""))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, LANAuthToken: ""}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/healthz")

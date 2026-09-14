@@ -36,7 +36,7 @@ The paragraph the user opened.
 func TestGetSnippet_ReturnsNonEmptyVersionToken(t *testing.T) {
 	dataDir := seedDataDir(t)
 	seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	getVersion(t, server.URL+"/api/master-data/cover-letter-snippets/opening")
@@ -45,7 +45,7 @@ func TestGetSnippet_ReturnsNonEmptyVersionToken(t *testing.T) {
 func TestUpdateSnippet_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
 	path := seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/cover-letter-snippets/opening"
@@ -66,7 +66,7 @@ func TestUpdateSnippet_WithStaleVersion_Returns409AndLeavesFileUntouched(t *test
 func TestUpdateSnippet_WithCurrentVersion_SucceedsAndReturnsAFreshToken(t *testing.T) {
 	dataDir := seedDataDir(t)
 	seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/cover-letter-snippets/opening"
@@ -86,7 +86,7 @@ func TestUpdateSnippet_WithCurrentVersion_SucceedsAndReturnsAFreshToken(t *testi
 func TestUpdateSnippet_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
 	path := seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	writeOutOfBand(t, path, snippetOutOfBand)
@@ -102,7 +102,7 @@ func TestUpdateSnippet_WithNoVersion_IsUnconditional(t *testing.T) {
 func TestDeleteSnippet_WithStaleVersion_Returns409AndTheFileSurvives(t *testing.T) {
 	dataDir := seedDataDir(t)
 	path := seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/cover-letter-snippets/opening"
@@ -122,7 +122,7 @@ func TestDeleteSnippet_WithStaleVersion_Returns409AndTheFileSurvives(t *testing.
 func TestUpdateSnippet_RecordDeletedOutOfBand_Returns404NotConflict(t *testing.T) {
 	dataDir := seedDataDir(t)
 	path := seedSnippet(t, dataDir)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/cover-letter-snippets/opening"

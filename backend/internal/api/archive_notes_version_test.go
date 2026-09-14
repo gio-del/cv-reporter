@@ -21,7 +21,7 @@ import (
 func newVersionServer(t *testing.T) (dataDir string, serverURL string) {
 	t.Helper()
 	dataDir = seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	t.Cleanup(server.Close)
 	return dataDir, server.URL
 }

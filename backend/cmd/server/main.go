@@ -28,7 +28,13 @@ func main() {
 	// the process inside the container can't observe (see issue #57).
 	lanAuthToken := os.Getenv("LAN_AUTH_TOKEN")
 
-	mux := api.NewRouterFullWithATSAndAuth(dataDir, projectRoot, claude.New(), http.DefaultClient, lanAuthToken)
+	mux := api.NewRouter(api.RouterConfig{
+		DataDir:          dataDir,
+		ProjectRoot:      projectRoot,
+		GenerationClient: claude.New(),
+		ATSHTTPDoer:      http.DefaultClient,
+		LANAuthToken:     lanAuthToken,
+	})
 
 	addr := "0.0.0.0:" + port
 	if lanAuthToken != "" {

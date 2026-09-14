@@ -40,7 +40,7 @@ func fileExists(path string) bool {
 
 func TestDeleteJobListing_WithCurrentVersions_Succeeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -58,7 +58,7 @@ func TestDeleteJobListing_WithCurrentVersions_Succeeds(t *testing.T) {
 
 func TestDeleteJobListing_WithStaleJobListingVersion_Returns409AndBothFilesSurvive(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -86,7 +86,7 @@ func TestDeleteJobListing_WithStaleJobListingVersion_Returns409AndBothFilesSurvi
 // 19).
 func TestDeleteJobListing_WithStaleApplicationVersion_Returns409AndBothFilesSurvive(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -110,7 +110,7 @@ func TestDeleteJobListing_WithStaleApplicationVersion_Returns409AndBothFilesSurv
 
 func TestDeleteJobListing_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -125,7 +125,7 @@ func TestDeleteJobListing_WithNoVersion_IsUnconditional(t *testing.T) {
 
 func TestDeleteJobListing_DeletedOutOfBand_Returns404NotConflict(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -157,7 +157,7 @@ func pairVersions(t *testing.T, resp *http.Response) (jobListing, application st
 // get fresh tokens back or its next write would present a stale one.
 func TestSaveJobListing_ResponseCarriesCurrentTokens(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -175,7 +175,7 @@ func TestSaveJobListing_ResponseCarriesCurrentTokens(t *testing.T) {
 
 func TestResolveJobListing_ResponseCarriesTokensUsableForTheNextWrite(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -199,7 +199,7 @@ func TestCheckFreshness_ResponseCarriesTheCurrentJobListingToken(t *testing.T) {
 	doer := fakeATSDoer{do: func(req *http.Request) (*http.Response, error) {
 		return jsonATSResponse(http.StatusOK, ""), nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	id := saveJobListingWithURL(t, server.URL, "Acme Corp", "https://boards.example.com/acme/jobs/1")
