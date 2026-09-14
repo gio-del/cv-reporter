@@ -1,5 +1,5 @@
 {
-  "conversions": null,
+  "conversions": [],
   "counts": [
     {
       "count": 0,
@@ -26,6 +26,6 @@
       "status": "offer"
     }
   ],
-  "timeInStage": null,
+  "timeInStage": [],
   "total": 0
 }

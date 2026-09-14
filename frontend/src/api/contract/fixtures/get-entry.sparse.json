@@ -4,8 +4,6 @@
   "id": "experience/minimal",
   "role": "Engineer",
   "start": "2020-01",
-  "tags": [
-    "Go"
-  ],
+  "tags": [],
   "type": "experience"
 }

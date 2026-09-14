@@ -17,7 +17,7 @@ func getProfileHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachProfileVersion(&profile, dataDir)
-		writeJSON(w, http.StatusOK, profile)
+		writeJSON(w, http.StatusOK, profileForWire(profile))
 	}
 }
 
@@ -53,6 +53,6 @@ func putProfileHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachProfileVersion(&updated, dataDir)
-		writeJSON(w, http.StatusOK, updated)
+		writeJSON(w, http.StatusOK, profileForWire(updated))
 	}
 }

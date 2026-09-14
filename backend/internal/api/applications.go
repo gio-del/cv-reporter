@@ -226,7 +226,7 @@ func getApplicationsStatsHandler(dataDir string) http.HandlerFunc {
 		for i, l := range listings {
 			applications[i] = l.Application
 		}
-		writeJSON(w, http.StatusOK, tracking.ComputeStats(applications))
+		writeJSON(w, http.StatusOK, statsForWire(tracking.ComputeStats(applications)))
 	}
 }
 

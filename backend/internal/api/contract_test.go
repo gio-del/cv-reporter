@@ -72,7 +72,7 @@ func contractFixtures() []contractFixture {
 		}},
 		{"get-entry.sparse", "GET /api/master-data/entries/{id...}", func(t *testing.T) []byte {
 			dataDir := seedDataDir(t)
-			writeFile(t, filepath.Join(dataDir, "experience", "minimal.md"), "---\nemployer: Minimal Co\nrole: Engineer\nstart: \"2020-01\"\nend: null\ntags:\n  - Go\n---\n")
+			writeFile(t, filepath.Join(dataDir, "experience", "minimal.md"), "---\nemployer: Minimal Co\nrole: Engineer\nstart: \"2020-01\"\nend: null\n---\n")
 			server := httptest.NewServer(api.NewRouterFull(dataDir, t.TempDir(), &fakeGenerationClient{}))
 			t.Cleanup(server.Close)
 			return call(t, http.MethodGet, server.URL+"/api/master-data/entries/experience/minimal", nil, http.StatusOK)
@@ -93,6 +93,12 @@ func contractFixtures() []contractFixture {
 		}},
 		{"get-profile.populated", "GET /api/master-data/profile", func(t *testing.T) []byte {
 			server := newSimpleServer(t, seedDataDir(t))
+			return call(t, http.MethodGet, server.URL+"/api/master-data/profile", nil, http.StatusOK)
+		}},
+		{"get-profile.sparse", "GET /api/master-data/profile", func(t *testing.T) []byte {
+			dataDir := t.TempDir()
+			writeFile(t, filepath.Join(dataDir, "profile.yaml"), "name: Test User\nlocation: Milan\nemail: test@example.com\nphone: \"1\"\nlinkedin: t\ngithub: t\n")
+			server := newSimpleServer(t, dataDir)
 			return call(t, http.MethodGet, server.URL+"/api/master-data/profile", nil, http.StatusOK)
 		}},
 		{"update-profile.sparse", "PUT /api/master-data/profile", func(t *testing.T) []byte {
