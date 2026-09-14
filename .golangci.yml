@@ -32,8 +32,9 @@ linters:
   settings:
     errcheck:
       # LOAD-BEARING. Without this, errcheck treats `_ = someCall()` as an
-      # acknowledged discard and stays silent — which would miss exactly the
-      # swallowed usage-log write that motivated this gate. Do not remove it
+      # acknowledged discard and stays silent — which would have missed the
+      # swallowed usage-log write that motivated this gate (issue #102, since
+      # fixed by #116). Do not remove it
       # to quiet a finding: annotate the finding instead (see below).
       check-blank: true
   exclusions:
