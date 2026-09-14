@@ -23,7 +23,8 @@ import {
   updateApplicationMethod,
   updateApplicationStatus,
 } from '@/api/client'
-import type { ApplicationMethod, ApplicationStatus, Contact, JobListingWithApplication } from '@/api/types'
+import type { ApplicationMethod, ApplicationStatus, Contact, GenerationRecord, JobListingWithApplication } from '@/api/types'
+import { GENERATION_FILES_GONE_NOTE, useGenerationOnDisk } from '@/components/useGenerationOnDisk'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,39 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { jobListingHeading } from '@/lib/utils'
 
 const JOB_LISTINGS_PATH = '/jobs'
+
+// Links to a Generation's files, or — since output/ is derived and may have
+// been cleared (ADR-0008) — a plain note that they're no longer on disk.
+function GenerationFileLinks({ generation }: { generation: GenerationRecord }) {
+  const onDisk = useGenerationOnDisk(generation.slug)
+
+  if (onDisk === false) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="underline decoration-dotted">files no longer on disk</span>
+        </TooltipTrigger>
+        <TooltipContent>{GENERATION_FILES_GONE_NOTE}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <>
+      <a href={generationFileUrl(generation.slug, 'cv.pdf')} target="_blank" rel="noreferrer">
+        CV
+      </a>
+      {generation.coverLetterPath && (
+        <>
+          {' · '}
+          <a href={generationFileUrl(generation.slug, 'cover-letter.pdf')} target="_blank" rel="noreferrer">
+            Cover Letter
+          </a>
+        </>
+      )}
+    </>
+  )
+}
 
 /**
  * JobListingDetailLocationState is what a Job Listings list row puts in
@@ -325,17 +359,7 @@ export default function JobListingDetailPage() {
                   {formatDate(generation.createdAt)}
                   {index === generations.length - 1 && ' (latest)'}
                   {' · '}
-                  <a href={generationFileUrl(generation.slug, 'cv.pdf')} target="_blank" rel="noreferrer">
-                    CV
-                  </a>
-                  {generation.coverLetterPath && (
-                    <>
-                      {' · '}
-                      <a href={generationFileUrl(generation.slug, 'cover-letter.pdf')} target="_blank" rel="noreferrer">
-                        Cover Letter
-                      </a>
-                    </>
-                  )}
+                  <GenerationFileLinks generation={generation} />
                 </li>
               ))}
           </ol>

@@ -464,7 +464,7 @@ export default function GenerationPage() {
           )}
 
           <Field>
-            <FieldLabel htmlFor="generation-slug">Save as (used for the output filename)</FieldLabel>
+            <FieldLabel htmlFor="generation-slug">Name this Generation</FieldLabel>
             <Input
               id="generation-slug"
               value={slug}
@@ -473,7 +473,8 @@ export default function GenerationPage() {
               aria-describedby="generation-slug-hint"
             />
             <FieldDescription id="generation-slug-hint">
-              Lowercase kebab-case, e.g. "acme-corp".
+              Lowercase kebab-case, e.g. "acme-corp". Reusing a name is fine: each render is saved to its own
+              folder, named with this prefix plus a UTC timestamp, so earlier renders are never overwritten.
             </FieldDescription>
           </Field>
 

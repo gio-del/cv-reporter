@@ -79,8 +79,8 @@ describe('Text Review decisions reaching Render', () => {
     standUp()
     const { user } = await openTextReview()
 
-    await user.clear(screen.getByLabelText('Save as (used for the output filename)'))
-    await user.type(screen.getByLabelText('Save as (used for the output filename)'), 'Acme Corp')
+    await user.clear(screen.getByLabelText('Name this Generation'))
+    await user.type(screen.getByLabelText('Name this Generation'), 'Acme Corp')
     await approveTextReview(user)
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

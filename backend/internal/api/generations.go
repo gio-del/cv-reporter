@@ -45,6 +45,10 @@ func getGenerationFileHandler(projectRoot string) http.HandlerFunc {
 	}
 }
 
+// renderGenerationHandler is a pass-through to generation.Render. The
+// request's slug is only a label: Render derives the unique output
+// directory from it (issue #105) and the response's slug names the one it
+// actually wrote, which is what callers must record and serve from.
 func renderGenerationHandler(dataDir, projectRoot string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req generation.RenderRequest

@@ -37,7 +37,7 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
 - `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/...) + Markdown bullets.
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file and renders it; contains no selection/relevance logic.
-- `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data.
+- `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data. Each Generation gets its own `output/<label>-<UTC yyyymmdd-hhmmss>/` directory (with a `-2`, `-3`, … suffix if that name is already taken), so a later Generation never overwrites an earlier one's files; both the web app and the skill follow this scheme. Clearing `output/` is safe — Application/Generation records survive, and the app shows a "no longer on disk" note for their files.
 - `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
 - `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
@@ -169,7 +169,7 @@ Every record is read and checked before anything is written, so an unparseable r
 | PATCH | `/api/applications/{id}/notes/{noteId}` | correct a Note's body from `{"body": "<markdown>"}`, returning 200 with the updated Application. `createdAt` never changes; `editedAt` is set when the body actually changes. Empty body is a 400; an unknown Application or Note id a 404 |
 | DELETE | `/api/applications/{id}/notes/{noteId}` | hard-delete one Note (no tombstone), returning 200 with the updated Application; an unknown Application or Note id is a 404. Deleting the last Note removes the `notes` key from the Application file |
 | POST | `/api/generations` | run Selection+Rewrite (+ Cover Letter, + RAL Range if a Job Description is given) |
-| POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF) |
+| POST | `/api/generations/render` | render approved Text Review content to a Tailored CV PDF (+ Cover Letter PDF); the request `slug` is a label, the response `slug` is the unique `<label>-<UTC yyyymmdd-hhmmss>[-N]` directory actually written |
 | GET | `/api/usage` | running-total Claude API usage/estimated cost across every Generation plus standalone calls (RAL Range/Application Method resolution, Contact suggestion) from `data/usage-log.json` — the usage totals plus `incomplete: true` and a human-readable `incompleteReason` when some usage is known to be missing (unreadable log, or a failed log write); both fields are omitted when the total is complete (issue #102) |
 | GET | `/api/generations/{slug}/{file}` | fetch a rendered file (`cv.pdf`, `cover-letter.pdf`, `cover-letter.txt`) for preview/download |
 | GET | `/api/ats/{provider}/{slug}/listings` | list public job-board listings from an ATS (Greenhouse/Lever/Ashby) |

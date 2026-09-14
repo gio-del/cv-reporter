@@ -1,10 +1,13 @@
 package generation
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
 )
@@ -91,5 +94,206 @@ func copyTemplateFixture(t *testing.T, projectRoot, name string) {
 	}
 	if err := os.WriteFile(dst, content, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// seedRenderProject builds a temp project root holding a minimal Master
+// Data profile (no Entries) plus the real template/*.typ files, so Render
+// can be driven end to end against the real typst binary without touching
+// the repo's own output/ directory.
+func seedRenderProject(t *testing.T) (projectRoot, dataDir string) {
+	t.Helper()
+	projectRoot = t.TempDir()
+	dataDir = filepath.Join(projectRoot, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profile := "name: Jane Doe\nlocation: Milan, Italy\nemail: jane@example.com\nphone: \"+39 000 000 000\"\nlinkedin: janedoe\ngithub: janedoe\n" +
+		"education: []\npublications: []\nawards: []\nactivities: []\nlanguages: []\n"
+	if err := os.WriteFile(filepath.Join(dataDir, "profile.yaml"), []byte(profile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	copyTemplateFixture(t, projectRoot, "cv.typ")
+	copyTemplateFixture(t, projectRoot, "cover-letter.typ")
+	return projectRoot, dataDir
+}
+
+// fixClock pins Render's clock to at for the rest of t.
+func fixClock(t *testing.T, at time.Time) {
+	t.Helper()
+	prev := now
+	now = func() time.Time { return at }
+	t.Cleanup(func() { now = prev })
+}
+
+func renderLabel(t *testing.T, projectRoot, dataDir, label string) RenderResult {
+	t.Helper()
+	result, err := Render(projectRoot, dataDir, RenderRequest{Slug: label})
+	if err != nil {
+		t.Fatalf("Render(%q): %v", label, err)
+	}
+	return result
+}
+
+func TestRender_DerivesDirectoryFromLabelPlusUTCTimestamp(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+	// A non-UTC clock, to prove the timestamp is rendered in UTC.
+	fixClock(t, time.Date(2026, 9, 11, 16, 30, 22, 0, time.FixedZone("CEST", 2*60*60)))
+
+	result := renderLabel(t, projectRoot, dataDir, "acme-corp")
+
+	const want = "acme-corp-20260911-143022"
+	if result.Slug != want {
+		t.Errorf("expected returned slug %q, got %q", want, result.Slug)
+	}
+	if result.CVPath != filepath.Join("output", want, "cv.pdf") {
+		t.Errorf("expected CVPath under output/%s/, got %q", want, result.CVPath)
+	}
+	if _, err := os.Stat(filepath.Join(projectRoot, "output", want, "cv.pdf")); err != nil {
+		t.Errorf("expected cv.pdf in output/%s/: %v", want, err)
+	}
+	if _, err := os.Stat(filepath.Join(projectRoot, "output", "acme-corp")); !os.IsNotExist(err) {
+		t.Errorf("expected no bare output/acme-corp/ directory, got err=%v", err)
+	}
+}
+
+func TestRender_ReturnedSlugSatisfiesServingEndpointPattern(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+	fixClock(t, time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+
+	// The file-serving endpoint validates slugs against this same
+	// kebab-case pattern; a derived slug that failed it would be
+	// unservable.
+	kebab := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+	for i := 0; i < 2; i++ { // the second render also exercises a disambiguated slug
+		result := renderLabel(t, projectRoot, dataDir, "default")
+		if !kebab.MatchString(result.Slug) {
+			t.Errorf("returned slug %q is not kebab-case", result.Slug)
+		}
+	}
+}
+
+// readCV returns the bytes of output/<slug>/cv.pdf, failing t if absent.
+func readCV(t *testing.T, projectRoot, slug string) []byte {
+	t.Helper()
+	pdf, err := os.ReadFile(filepath.Join(projectRoot, "output", slug, "cv.pdf"))
+	if err != nil {
+		t.Fatalf("expected output/%s/cv.pdf to exist: %v", slug, err)
+	}
+	return pdf
+}
+
+// TestRender_SameLabelTwice_KeepsBothGenerations is the regression test
+// for issue #105: a later Generation with the same label used to
+// overwrite the earlier one's files while the earlier record still
+// pointed there.
+func TestRender_SameLabelTwice_KeepsBothGenerations(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+
+	fixClock(t, time.Date(2026, 9, 11, 14, 30, 22, 0, time.UTC))
+	first := renderLabel(t, projectRoot, dataDir, "acme-corp")
+	firstPDF := readCV(t, projectRoot, first.Slug)
+
+	fixClock(t, time.Date(2026, 9, 11, 15, 11, 40, 0, time.UTC))
+	second := renderLabel(t, projectRoot, dataDir, "acme-corp")
+
+	if first.Slug != "acme-corp-20260911-143022" || second.Slug != "acme-corp-20260911-151140" {
+		t.Fatalf("expected slugs acme-corp-20260911-143022 and acme-corp-20260911-151140, got %q and %q", first.Slug, second.Slug)
+	}
+	readCV(t, projectRoot, second.Slug)
+	if got := readCV(t, projectRoot, first.Slug); !bytes.Equal(got, firstPDF) {
+		t.Error("expected the first Generation's cv.pdf to be left untouched by the second")
+	}
+}
+
+func TestRender_SameLabelSameSecond_DisambiguatesInsteadOfOverwriting(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+	fixClock(t, time.Date(2026, 9, 11, 14, 30, 22, 0, time.UTC))
+
+	first := renderLabel(t, projectRoot, dataDir, "acme-corp")
+	firstPDF := readCV(t, projectRoot, first.Slug)
+	second := renderLabel(t, projectRoot, dataDir, "acme-corp")
+	third := renderLabel(t, projectRoot, dataDir, "acme-corp")
+
+	want := []string{"acme-corp-20260911-143022", "acme-corp-20260911-143022-2", "acme-corp-20260911-143022-3"}
+	got := []string{first.Slug, second.Slug, third.Slug}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("render %d: expected slug %q, got %q", i+1, want[i], got[i])
+		}
+		readCV(t, projectRoot, got[i])
+	}
+	if !bytes.Equal(readCV(t, projectRoot, first.Slug), firstPDF) {
+		t.Error("expected the first Generation's cv.pdf to be left untouched")
+	}
+}
+
+func TestRender_ComputedDirectoryAlreadyExists_DoesNotWriteIntoIt(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+	fixClock(t, time.Date(2026, 9, 11, 14, 30, 22, 0, time.UTC))
+
+	// A directory left behind by some earlier run, e.g. the skill's.
+	existing := filepath.Join(projectRoot, "output", "acme-corp-20260911-143022")
+	if err := os.MkdirAll(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(existing, "cv.pdf")
+	if err := os.WriteFile(sentinel, []byte("an earlier Generation's CV"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := renderLabel(t, projectRoot, dataDir, "acme-corp")
+
+	if result.Slug != "acme-corp-20260911-143022-2" {
+		t.Errorf("expected a disambiguated slug, got %q", result.Slug)
+	}
+	if got, _ := os.ReadFile(sentinel); string(got) != "an earlier Generation's CV" {
+		t.Errorf("expected the pre-existing cv.pdf to be untouched, got %d bytes", len(got))
+	}
+	entries, err := os.ReadDir(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("expected nothing new written into the pre-existing directory, found %d files", len(entries))
+	}
+}
+
+func TestRender_WithCoverLetter_WritesEverythingIntoOneDirectory(t *testing.T) {
+	requireBinary(t, "typst")
+	projectRoot, dataDir := seedRenderProject(t)
+	fixClock(t, time.Date(2026, 9, 11, 14, 30, 22, 0, time.UTC))
+
+	result, err := Render(projectRoot, dataDir, RenderRequest{
+		Slug:        "acme-corp",
+		CoverLetter: &CoverLetterResult{Body: "Dear Hiring Manager,\n\nI'm excited to apply."},
+	})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+
+	dir := filepath.Join("output", result.Slug)
+	if result.CVPath != filepath.Join(dir, "cv.pdf") {
+		t.Errorf("expected CVPath in %s, got %q", dir, result.CVPath)
+	}
+	if result.CoverLetterPath != filepath.Join(dir, "cover-letter.pdf") {
+		t.Errorf("expected CoverLetterPath in %s, got %q", dir, result.CoverLetterPath)
+	}
+	for _, name := range []string{"cv.pdf", "cover-letter.pdf", "cover-letter.txt"} {
+		if _, err := os.Stat(filepath.Join(projectRoot, dir, name)); err != nil {
+			t.Errorf("expected %s in %s: %v", name, dir, err)
+		}
+	}
+	outputs, err := os.ReadDir(filepath.Join(projectRoot, "output"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outputs) != 1 {
+		t.Errorf("expected exactly one Generation directory under output/, found %d", len(outputs))
 	}
 }
