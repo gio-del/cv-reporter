@@ -3,15 +3,8 @@ import type { ApplicationMethod, ApplicationMethodKind } from '@/api/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { methodKindLabel } from '@/lib/applicationMethod'
 import { cn } from '@/lib/utils'
-
-const methodKindLabel: Record<ApplicationMethodKind, string> = {
-  portal: 'Portal',
-  email: 'Email',
-  easy_apply: 'LinkedIn Easy Apply',
-  other: 'Other',
-  unresolved: "Couldn't check — retry",
-}
 
 // The kinds a user can correct to by hand — excludes `unresolved`, a
 // system-set sentinel meaning inference couldn't even be attempted, not a

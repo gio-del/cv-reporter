@@ -1,5 +1,7 @@
 import type {
   Application,
+  ApplicationGroups,
+  ApplicationStatus,
   Entry,
   GenerateResult,
   JobListing,
@@ -83,6 +85,31 @@ export function listingSummaryWithApplication(
     jobListing: listing,
     application: application({ id: listing.id, jobListingId: listing.id, ...applicationOverrides }),
   }
+}
+
+const APPLICATION_GROUP_ORDER: ApplicationStatus[] = [
+  'saved',
+  'tailoring',
+  'sent',
+  'interviewing',
+  'offer',
+  'rejected',
+  'withdrawn',
+]
+
+/**
+ * applicationGroups is GET /api/applications's envelope: every Status group
+ * in the backend's order, counts filled in, holding the rows given for each
+ * Status in the order given (the backend has already sorted them).
+ */
+export function applicationGroups(
+  byStatus: Partial<Record<ApplicationStatus, JobListingSummaryWithApplication[]>> = {},
+): ApplicationGroups {
+  const groups = APPLICATION_GROUP_ORDER.map((status) => {
+    const items = byStatus[status] ?? []
+    return { status, count: items.length, items }
+  })
+  return { total: groups.reduce((sum, g) => sum + g.count, 0), groups }
 }
 
 export function entry(overrides: Partial<Entry> = {}): Entry {

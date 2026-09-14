@@ -1,16 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getApplicationsStats } from '@/api/client'
-import type { ApplicationStats, ApplicationStatus } from '@/api/types'
-
-const statusLabel: Record<ApplicationStatus, string> = {
-  saved: 'Saved',
-  tailoring: 'Tailoring',
-  sent: 'Sent',
-  interviewing: 'Interviewing',
-  rejected: 'Rejected',
-  offer: 'Offer',
-  withdrawn: 'Withdrawn',
-}
+import type { ApplicationStats } from '@/api/types'
+import { statusLabel } from '@/lib/applicationStatus'
 
 export default function StatsPage() {
   const [stats, setStats] = useState<ApplicationStats | null>(null)

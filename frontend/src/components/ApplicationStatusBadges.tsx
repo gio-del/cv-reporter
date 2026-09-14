@@ -1,6 +1,6 @@
 import type { Application } from '@/api/types'
+import StaleBadge from '@/components/StaleBadge'
 import { Badge } from '@/components/ui/badge'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { statusLabel } from '@/lib/applicationStatus'
 
 // ApplicationStatusBadges is the at-a-glance state of a Job Listing's
@@ -27,16 +27,7 @@ export default function ApplicationStatusBadges({
       ) : (
         <Badge variant="secondary">{statusLabel[application.status]}</Badge>
       )}
-      {application.isStale && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="outline" className="border-accent text-accent">
-              Follow-up overdue
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>No Status change in over 14 days</TooltipContent>
-        </Tooltip>
-      )}
+      {application.isStale && <StaleBadge />}
     </>
   )
 }
