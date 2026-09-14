@@ -735,7 +735,10 @@ func TestPreviewGeneration_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testin
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	logged := tracking.ReadUsageLog(dataDir)
+	logged, err := tracking.ReadUsageLog(dataDir)
+	if err != nil {
+		t.Fatalf("reading usage log: %v", err)
+	}
 	if len(logged) != 1 || logged[0].CallType != "selection_preview" {
 		t.Fatalf("expected the standalone usage log to contain the selection-preview call, got %+v", logged)
 	}
