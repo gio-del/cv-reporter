@@ -10,5 +10,6 @@
   "tags": [
     "React"
   ],
-  "type": "project"
+  "type": "project",
+  "version": "version-1"
 }

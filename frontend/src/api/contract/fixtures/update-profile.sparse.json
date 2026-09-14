@@ -37,5 +37,6 @@
       "title": "A Paper",
       "venue": "Test Venue"
     }
-  ]
+  ],
+  "version": "version-1"
 }

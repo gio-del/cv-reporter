@@ -10,5 +10,6 @@
   "tags": [
     "Go"
   ],
-  "type": "experience"
+  "type": "experience",
+  "version": "version-1"
 }

@@ -7,7 +7,8 @@
       "kind": "other"
     },
     "schemaVersion": 1,
-    "status": "sent"
+    "status": "sent",
+    "version": "version-1"
   },
   "jobListing": {
     "archived": false,
@@ -20,6 +21,7 @@
     },
     "savedAt": "2026-01-02T03:04:05Z",
     "schemaVersion": 1,
-    "source": "manual"
+    "source": "manual",
+    "version": "version-2"
   }
 }

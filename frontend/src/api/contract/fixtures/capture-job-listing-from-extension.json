@@ -14,7 +14,8 @@
         "status": "saved"
       }
     ],
-    "statusUpdatedAt": "2026-01-02T03:04:05Z"
+    "statusUpdatedAt": "2026-01-02T03:04:05Z",
+    "version": "version-1"
   },
   "jobListing": {
     "archived": false,
@@ -32,6 +33,7 @@
     "schemaVersion": 1,
     "source": "manual",
     "title": "Backend Engineer",
-    "url": "https://jobs.example/hooli/1"
+    "url": "https://jobs.example/hooli/1",
+    "version": "version-2"
   }
 }

@@ -4,5 +4,6 @@
   "kind": "closing",
   "tags": [
     "Go"
-  ]
+  ],
+  "version": "version-1"
 }

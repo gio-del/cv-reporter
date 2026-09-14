@@ -74,7 +74,7 @@ func contractFixtures() []contractFixture {
 		{"get-entry.sparse", "GET /api/master-data/entries/{id...}", func(t *testing.T) []byte {
 			dataDir := seedDataDir(t)
 			writeFile(t, filepath.Join(dataDir, "experience", "minimal.md"), "---\nemployer: Minimal Co\nrole: Engineer\nstart: \"2020-01\"\nend: null\n---\n")
-			server := httptest.NewServer(api.NewRouterFull(dataDir, t.TempDir(), &fakeGenerationClient{}))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: t.TempDir(), GenerationClient: &fakeGenerationClient{}}))
 			t.Cleanup(server.Close)
 			return call(t, http.MethodGet, server.URL+"/api/master-data/entries/experience/minimal", nil, http.StatusOK)
 		}},
@@ -191,7 +191,7 @@ func contractFixtures() []contractFixture {
 				}
 				return tracking.ApplicationMethod{Kind: tracking.MethodPortal, Value: "https://jobs.example/hooli/apply"}, nil
 			}}
-			server := httptest.NewServer(api.NewRouterWithGenerationClient(seedDataDir(t), client))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: seedDataDir(t), GenerationClient: client}))
 			t.Cleanup(server.Close)
 			saved := call(t, http.MethodPost, server.URL+"/api/job-listings", map[string]any{"company": "Hooli", "jobDescription": "A backend role."}, http.StatusCreated)
 			return call(t, http.MethodPost, server.URL+"/api/job-listings/"+jobListingIDOf(t, saved)+"/resolve", nil, http.StatusOK)
@@ -286,7 +286,7 @@ func contractFixtures() []contractFixture {
 		}},
 		{"render-generation.populated", "POST /api/generations/render", func(t *testing.T) []byte {
 			projectRoot, dataDir := seedProjectRoot(t)
-			server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 			t.Cleanup(server.Close)
 			return call(t, http.MethodPost, server.URL+"/api/generations/render", map[string]any{
 				"slug": "globex",
@@ -302,7 +302,7 @@ func contractFixtures() []contractFixture {
 		// ATS job boards
 		{"list-ats-listings.populated", "GET /api/ats/{provider}/{slug}/listings", func(t *testing.T) []byte {
 			board := &fakeBoard{jobs: []string{"1"}}
-			server := httptest.NewServer(api.NewRouterWithClients(seedDataDir(t), &fakeGenerationClient{}, board))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: seedDataDir(t), GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: board}))
 			t.Cleanup(server.Close)
 			call(t, http.MethodPost, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme", "label": "Acme"}, http.StatusCreated)
 			call(t, http.MethodGet, server.URL+"/api/ats/greenhouse/acme/listings", nil, http.StatusOK)
@@ -311,7 +311,7 @@ func contractFixtures() []contractFixture {
 		}},
 		{"list-tracked-boards.populated", "GET /api/ats/tracked-boards", func(t *testing.T) []byte {
 			board := &fakeBoard{jobs: []string{"1"}}
-			server := httptest.NewServer(api.NewRouterWithClients(seedDataDir(t), &fakeGenerationClient{}, board))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: seedDataDir(t), GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: board}))
 			t.Cleanup(server.Close)
 			call(t, http.MethodPost, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme", "label": "Acme"}, http.StatusCreated)
 			call(t, http.MethodGet, server.URL+"/api/ats/greenhouse/acme/listings", nil, http.StatusOK)
@@ -319,7 +319,7 @@ func contractFixtures() []contractFixture {
 			return call(t, http.MethodGet, server.URL+"/api/ats/tracked-boards", nil, http.StatusOK)
 		}},
 		{"add-tracked-board", "POST /api/ats/tracked-boards", func(t *testing.T) []byte {
-			server := httptest.NewServer(api.NewRouterWithClients(seedDataDir(t), &fakeGenerationClient{}, &fakeBoard{}))
+			server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: seedDataDir(t), GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: &fakeBoard{}}))
 			t.Cleanup(server.Close)
 			return call(t, http.MethodPost, server.URL+"/api/ats/tracked-boards", map[string]any{"provider": "greenhouse", "slug": "acme", "label": "Acme"}, http.StatusCreated)
 		}},
@@ -327,7 +327,14 @@ func contractFixtures() []contractFixture {
 		// Usage
 		{"usage.populated", "GET /api/usage", func(t *testing.T) []byte {
 			s := newPopulatedScenario(t)
+			// An unreadable standalone usage log leaves the Generations'
+			// calls in the total and flags it incomplete (issue #102).
+			writeFile(t, filepath.Join(s.dataDir, "usage-log.json"), "not json")
 			return call(t, http.MethodGet, s.server.URL+"/api/usage", nil, http.StatusOK)
+		}},
+		{"usage.sparse", "GET /api/usage", func(t *testing.T) []byte {
+			server := newSimpleServer(t, seedDataDir(t))
+			return call(t, http.MethodGet, server.URL+"/api/usage", nil, http.StatusOK)
 		}},
 	}
 }
@@ -447,6 +454,13 @@ var fixtureTimestampRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2
 
 const fixtureTimestamp = "2026-01-02T03:04:05Z"
 
+// fixtureOutputStampRe matches the UTC stamp Render puts in each
+// Generation's output directory name (output/<label>-<yyyymmdd-hhmmss>,
+// issue #105), wherever it appears in a string: the slug and both paths.
+var fixtureOutputStampRe = regexp.MustCompile(`\b\d{8}-\d{6}\b`)
+
+const fixtureOutputStamp = "20260102-030405"
+
 // clockDerivedNumbers are numeric fields computed from the wall-clock gaps
 // between a scenario's requests, fixed by field name.
 var clockDerivedNumbers = map[string]json.Number{
@@ -455,9 +469,12 @@ var clockDerivedNumbers = map[string]json.Number{
 }
 
 // canonicalFixture makes a response body deterministic: object keys sorted,
-// two-space indented, every timestamp replaced with one fixed instant, Note
-// ids (derived from the clock) replaced in order of appearance, and
-// clockDerivedNumbers fixed. Only values are normalized, never keys or kinds, so the
+// two-space indented, every timestamp replaced with one fixed instant, the
+// Render output directory stamp fixed, Note ids (derived from the clock) and
+// record version tokens (issue #89: a hash of file bytes that embed those
+// timestamps) replaced in order of appearance, and clockDerivedNumbers fixed.
+// Distinct tokens in one response get distinct placeholders and a repeated
+// token keeps its one, so the fixture still shows which records share a file. Only values are normalized, never keys or kinds, so the
 // shape the frontend type-checks is the handler's own.
 func canonicalFixture(t *testing.T, body []byte) []byte {
 	t.Helper()
@@ -468,7 +485,7 @@ func canonicalFixture(t *testing.T, body []byte) []byte {
 		t.Fatalf("response is not JSON: %v\n%s", err, body)
 	}
 
-	n := fixtureNormalizer{noteIDs: map[string]string{}}
+	n := fixtureNormalizer{noteIDs: map[string]string{}, versions: map[string]string{}}
 	value = n.walk(value, "")
 
 	var out bytes.Buffer
@@ -482,14 +499,23 @@ func canonicalFixture(t *testing.T, body []byte) []byte {
 }
 
 type fixtureNormalizer struct {
-	noteIDs map[string]string
+	noteIDs  map[string]string
+	versions map[string]string
 }
 
 func (n fixtureNormalizer) walk(value any, key string) any {
 	switch v := value.(type) {
 	case map[string]any:
-		for k, child := range v {
-			v[k] = n.walk(child, k)
+		// Visit keys in the order the encoder writes them, so "order of
+		// appearance" for placeholders is the fixture's reading order rather
+		// than Go's random map order.
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v[k] = n.walk(v[k], k)
 		}
 	case []any:
 		for i, child := range v {
@@ -504,12 +530,25 @@ func (n fixtureNormalizer) walk(value any, key string) any {
 		if fixtureTimestampRe.MatchString(v) {
 			return fixtureTimestamp
 		}
+		if key == "version" {
+			return n.version(v)
+		}
+		return fixtureOutputStampRe.ReplaceAllString(v, fixtureOutputStamp)
 	case json.Number:
 		if fixed, ok := clockDerivedNumbers[key]; ok {
 			return fixed
 		}
 	}
 	return value
+}
+
+func (n fixtureNormalizer) version(token string) string {
+	if fixed, ok := n.versions[token]; ok {
+		return fixed
+	}
+	fixed := fmt.Sprintf("version-%d", len(n.versions)+1)
+	n.versions[token] = fixed
+	return fixed
 }
 
 func (n fixtureNormalizer) noteID(id string) string {
@@ -557,7 +596,7 @@ func call(t *testing.T, method, url string, payload any, want int) []byte {
 
 func newSimpleServer(t *testing.T, dataDir string) *httptest.Server {
 	t.Helper()
-	server := httptest.NewServer(api.NewRouterFull(dataDir, t.TempDir(), &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: t.TempDir(), GenerationClient: &fakeGenerationClient{}}))
 	t.Cleanup(server.Close)
 	return server
 }
@@ -583,6 +622,7 @@ func jobListingIDOf(t *testing.T, body []byte) string {
 // Initech (a stated RAL Range).
 type populatedScenario struct {
 	server       *httptest.Server
+	dataDir      string
 	globexID     string
 	globexNoteID string
 	initechID    string
@@ -608,7 +648,7 @@ func newPopulatedScenario(t *testing.T) populatedScenario {
 			CacheReadTokens: 5, CacheWriteTokens: 7, WebSearchUses: 1, EstimatedCostUSD: 0.25,
 		}},
 	}
-	server := httptest.NewServer(api.NewRouterFullWithATS(dataDir, projectRoot, client, &fakeBoard{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: client, ATSHTTPDoer: &fakeBoard{}}))
 	t.Cleanup(server.Close)
 
 	saved := call(t, http.MethodPost, server.URL+"/api/job-listings/from-extension", map[string]any{
@@ -617,7 +657,7 @@ func newPopulatedScenario(t *testing.T) populatedScenario {
 		"description":       "Senior Go Engineer.\nSalary: €40,000 - €50,000",
 		"listingSalaryText": "€70,000 - €80,000",
 	}, http.StatusCreated)
-	s := populatedScenario{server: server, globexID: jobListingIDOf(t, saved)}
+	s := populatedScenario{server: server, dataDir: dataDir, globexID: jobListingIDOf(t, saved)}
 	base := server.URL + "/api/applications/" + s.globexID
 
 	call(t, http.MethodPost, server.URL+"/api/job-listings/"+s.globexID+"/check-freshness", nil, http.StatusOK)
@@ -726,7 +766,7 @@ func newGenerationServer(t *testing.T) *httptest.Server {
 			CacheReadTokens: 50, CacheWriteTokens: 60, WebSearchUses: 1, EstimatedCostUSD: 0.5,
 		}},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(seedSnippetsDataDir(t), client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: seedSnippetsDataDir(t), GenerationClient: client}))
 	t.Cleanup(server.Close)
 	return server
 }

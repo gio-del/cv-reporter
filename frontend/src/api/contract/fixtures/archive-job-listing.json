@@ -24,6 +24,7 @@
     "schemaVersion": 1,
     "source": "manual",
     "title": "Senior Go Engineer",
-    "url": "https://jobs.example/globex/1"
+    "url": "https://jobs.example/globex/1",
+    "version": "version-1"
   }
 }

@@ -9,7 +9,6 @@ import type {
   Contact,
   Entry,
   GenerateResult,
-  GenerationUsage,
   JobListingResponse,
   JobListingSummaryWithApplication,
   JobListingWithApplication,
@@ -19,6 +18,7 @@ import type {
   Snippet,
   TagLintReport,
   TrackedBoard,
+  UsageSummary,
 } from '../types'
 
 import type listEntriesPopulated from './fixtures/list-entries.populated.json'
@@ -66,6 +66,7 @@ import type listAtsListingsPopulated from './fixtures/list-ats-listings.populate
 import type listTrackedBoardsPopulated from './fixtures/list-tracked-boards.populated.json'
 import type addTrackedBoard from './fixtures/add-tracked-board.json'
 import type usagePopulated from './fixtures/usage.populated.json'
+import type usageSparse from './fixtures/usage.sparse.json'
 
 // The API contract (issue #99): every golden response fixture the backend's
 // handler tests capture (backend/internal/api/contract_test.go) is asserted
@@ -258,4 +259,5 @@ export const postTrackedBoard: Contract<typeof addTrackedBoard, AddedTrackedBoar
 
 // Usage
 
-export const getUsage: Contract<typeof usagePopulated, GenerationUsage, 'GET /api/usage (populated)', 'populated'> = true
+export const getUsage: Contract<typeof usagePopulated, UsageSummary, 'GET /api/usage (populated)', 'populated'> = true
+export const getUsageComplete: Contract<typeof usageSparse, UsageSummary, 'GET /api/usage (sparse)', 'sparse'> = true

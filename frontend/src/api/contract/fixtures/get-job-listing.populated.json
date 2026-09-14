@@ -100,7 +100,8 @@
         "status": "sent"
       }
     ],
-    "statusUpdatedAt": "2026-01-02T03:04:05Z"
+    "statusUpdatedAt": "2026-01-02T03:04:05Z",
+    "version": "version-1"
   },
   "jobListing": {
     "archived": false,
@@ -127,6 +128,7 @@
     "schemaVersion": 1,
     "source": "manual",
     "title": "Senior Go Engineer",
-    "url": "https://jobs.example/globex/1"
+    "url": "https://jobs.example/globex/1",
+    "version": "version-2"
   }
 }

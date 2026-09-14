@@ -9,5 +9,6 @@
   "location": "Milan",
   "name": "Test User",
   "phone": "1",
-  "publications": []
+  "publications": [],
+  "version": "version-1"
 }
