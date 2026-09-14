@@ -28,6 +28,7 @@ export function jobListing(overrides: Partial<JobListing> = {}): JobListing {
     jobDescription: 'We are hiring a Backend Engineer.',
     ral: { source: 'n/a' },
     freshnessStatus: 'not-yet-checked',
+    archived: false,
     ...overrides,
   }
 }
@@ -68,6 +69,7 @@ export function jobListingSummary(overrides: Partial<JobListingSummary> = {}): J
     hasJobDescription: true,
     ral: { source: 'n/a' },
     freshnessStatus: 'not-yet-checked',
+    archived: false,
     ...overrides,
   }
 }

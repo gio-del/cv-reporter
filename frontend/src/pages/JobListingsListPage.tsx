@@ -4,8 +4,15 @@ import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import FreshnessBadge from '@/components/FreshnessBadge'
 import RALBadge from '@/components/RALBadge'
-import { exportDataUrl, jobListingLogoUrl, listJobListings, updateApplicationStatus } from '@/api/client'
-import type { ApplicationStatus, JobListingSummaryWithApplication } from '@/api/types'
+import {
+  exportDataUrl,
+  jobListingLogoUrl,
+  listJobListings,
+  setJobListingArchived,
+  updateApplicationStatus,
+} from '@/api/client'
+import type { ApplicationStatus, ArchivedView, JobListingSummaryWithApplication } from '@/api/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -19,6 +26,15 @@ type RALSortChoice = 'none' | 'asc' | 'desc'
 
 const RAL_SORT_CHOICES: RALSortChoice[] = ['none', 'asc', 'desc']
 
+// The archived view (issue #98) as the "Show" control offers it. Active is
+// the backend's exclude default, so it never appears in the URL.
+const ARCHIVED_VIEW_LABELS: Record<ArchivedView, string> = {
+  exclude: 'Active',
+  only: 'Archived',
+  all: 'All',
+}
+const ARCHIVED_VIEWS = Object.keys(ARCHIVED_VIEW_LABELS) as ArchivedView[]
+
 export default function JobListingsListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
@@ -26,6 +42,27 @@ export default function JobListingsListPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
+
+  // The archived view lives in the URL like the filters below (issue #98,
+  // story 5), but is not one of them: Clear filters leaves it in place, since
+  // it picks which set of Job Listings the filters search within.
+  const archivedParam = searchParams.get('archived') as ArchivedView | null
+  const archivedView: ArchivedView =
+    archivedParam && ARCHIVED_VIEWS.includes(archivedParam) ? archivedParam : 'exclude'
+
+  function setArchivedView(view: ArchivedView) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (view === 'exclude') {
+        next.delete('archived')
+      } else {
+        next.set('archived', view)
+      }
+      return next
+    })
+  }
 
   // Filter state lives in the URL (story 7: bookmarkable/reload-safe views).
   const statusFilter = (searchParams.get('status') as ApplicationStatus | null) ?? ''
@@ -94,6 +131,7 @@ export default function JobListingsListPage() {
       company: companyFilter || undefined,
       savedFrom: savedFromFilter || undefined,
       savedTo: savedToFilter || undefined,
+      archived: archivedView,
       sortByRAL: ralSort === 'none' ? undefined : ralSort,
       ralMin: hasAppliedRALFilter ? Number(appliedRALMin || 0) : undefined,
       ralMax: hasAppliedRALFilter ? (appliedRALMax === '' ? Number.MAX_SAFE_INTEGER : Number(appliedRALMax)) : undefined,
@@ -121,6 +159,7 @@ export default function JobListingsListPage() {
     companyFilter,
     savedFromFilter,
     savedToFilter,
+    archivedView,
     ralSort,
     hasAppliedRALFilter,
     appliedRALMin,
@@ -179,6 +218,33 @@ export default function JobListingsListPage() {
     }
   }
 
+  // No confirmation: archiving loses nothing and is undone in one click
+  // (issue #98, story 7). A row that no longer belongs in the current view
+  // leaves it; in the All view it stays and just flips.
+  async function handleArchiveToggle(jobListingId: string, archived: boolean) {
+    setArchiveError(null)
+    setArchivingId(jobListingId)
+    try {
+      const updated = await setJobListingArchived(jobListingId, archived)
+      setListings((prev) => {
+        if (!prev) return prev
+        if (archivedView === 'all') {
+          return prev.map((l) =>
+            l.jobListing.id === jobListingId
+              ? { ...l, jobListing: { ...l.jobListing, archived: updated.archived } }
+              : l,
+          )
+        }
+        const keepArchived = archivedView === 'only'
+        return prev.filter((l) => l.jobListing.id !== jobListingId || updated.archived === keepArchived)
+      })
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
   if (error)
     return (
       <p role="alert" className="font-medium text-destructive">
@@ -208,8 +274,30 @@ export default function JobListingsListPage() {
           {statusError}
         </p>
       )}
+      {archiveError && (
+        <p role="alert" className="mb-4 font-medium text-destructive">
+          {archiveError}
+        </p>
+      )}
 
       <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card/95 p-3 backdrop-blur">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="filter-archived" className="text-xs font-medium text-muted-foreground">
+            Show
+          </label>
+          <Select value={archivedView} onValueChange={(value) => setArchivedView(value as ArchivedView)}>
+            <SelectTrigger id="filter-archived" size="sm" className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ARCHIVED_VIEWS.map((view) => (
+                <SelectItem key={view} value={view}>
+                  {ARCHIVED_VIEW_LABELS[view]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="filter-status" className="text-xs font-medium text-muted-foreground">
             Status
@@ -366,14 +454,28 @@ export default function JobListingsListPage() {
       {listings.length === 0 && (hasActiveFilter || hasAppliedRALFilter) && (
         <p>No Job Listings match the current filters.</p>
       )}
-      {listings.length === 0 && !hasActiveFilter && !hasAppliedRALFilter && <p>No Job Listings saved yet.</p>}
+      {listings.length === 0 && !hasActiveFilter && !hasAppliedRALFilter && (
+        <p>
+          {archivedView === 'only'
+            ? 'No archived Job Listings.'
+            : archivedView === 'exclude'
+              ? 'No active Job Listings. Archived ones are under Show: Archived.'
+              : 'No Job Listings saved yet.'}
+        </p>
+      )}
 
       <ul className="flex flex-col gap-3">
         {listings.map(({ jobListing, application }) => {
           const needsResolve = jobListing.ral.source === 'unresolved' || application.method.kind === 'unresolved'
           const detailState: JobListingDetailLocationState = { from: location.pathname + location.search }
           return (
-            <li key={jobListing.id} className="rounded-xl border border-border bg-card px-4 py-3">
+            <li
+              key={jobListing.id}
+              data-archived={jobListing.archived}
+              className={`rounded-xl border border-border px-4 py-3 ${
+                jobListing.archived ? 'border-dashed bg-muted/40 opacity-70' : 'bg-card'
+              }`}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2">
                   {jobListing.logo && (
@@ -392,6 +494,7 @@ export default function JobListingsListPage() {
                   </Link>
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
+                  {jobListing.archived && <Badge variant="outline">Archived</Badge>}
                   <ApplicationStatusBadges application={application} needsResolve={needsResolve} />
                   <ApplicationStatusControl
                     company={jobListing.company}
@@ -404,7 +507,16 @@ export default function JobListingsListPage() {
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-muted-foreground">Saved {new Date(jobListing.savedAt).toLocaleDateString()}</span>
                 {jobListing.url && <FreshnessBadge status={jobListing.freshnessStatus} />}
-                <Button asChild size="sm" variant="outline" className="ml-auto">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto"
+                  disabled={archivingId === jobListing.id}
+                  onClick={() => handleArchiveToggle(jobListing.id, !jobListing.archived)}
+                >
+                  {jobListing.archived ? 'Unarchive' : 'Archive'}
+                </Button>
+                <Button asChild size="sm" variant="outline">
                   <Link to={`/jobs/${jobListing.id}/generate`}>
                     {application.generations?.length ? 'Regenerate CV' : 'Generate CV'}
                   </Link>

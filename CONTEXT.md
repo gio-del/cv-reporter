@@ -36,6 +36,10 @@ _Avoid_: posting, job ad
 A persisted, tracked record of a role the user is considering: source (pasted, browser-extension capture, or ATS feed), company, its Job Title, an optional Company Logo, URL, saved date, its Job Description, and RAL Range. Distinct from Job Description itself, which is just the text/content field it holds.
 _Avoid_: posting, job ad, listing
 
+**Archived** (of a Job Listing):
+A property of the Job Listing, not a Status of its Application: set and cleared only by the user, never inferred from Status, freshness or age. An Archived Job Listing leaves the default Job Listings list and is shown only when the user asks for archived listings; nothing else changes. The Job Listing, its Application, Status history and Generation history all stay on disk exactly as they were, still count toward the funnel/stats view, and still take part in duplicate detection. Unarchiving brings it straight back. Distinct from deleting, which destroys the record and its history.
+_Avoid_: deleted, hidden, closed
+
 **Job Title**:
 The name of the role a Job Listing is for (e.g. "Senior Backend Engineer"), captured from the source (browser-extension DOM capture, an ATS board's own listing, or entered manually) and shown alongside Company wherever a Job Listing is displayed. Distinct from Entry's `role` field, which is the user's own job title at a past employer/client — never the other way around.
 _Avoid_: role (ambiguous with Entry's role), position, job

@@ -38,6 +38,12 @@ type JobListing struct {
 	// FreshnessCheckedAt is when FreshnessStatus was last updated (UTC,
 	// RFC3339Nano), empty until the first completed check.
 	FreshnessCheckedAt string `json:"freshnessCheckedAt,omitempty"`
+	// Archived is set and cleared only by the user, via SetArchived (issue
+	// #98, CONTEXT.md's Archived entry): it takes the Job Listing out of the
+	// default Job Listings list and nothing else. It is never derived from
+	// the Application's Status or from FreshnessStatus, and it never touches
+	// the Application. A file with no archived key reads as false.
+	Archived bool `json:"archived"`
 }
 
 // FreshnessStatus is a Job Listing source URL's most recent on-demand

@@ -233,7 +233,15 @@ export interface JobListing {
   logo?: string
   freshnessStatus: FreshnessStatus
   freshnessCheckedAt?: string
+  // archived is set only by the user (issue #98): it takes the Job Listing
+  // out of the default list and changes nothing else.
+  archived: boolean
 }
+
+// ArchivedView is which Job Listings the list shows by their archived flag
+// (issue #98), matching GET /api/job-listings's archived query param:
+// exclude (the default) leaves archived ones out, only keeps just them.
+export type ArchivedView = 'exclude' | 'only' | 'all'
 
 export type ApplicationStatus = 'saved' | 'tailoring' | 'sent' | 'interviewing' | 'rejected' | 'offer' | 'withdrawn'
 

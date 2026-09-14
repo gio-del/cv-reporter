@@ -357,7 +357,9 @@ describe('Job Listing deletion', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Yes, delete' }))
 
-    expect(await screen.findByText('No Job Listings saved yet.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('No active Job Listings. Archived ones are under Show: Archived.'),
+    ).toBeInTheDocument()
     expect(currentPath()).toBe('/jobs')
     expect(currentSearch()).toBe('')
     expect((await requestsTo(DETAIL_PATH)).map((r) => r.method)).toEqual(['GET', 'DELETE'])
@@ -384,5 +386,55 @@ describe('Job Listing deletion', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('permission denied')
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(screen.getByRole('heading', { level: 1, name: 'Acme' })).toBeInTheDocument()
+  })
+})
+
+// Archiving (issue #98) sits next to Delete as its non-destructive
+// alternative: no confirmation, the Job Listing stays on its page, and its
+// Status stays movable.
+describe('Job Listing archiving', () => {
+  it('Archive_Clicked_ArchivesWithoutConfirmationAndOffersUnarchive', async () => {
+    const record = listingWithApplication({ title: 'Backend Engineer' }, { status: 'rejected' })
+    const { user } = open(record)
+    server.use(
+      http.post(`${DETAIL_PATH}/archive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: true } }),
+      ),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+
+    expect(await screen.findByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Archived')).toBeInTheDocument()
+    expect(screen.getByText('Rejected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect((await requestsTo(`${DETAIL_PATH}/archive`)).map((r) => r.method)).toEqual(['POST'])
+  })
+
+  it('Unarchive_OnAnArchivedJobListing_UnarchivesAndKeepsItsStatusMovable', async () => {
+    const record = listingWithApplication({ archived: true })
+    const { user } = open(record)
+    server.use(
+      http.post(`${DETAIL_PATH}/unarchive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: false } }),
+      ),
+    )
+    expect(await screen.findByRole('combobox', { name: 'Move Acme to a new status' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Unarchive' }))
+
+    expect(await screen.findByRole('button', { name: 'Archive' })).toBeInTheDocument()
+    expect(screen.queryByText('Archived')).not.toBeInTheDocument()
+  })
+
+  it('Archive_Fails_SurfacesTheErrorInline', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(http.post(`${DETAIL_PATH}/archive`, () => new HttpResponse('disk full', { status: 500 })))
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('disk full')
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument()
   })
 })

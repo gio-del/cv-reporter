@@ -13,7 +13,27 @@ type FilterParams struct {
 	Company   string
 	SavedFrom *time.Time
 	SavedTo   *time.Time
+	// Archived selects which Job Listings to keep by their Archived flag
+	// (issue #98). Its zero value is ArchivedAll, preserving the "zero value
+	// matches everything" contract above; the API handler is what defaults
+	// an absent query parameter to ArchivedExclude.
+	Archived ArchivedView
 }
+
+// ArchivedView is which Job Listings a list view shows by their Archived
+// flag (issue #98).
+type ArchivedView string
+
+const (
+	// ArchivedAll keeps archived and non-archived Job Listings alike. It is
+	// the zero value, so an empty FilterParams still filters nothing.
+	ArchivedAll ArchivedView = ""
+	// ArchivedExclude keeps only non-archived Job Listings — the Job
+	// Listings list's default view.
+	ArchivedExclude ArchivedView = "exclude"
+	// ArchivedOnly keeps only archived Job Listings.
+	ArchivedOnly ArchivedView = "only"
+)
 
 // FilterListings narrows items down to those matching every non-zero field
 // of params. It's a pure, in-memory filter over an already-loaded List
@@ -21,6 +41,12 @@ type FilterParams struct {
 func FilterListings(items []ListingWithApplication, params FilterParams) []ListingWithApplication {
 	var result []ListingWithApplication
 	for _, item := range items {
+		if params.Archived == ArchivedExclude && item.JobListing.Archived {
+			continue
+		}
+		if params.Archived == ArchivedOnly && !item.JobListing.Archived {
+			continue
+		}
 		if params.Status != "" && item.Application.Status != params.Status {
 			continue
 		}

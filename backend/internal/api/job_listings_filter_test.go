@@ -93,6 +93,24 @@ func TestListJobListings_InvalidStatus_Returns400(t *testing.T) {
 	}
 }
 
+// TestListJobListings_FilterByWithdrawnStatus_ReturnsOnlyWithdrawn covers the
+// Withdrawn Status (#50) the status filter had been rejecting with a 400.
+func TestListJobListings_FilterByWithdrawnStatus_ReturnsOnlyWithdrawn(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	saveListing(t, server.URL, "Acme Corp", "Go backend role.")
+	withdrawn := saveListing(t, server.URL, "Beta Inc", "React frontend role.")
+	resp := patchJSON(t, server.URL+"/api/applications/"+withdrawn+"/status", map[string]any{"status": "withdrawn"})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("seed withdraw failed: %d", resp.StatusCode)
+	}
+
+	assertCompanies(t, listCompanies(t, server.URL, "?status=withdrawn"), []string{"Beta Inc"})
+}
+
 func TestListJobListings_InvalidDate_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouter(dataDir))

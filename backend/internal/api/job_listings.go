@@ -115,15 +115,31 @@ type captureJobListingRequest struct {
 }
 
 // parseJobListingsFilter reads the optional status/company/savedFrom/savedTo
-// query parameters (issue #45), returning a descriptive error for any value
-// that can't be parsed rather than silently ignoring it.
+// query parameters (issue #45) and archived (issue #98), returning a
+// descriptive error for any value that can't be parsed rather than silently
+// ignoring it.
 func parseJobListingsFilter(query url.Values) (tracking.FilterParams, error) {
 	var params tracking.FilterParams
+
+	// An absent archived parameter means the safe default, non-archived
+	// only. The default lives here rather than in tracking.FilterParams,
+	// whose zero value must keep matching everything.
+	switch archived := query.Get("archived"); archived {
+	case "", string(tracking.ArchivedExclude):
+		params.Archived = tracking.ArchivedExclude
+	case string(tracking.ArchivedOnly):
+		params.Archived = tracking.ArchivedOnly
+	case "all":
+		params.Archived = tracking.ArchivedAll
+	default:
+		return params, fmt.Errorf("invalid archived: %q (want exclude, only or all)", archived)
+	}
 
 	if status := query.Get("status"); status != "" {
 		switch tracking.Status(status) {
 		case tracking.StatusSaved, tracking.StatusTailoring, tracking.StatusSent,
-			tracking.StatusInterviewing, tracking.StatusRejected, tracking.StatusOffer:
+			tracking.StatusInterviewing, tracking.StatusRejected, tracking.StatusOffer,
+			tracking.StatusWithdrawn:
 			params.Status = tracking.Status(status)
 		default:
 			return params, fmt.Errorf("invalid status: %q", status)
@@ -208,6 +224,7 @@ type jobListingSummary struct {
 	Logo               string                   `json:"logo,omitempty"`
 	FreshnessStatus    tracking.FreshnessStatus `json:"freshnessStatus"`
 	FreshnessCheckedAt string                   `json:"freshnessCheckedAt,omitempty"`
+	Archived           bool                     `json:"archived"`
 }
 
 // jobListingSummaryWithApplication is one list row: a Job Listing summary
@@ -235,6 +252,7 @@ func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithAp
 			Logo:               listing.Logo,
 			FreshnessStatus:    listing.FreshnessStatus,
 			FreshnessCheckedAt: listing.FreshnessCheckedAt,
+			Archived:           listing.Archived,
 		},
 		Application: l.Application,
 	}
@@ -411,6 +429,33 @@ func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerF
 			return
 		}
 		writeJSON(w, http.StatusOK, checkFreshnessResponse{JobListing: listing})
+	}
+}
+
+// archiveJobListingResponse is archive/unarchive's response shape — just the
+// updated Job Listing, like check-freshness's, since archiving never
+// touches the Application record.
+type archiveJobListingResponse struct {
+	JobListing tracking.JobListing `json:"jobListing"`
+}
+
+// setJobListingArchivedHandler backs both POST /api/job-listings/{id}/archive
+// (archived true) and /unarchive (archived false) (issue #98). Both are
+// idempotent and 404 when id doesn't exist, matching the other id-addressed
+// Job Listing routes.
+func setJobListingArchivedHandler(dataDir string, archived bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		listing, err := tracking.SetArchived(dataDir, id, archived)
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, archiveJobListingResponse{JobListing: listing})
 	}
 }
 
