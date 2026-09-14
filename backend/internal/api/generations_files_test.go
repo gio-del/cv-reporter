@@ -118,3 +118,40 @@ func TestGetGenerationFile_MissingFile_Returns404(t *testing.T) {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
 }
+
+// TestHeadGenerationFile_ReportsWhetherFilesAreStillOnDisk pins the
+// contract the front end relies on to show "files no longer on disk" for
+// a Generation whose output/ directory was cleared (issue #105): a HEAD
+// request answers 200 while the file exists and 404 once it's gone.
+func TestHeadGenerationFile_ReportsWhetherFilesAreStillOnDisk(t *testing.T) {
+	projectRoot, dataDir := seedProjectRoot(t)
+	outputDir := filepath.Join(projectRoot, "output", "acme-corp-20260911-143022")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(outputDir, "cv.pdf"), []byte("%PDF-1.7 fake"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	head := func() int {
+		t.Helper()
+		resp, err := http.Head(server.URL + "/api/generations/acme-corp-20260911-143022/cv.pdf")
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp.StatusCode
+	}
+
+	if got := head(); got != http.StatusOK {
+		t.Fatalf("expected HEAD 200 while the file exists, got %d", got)
+	}
+	if err := os.RemoveAll(outputDir); err != nil {
+		t.Fatal(err)
+	}
+	if got := head(); got != http.StatusNotFound {
+		t.Fatalf("expected HEAD 404 once output/ was cleared, got %d", got)
+	}
+}

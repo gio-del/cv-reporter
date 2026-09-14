@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
 )
@@ -20,10 +22,24 @@ var ErrInvalidRenderRequest = errors.New("invalid render request")
 
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
+// now is Render's clock, used to timestamp each Generation's output
+// directory. An unexported package-level variable (not a RenderRequest
+// field, which is decoded straight from a JSON body) so tests can pin it
+// and assert an exact directory name.
+var now = time.Now
+
+// outputTimestampLayout is the UTC timestamp appended to a Generation's
+// label: sortable, readable, and digits-and-dashes only, so the derived
+// slug still satisfies slugRe (and the file-serving endpoint's copy of it).
+const outputTimestampLayout = "20060102-150405"
+
 // RenderRequest is the approved (and possibly user-edited) content from
-// Text Review, ready to compile — see CONTEXT.md's Render entry. Slug
-// names the output/<slug>/ directory, mirroring the tailor-cv skill's
-// convention (e.g. the company applied to, or "default").
+// Text Review, ready to compile — see CONTEXT.md's Render entry. Slug is a
+// kebab-case *label* for this Generation (e.g. the company applied to, or
+// "default"), not the final directory name: Render derives a unique
+// output/<label>-<UTC yyyymmdd-hhmmss>/ directory from it (issue #105) and
+// returns that as RenderResult.Slug, so a later Generation with the same
+// label never overwrites an earlier one's files.
 type RenderRequest struct {
 	Slug        string
 	Selection   SelectionResult
@@ -42,6 +58,9 @@ type RenderRequest struct {
 // bad text-layer extraction alongside it (PRD "PDF ATS-parsability
 // check", story 5) — CoverLetterParsability is only set when req.CoverLetter
 // was, matching CoverLetterPath.
+//
+// Slug is the directory Render actually wrote — derived from, and not
+// equal to, RenderRequest.Slug — and is what a GenerationRecord must store.
 type RenderResult struct {
 	Slug                   string             `json:"slug"`
 	CVPath                 string             `json:"cvPath"`
@@ -98,7 +117,8 @@ type coverLetterData struct {
 }
 
 // Render compiles req into a Tailored CV PDF (and, if req.CoverLetter is
-// set, a Cover Letter PDF) under projectRoot/output/<slug>/, invoking the
+// set, a Cover Letter PDF) under a fresh projectRoot/output/<slug>/, where
+// <slug> is derived from req.Slug by claimOutputDir, invoking the
 // typst CLI exactly as the tailor-cv skill does (see CLAUDE.md), so it
 // needs projectRoot to contain both template/ and output/ — the same
 // "project root" the skill's own `--root .` invocation assumes.
@@ -126,12 +146,13 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 	}
 	cv.Lang = NormalizeLanguage(req.Language)
 
-	outputDir := filepath.Join(projectRoot, "output", req.Slug)
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
-		return RenderResult{}, fmt.Errorf("creating output directory: %w", err)
+	slug, err := claimOutputDir(projectRoot, req.Slug, now())
+	if err != nil {
+		return RenderResult{}, err
 	}
+	outputDir := filepath.Join(projectRoot, "output", slug)
 
-	cvRelPath, err := renderTypst(projectRoot, "template/cv.typ", req.Slug, "data.json", "cv.pdf", cv)
+	cvRelPath, err := renderTypst(projectRoot, "template/cv.typ", slug, "data.json", "cv.pdf", cv)
 	if err != nil {
 		return RenderResult{}, err
 	}
@@ -141,7 +162,7 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 	}
 	cvParsability := checkPDFParsability(filepath.Join(projectRoot, cvRelPath), cvExpectedFields(cv))
 
-	result := RenderResult{Slug: req.Slug, CVPath: cvRelPath, CVPageCount: pageCount, CVParsability: cvParsability}
+	result := RenderResult{Slug: slug, CVPath: cvRelPath, CVPageCount: pageCount, CVParsability: cvParsability}
 
 	if req.CoverLetter != nil {
 		cl := coverLetterData{
@@ -153,7 +174,7 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 			GitHub:   profile.GitHub,
 			Body:     req.CoverLetter.Body,
 		}
-		clRelPath, err := renderTypst(projectRoot, "template/cover-letter.typ", req.Slug, "cover-letter-data.json", "cover-letter.pdf", cl)
+		clRelPath, err := renderTypst(projectRoot, "template/cover-letter.typ", slug, "cover-letter-data.json", "cover-letter.pdf", cl)
 		if err != nil {
 			return RenderResult{}, err
 		}
@@ -170,6 +191,42 @@ func Render(projectRoot, dataDir string, req RenderRequest) (RenderResult, error
 	}
 
 	return result, nil
+}
+
+// maxOutputDirAttempts bounds claimOutputDir's -2, -3, ... disambiguation
+// so a pathological output/ can't spin it forever.
+const maxOutputDirAttempts = 1000
+
+// claimOutputDir creates and returns the slug of a brand-new
+// projectRoot/output/<slug>/ directory for one Generation: <label>-<UTC
+// yyyymmdd-hhmmss>, or, if that directory already exists (two renders in
+// the same second, or a directory left by an earlier run or the tailor-cv
+// skill), the first free <label>-<timestamp>-N for N = 2, 3, .... Each
+// candidate is claimed with a single os.Mkdir, which fails if the
+// directory exists, so Render never writes into another Generation's
+// directory — not even under concurrent renders. This is the one place the
+// uniqueness rule lives (issue #105); SKILL.md step 5 mirrors it in prose.
+func claimOutputDir(projectRoot, label string, at time.Time) (string, error) {
+	outputRoot := filepath.Join(projectRoot, "output")
+	if err := os.MkdirAll(outputRoot, 0o755); err != nil {
+		return "", fmt.Errorf("creating output directory: %w", err)
+	}
+
+	base := label + "-" + at.UTC().Format(outputTimestampLayout)
+	for n := 1; n <= maxOutputDirAttempts; n++ {
+		slug := base
+		if n > 1 {
+			slug = base + "-" + strconv.Itoa(n)
+		}
+		err := os.Mkdir(filepath.Join(outputRoot, slug), 0o755)
+		if err == nil {
+			return slug, nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return "", fmt.Errorf("creating output directory: %w", err)
+		}
+	}
+	return "", fmt.Errorf("creating output directory: no free name for %q after %d attempts", base, maxOutputDirAttempts)
 }
 
 // renderTypst writes data as JSON to output/<slug>/<dataFile>, then invokes

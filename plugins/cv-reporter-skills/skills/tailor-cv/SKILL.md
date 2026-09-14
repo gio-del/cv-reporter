@@ -70,7 +70,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
    ```
    curl -sf http://127.0.0.1:8080/api/job-listings/<id>
    ```
-   It returns the same `{"jobListing": {...}, "application": {...}}` shape, and its `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another.
+   It returns the same `{"jobListing": {...}, "application": {...}}` shape, and its `jobListing.jobDescription` is this run's Job Description — feed it into Selection/Rewrite in the Pipeline below exactly as pasted/URL text would be. For the label behind the Pipeline's `<slug>` (step 5), default to a kebab-case slug of the company name (e.g. `acme-corp`) unless the user prefers another — step 5 still appends the timestamp to it.
 
 3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
 
@@ -80,6 +80,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
      -H 'Content-Type: application/json' \
      -d '{"slug": "<slug>", "cvPath": "output/<slug>/cv.pdf"}'
    ```
+   Use the full timestamped `<slug>` from step 5 (the directory actually written), not the bare label.
    Omit `coverLetterPath` — this skill doesn't draft Cover Letters. A connection error or non-2xx response means the Generation was **not** recorded — stop and tell the user; don't report the run as complete.
 
 5. **Offer the Status move.** If `application.status` (from step 1) was `"saved"`, ask the user whether to move it to `"tailoring"`. If they say yes:
@@ -100,7 +101,11 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 4. **Text Review (HITL, required).** Present the Selection + Rewrite result to the user as text — what was kept, dropped, reordered, and reworded (a diff against the source bullets is more useful than just the final text). Wait for approval or corrections before rendering. Do not proceed to Render until the user explicitly approves.
 
-5. **Assemble the data file.** Merge the approved tailored content with the static parts of `data/profile.yaml` into a single JSON object matching the shape `template/cv.typ` expects (see the comment at the top of that file): `name`, `location`, `email`, `phone`, `linkedin`, `github`, `education`, `experience` (grouped-by-employer array, each item has `employer`, `role`, `client`, `location`, `start`, `end`, `bullets`), `projects`, `tech_stack` (derived — collect the `tags` of every selected Entry, deduplicated), `publications`, `awards`, `activities`, `languages`. Write it to `output/<slug>/data.json`, where `<slug>` is a short kebab-case name for this Generation (e.g. the company applied to, or `default`).
+5. **Assemble the data file.** Merge the approved tailored content with the static parts of `data/profile.yaml` into a single JSON object matching the shape `template/cv.typ` expects (see the comment at the top of that file): `name`, `location`, `email`, `phone`, `linkedin`, `github`, `education`, `experience` (grouped-by-employer array, each item has `employer`, `role`, `client`, `location`, `start`, `end`, `bullets`), `projects`, `tech_stack` (derived — collect the `tags` of every selected Entry, deduplicated), `publications`, `awards`, `activities`, `languages`. Write it to `output/<slug>/data.json`, where `<slug>` is this Generation's own, brand-new directory name — the same scheme the web app's Render uses, so a skill run and an app run can never overwrite each other's files (issue #105):
+   - Start from a short kebab-case **label** (e.g. the company applied to, or `default`). The label alone is never the directory name.
+   - Append the current UTC time as `-yyyymmdd-hhmmss`: `<slug>` = `<label>-<yyyymmdd-hhmmss>`, e.g. `acme-corp-20260911-143022` (`date -u +%Y%m%d-%H%M%S`).
+   - Never write into a directory that already exists. If `output/<slug>/` exists, append `-2`, then `-3`, … until the name is free (e.g. `acme-corp-20260911-143022-2`), and create it with a plain `mkdir` (not `mkdir -p`, which silently succeeds on an existing directory).
+   - Choose `<slug>` once per run: re-renders during this run's Visual Review (step 7) reuse it; the next run gets a new one.
 
 6. **Render.** This repo's render path is pinned to a specific `typst` version and the Liberation Sans font — recorded once in `typst-version.txt` at the repo root and shared with the container's own render path (ADR-0012), so the skill's host-side render and the container's stay in sync instead of silently drifting apart (issue #55). Before compiling, run the preflight check against that pin:
    ```

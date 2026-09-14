@@ -161,6 +161,20 @@ export function generationFileUrl(slug: string, file: string): string {
   return `/api/generations/${encodeURIComponent(slug)}/${encodeURIComponent(file)}`
 }
 
+// generationFileOnDisk reports whether a Generation's file is still served.
+// output/ is derived and may be cleared at any time (ADR-0008), so a 404 is
+// an expected state, not an error. Anything other than a definite 404
+// (network failure, 5xx) resolves true, so the UI never claims files are
+// gone when it simply couldn't check.
+export async function generationFileOnDisk(slug: string, file: string): Promise<boolean> {
+  try {
+    const res = await fetch(generationFileUrl(slug, file), { method: 'HEAD' })
+    return res.status !== 404
+  } catch {
+    return true
+  }
+}
+
 export interface JobListingsFilter {
   status?: ApplicationStatus
   company?: string

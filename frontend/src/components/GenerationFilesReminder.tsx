@@ -1,5 +1,6 @@
 import { generationFileUrl } from '@/api/client'
 import type { GenerationRecord } from '@/api/types'
+import { GENERATION_FILES_GONE_NOTE, useGenerationOnDisk } from '@/components/useGenerationOnDisk'
 
 // Points at the latest Generation's Tailored CV/Cover Letter, with an
 // explicit reminder to attach them — mailto: links (and manual portal
@@ -7,6 +8,7 @@ import type { GenerationRecord } from '@/api/types'
 // 8, 10).
 export default function GenerationFilesReminder({ generations }: { generations: GenerationRecord[] | undefined }) {
   const latest = generations && generations.length > 0 ? generations[generations.length - 1] : null
+  const onDisk = useGenerationOnDisk(latest?.slug)
 
   if (!latest) {
     return (
@@ -14,6 +16,11 @@ export default function GenerationFilesReminder({ generations }: { generations: 
         No Tailored CV generated yet for this Application — generate one before applying.
       </p>
     )
+  }
+
+  // output/ is derived (ADR-0008): missing files are expected, not an error.
+  if (onDisk === false) {
+    return <p className="mb-0 text-sm text-muted-foreground">{GENERATION_FILES_GONE_NOTE}</p>
   }
 
   return (

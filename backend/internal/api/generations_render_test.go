@@ -3,10 +3,12 @@ package api_test
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/gio-del/cv-reporter/backend/internal/api"
@@ -26,6 +28,12 @@ func seedProjectRoot(t *testing.T) (projectRoot, dataDir string) {
 	copyTemplate(t, root, "cv.typ")
 	copyTemplate(t, root, "cover-letter.typ")
 	return root, dataDir
+}
+
+// derivedSlugRe matches the output slug Render derives from label:
+// <label>-<UTC yyyymmdd-hhmmss>, optionally with a -N disambiguator.
+func derivedSlugRe(label string) *regexp.Regexp {
+	return regexp.MustCompile(`^` + regexp.QuoteMeta(label) + `-\d{8}-\d{6}(-\d+)?$`)
 }
 
 func copyTemplate(t *testing.T, root, name string) {
@@ -67,13 +75,22 @@ func TestRenderGeneration_ApprovedSelection_ProducesOnePagePDF(t *testing.T) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := os.ReadFile(filepath.Join(projectRoot, "output", "acme-corp", "cv.pdf"))
-		t.Fatalf("expected 200, got %d (output present: %v)", resp.StatusCode, len(body) > 0)
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
 	}
 
 	var result generation.RenderResult
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatal(err)
+	}
+	// The request's slug is only a label: Render derives a unique
+	// label-plus-UTC-timestamp directory from it and reports it back
+	// (issue #105).
+	if !derivedSlugRe("acme-corp").MatchString(result.Slug) {
+		t.Errorf("expected a slug derived from label %q, got %q", "acme-corp", result.Slug)
+	}
+	if result.CVPath != filepath.Join("output", result.Slug, "cv.pdf") {
+		t.Errorf("expected CVPath inside the returned slug's directory, got %q", result.CVPath)
 	}
 	if result.CVPageCount != 1 {
 		t.Errorf("expected a one-page CV, got %d pages", result.CVPageCount)
@@ -127,12 +144,52 @@ func TestRenderGeneration_WithCoverLetter_AlsoProducesCoverLetterPDF(t *testing.
 		t.Errorf("expected ParsabilityOK for a clean cover letter render, got %+v", result.CoverLetterParsability)
 	}
 
-	txt, err := os.ReadFile(filepath.Join(projectRoot, "output", "acme-corp", "cover-letter.txt"))
+	txt, err := os.ReadFile(filepath.Join(projectRoot, "output", result.Slug, "cover-letter.txt"))
 	if err != nil {
 		t.Fatalf("expected a cover-letter.txt for story 11's text download: %v", err)
 	}
 	if string(txt) != "Dear Hiring Manager,\n\nI'm excited to apply.\n\nBest,\nCandidate" {
 		t.Errorf("expected cover-letter.txt to match the approved body, got %q", txt)
+	}
+}
+
+// TestRenderGeneration_RegenerateWithSameSlug_KeepsBothGenerations drives
+// issue #105's app-side trigger: GenerationPage defaults the slug to the
+// Job Listing id, so every regenerate posts the same slug. Both renders
+// must survive, each individually servable by the file endpoint.
+func TestRenderGeneration_RegenerateWithSameSlug_KeepsBothGenerations(t *testing.T) {
+	projectRoot, dataDir := seedProjectRoot(t)
+	server := httptest.NewServer(api.NewRouterFull(dataDir, projectRoot, &fakeGenerationClient{}))
+	defer server.Close()
+
+	payload := map[string]any{"slug": "job-listing-1", "selection": map[string]any{"entries": []map[string]any{}}}
+	var slugs []string
+	for i := 0; i < 2; i++ {
+		resp := postJSON(t, server.URL+"/api/generations/render", payload)
+		var result generation.RenderResult
+		err := json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || err != nil {
+			t.Fatalf("render %d: expected 200 with a result, got %d (%v)", i+1, resp.StatusCode, err)
+		}
+		if !derivedSlugRe("job-listing-1").MatchString(result.Slug) {
+			t.Errorf("render %d: expected a slug derived from the label, got %q", i+1, result.Slug)
+		}
+		slugs = append(slugs, result.Slug)
+	}
+
+	if slugs[0] == slugs[1] {
+		t.Fatalf("expected two distinct output slugs, both were %q", slugs[0])
+	}
+	for _, slug := range slugs {
+		resp, err := http.Get(server.URL + "/api/generations/" + slug + "/cv.pdf")
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected output/%s/cv.pdf to be served, got %d", slug, resp.StatusCode)
+		}
 	}
 }
 
