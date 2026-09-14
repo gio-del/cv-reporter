@@ -25,7 +25,7 @@
     },
     {
       "matches": ["https://*.indeed.com/viewjob*"],
-      "js": ["turndown.js", "capture-common.js", "content-indeed.js"],
+      "js": ["turndown.js", "capture-common.js", "validate-capture.js", "content-indeed.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
