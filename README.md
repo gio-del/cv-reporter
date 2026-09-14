@@ -73,6 +73,30 @@ docker-compose up
 - Backend: `http://127.0.0.1:8080` (reads/writes `./data`; Render also reads `./template` and writes `./output` — the whole project root is mounted into the container, see ADR-0012).
 - Frontend: `http://127.0.0.1:5173`
 
+#### Claude models per call site
+
+Each kind of Claude API request the backend makes runs on a model chosen for that kind of work (ADR-0025). Calls whose output you review — Selection, Rewrite, Cover Letter drafting — and the two web-research calls run on Claude Sonnet 5; calls that only read structured fields out of a previous call's notes, or whose result is one click from correction, run on Claude Haiku 4.5:
+
+| Call site | Default model | What it does |
+|---|---|---|
+| `selection_rewrite` | `claude-sonnet-5` | Selection + Rewrite for a Generation |
+| `selection_preview` | `claude-sonnet-5` | Selection-only preview |
+| `cover_letter` | `claude-sonnet-5` | Cover Letter drafting |
+| `ral_research` | `claude-sonnet-5` | RAL Range web research (first of two calls, ADR-0011) |
+| `ral_extraction` | `claude-haiku-4-5` | RAL Range extraction from the research notes |
+| `application_method_inference` | `claude-haiku-4-5` | Application Method classification |
+| `contact_research` | `claude-sonnet-5` | Contact web research (first of two calls) |
+| `contact_extraction` | `claude-haiku-4-5` | Contact extraction from the research notes |
+
+To override a model, set a variable in `.env` (listed in `.env.example`, forwarded by `docker-compose.yml`) and restart the backend:
+
+- `CV_REPORTER_MODEL_<CALL_SITE>` overrides one call site, e.g. `CV_REPORTER_MODEL_SELECTION_REWRITE=claude-opus-5` to try Opus 5 on Rewrite alone and compare at Text Review.
+- `CV_REPORTER_MODEL_DEFAULT` overrides every call site at once.
+
+A per-call-site variable wins over `CV_REPORTER_MODEL_DEFAULT`, which wins over the built-in default; an unset or empty variable means "use the default". Values go to the API unchanged — an unknown model id doesn't stop the backend starting, the affected calls fail with the API's own error.
+
+The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. The Selection preview's call is recorded too, as `selection_preview`, in the standalone usage log (it is never persisted against an Application). Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
+
 #### Optional: LAN-reachable mode
 
 By default the web app is localhost-only with no auth, per ADR-0004. To check or update Job Listings/Applications from another device on your home network (e.g. a phone), opt in explicitly by setting `BIND_ADDR` and `LAN_AUTH_TOKEN` in `.env` (see `.env.example`) and starting with the `lan` profile:

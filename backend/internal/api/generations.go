@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 var generationSlugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
@@ -104,6 +105,10 @@ func previewGenerationHandler(dataDir string, client generation.Client) http.Han
 		}
 
 		result, err := generation.Preview(r.Context(), dataDir, client, req)
+		// A preview has no GenerationRecord to carry its usage, so it goes
+		// to the standalone usage log — drained now, even on failure (the
+		// call was still billed), so it can't leak into the next Generation.
+		tracking.RecordStandaloneUsage(dataDir, client)
 		if errors.Is(err, generation.ErrInvalidSelection) {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

@@ -716,6 +716,34 @@ func TestPreviewGeneration_WithJobDescription_CallsSelectOnlyNotSelectAndRewrite
 	}
 }
 
+// A preview is never persisted against an Application, so its Claude usage
+// belongs in the standalone usage log — and must be drained there, not left
+// in the Client to be misattributed to the next Generation.
+func TestPreviewGeneration_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing.T) {
+	dataDir := seedDataDir(t)
+	client := &fakeGenerationClientWithUsage{
+		usage: []generation.CallUsage{
+			{CallType: "selection_preview", InputTokens: 1000, OutputTokens: 100, EstimatedCostUSD: 0.003},
+		},
+	}
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	defer server.Close()
+
+	resp := postJSON(t, server.URL+"/api/generations/preview", map[string]any{"jobDescription": "Some role."})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	logged := tracking.ReadUsageLog(dataDir)
+	if len(logged) != 1 || logged[0].CallType != "selection_preview" {
+		t.Fatalf("expected the standalone usage log to contain the selection-preview call, got %+v", logged)
+	}
+	if leftover := client.DrainUsage(); len(leftover) != 0 {
+		t.Errorf("expected the preview's usage to be drained from the client, %+v left over", leftover)
+	}
+}
+
 func TestPreviewGeneration_NoJobDescription_ReturnsDefaultModeWithoutCallingClient(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{

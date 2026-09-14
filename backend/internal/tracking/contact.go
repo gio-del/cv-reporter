@@ -19,7 +19,7 @@ func SuggestContact(ctx context.Context, dataDir string, client Client, id strin
 		return Contact{}, err
 	}
 	contact, err := client.SuggestContact(ctx, listing.Company, listing.JobDescription)
-	recordStandaloneUsage(dataDir, client)
+	RecordStandaloneUsage(dataDir, client)
 	return contact, err
 }
 
