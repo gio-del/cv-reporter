@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 )
 
 func getProfileHandler(dataDir string) http.HandlerFunc {
@@ -15,8 +16,19 @@ func getProfileHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachProfileVersion(&profile, dataDir)
 		writeJSON(w, http.StatusOK, profile)
 	}
+}
+
+// attachProfileVersion populates profile.Version, the read-time token a
+// later conditional write is checked against (issue #89).
+func attachProfileVersion(profile *masterdata.Profile, dataDir string) {
+	version, err := masterdata.ProfileVersion(dataDir)
+	if err != nil {
+		return
+	}
+	profile.Version = version
 }
 
 func putProfileHandler(dataDir string) http.HandlerFunc {
@@ -27,7 +39,11 @@ func putProfileHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		updated, err := masterdata.UpdateProfile(dataDir, profile)
+		updated, err := masterdata.UpdateProfileIfMatch(dataDir, profile, requestVersion(r))
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Profile")
+			return
+		}
 		if errors.Is(err, masterdata.ErrValidation) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -36,6 +52,7 @@ func putProfileHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachProfileVersion(&updated, dataDir)
 		writeJSON(w, http.StatusOK, updated)
 	}
 }

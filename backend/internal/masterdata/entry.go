@@ -18,6 +18,12 @@ type Entry struct {
 	Repo     string   `json:"repo,omitempty"`
 	Bullets  []string `json:"bullets,omitempty"`
 
+	// Version is the Entry file's version token, populated by the API
+	// layer (via EntryVersion) on reads and never persisted — the opaque
+	// value the FE sends back in an If-Match header so a save that would
+	// overwrite someone else's change is refused instead (issue #89).
+	Version string `json:"version,omitempty"`
+
 	// LastModified is populated by the API layer (via EntryLastModified),
 	// never by ListEntries/GetEntry themselves — it depends on a
 	// projectRoot they don't take. Left nil when there's no git history to

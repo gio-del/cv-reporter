@@ -14,6 +14,13 @@ import type {
 // Response builders mirroring what the Go handlers actually return, so a
 // test states only the field it is about. The backend's `seedDataDir` /
 // `saveListing` helpers are the model (see backend/internal/api/*_test.go).
+//
+// Every record read carries an opaque version token (issue #89), so the
+// builders give each one a fixed default a test can assert is sent back as
+// If-Match. The Job Listing and its Application are two files with two
+// tokens, so their defaults differ.
+export const JOB_LISTING_VERSION = 'job-listing-v1'
+export const APPLICATION_VERSION = 'application-v1'
 
 /**
  * jobListing is a Job Listing as the backend returns it, with every optional
@@ -31,6 +38,7 @@ export function jobListing(overrides: Partial<JobListing> = {}): JobListing {
     ral: { source: 'n/a' },
     freshnessStatus: 'not-yet-checked',
     archived: false,
+    version: JOB_LISTING_VERSION,
     ...overrides,
   }
 }
@@ -42,6 +50,7 @@ export function application(overrides: Partial<Application> = {}): Application {
     status: 'saved',
     method: { kind: 'portal', value: 'https://acme.example/apply' },
     isStale: false,
+    version: APPLICATION_VERSION,
     ...overrides,
   }
 }
@@ -72,6 +81,7 @@ export function jobListingSummary(overrides: Partial<JobListingSummary> = {}): J
     ral: { source: 'n/a' },
     freshnessStatus: 'not-yet-checked',
     archived: false,
+    version: JOB_LISTING_VERSION,
     ...overrides,
   }
 }
@@ -121,6 +131,7 @@ export function entry(overrides: Partial<Entry> = {}): Entry {
     start: '2021-01',
     end: null,
     tags: ['go'],
+    version: 'entry-v1',
     ...overrides,
   }
 }

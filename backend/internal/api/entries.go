@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 )
 
 func listEntriesHandler(dataDir, projectRoot string) http.HandlerFunc {
@@ -18,6 +19,7 @@ func listEntriesHandler(dataDir, projectRoot string) http.HandlerFunc {
 		}
 		for i := range entries {
 			attachLastModified(&entries[i], dataDir, projectRoot)
+			attachEntryVersion(&entries[i], dataDir)
 		}
 		writeJSON(w, http.StatusOK, entries)
 	}
@@ -36,8 +38,20 @@ func getEntryHandler(dataDir, projectRoot string) http.HandlerFunc {
 			return
 		}
 		attachLastModified(&entry, dataDir, projectRoot)
+		attachEntryVersion(&entry, dataDir)
 		writeJSON(w, http.StatusOK, entry)
 	}
+}
+
+// attachEntryVersion populates entry.Version, the read-time token a later
+// conditional write is checked against (issue #89) — computed by the API
+// layer, exactly like attachLastModified, and never persisted.
+func attachEntryVersion(entry *masterdata.Entry, dataDir string) {
+	version, err := masterdata.EntryVersion(dataDir, entry.ID)
+	if err != nil {
+		return
+	}
+	entry.Version = version
 }
 
 // attachLastModified populates entry.LastModified via a git-log lookup,
@@ -68,6 +82,7 @@ func createEntryHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachEntryVersion(&created, dataDir)
 		writeJSON(w, http.StatusCreated, created)
 	}
 }
@@ -82,9 +97,13 @@ func putEntryHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		updated, err := masterdata.UpdateEntry(dataDir, id, entry)
+		updated, err := masterdata.UpdateEntryIfMatch(dataDir, id, entry, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "entry not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Entry")
 			return
 		}
 		if errors.Is(err, masterdata.ErrValidation) {
@@ -95,6 +114,7 @@ func putEntryHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachEntryVersion(&updated, dataDir)
 		writeJSON(w, http.StatusOK, updated)
 	}
 }
@@ -102,9 +122,13 @@ func putEntryHandler(dataDir string) http.HandlerFunc {
 func deleteEntryHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := masterdata.DeleteEntry(dataDir, id)
+		err := masterdata.DeleteEntryIfMatch(dataDir, id, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "entry not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Entry")
 			return
 		}
 		if err != nil {

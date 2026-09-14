@@ -3,10 +3,9 @@ package tracking
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition
@@ -70,8 +69,28 @@ func Transition(current, to Status) (Status, error) {
 // UpdateApplicationStatus validates and applies a Status change to the
 // Application identified by id, writing it back to disk if allowed.
 func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error) {
+	return UpdateApplicationStatusIfMatch(dataDir, id, to, "")
+}
+
+// UpdateApplicationStatusIfMatch is UpdateApplicationStatus, refusing the
+// write with recordversion.ErrMismatch when version no longer matches the
+// Application file on disk — so a stale tab cannot move a record backwards
+// through the funnel and take the Status history with it (issue #89, story
+// 15). An empty version writes unconditionally.
+func UpdateApplicationStatusIfMatch(dataDir, id string, to Status, version string) (Application, error) {
 	application, err := getApplication(dataDir, id)
 	if err != nil {
+		return Application{}, err
+	}
+
+	// Unlike the other Application mutations, this one validates against
+	// the Status already on disk — so a stale caller would otherwise be
+	// told its move is an invalid transition, sending it hunting for a
+	// mistake in its own input when the real cause is that the record
+	// changed underneath (issue #89, story 20). Checking here answers with
+	// the truthful reason; the write below still re-checks immediately
+	// before writing, which is what keeps the window small.
+	if err := recordversion.Check(applicationPath(dataDir, id), version); err != nil {
 		return Application{}, err
 	}
 
@@ -84,8 +103,5 @@ func UpdateApplicationStatus(dataDir, id string, to Status) (Application, error)
 	application.StatusUpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	application.IsStale = IsStale(application.Status, application.StatusUpdatedAt, time.Now(), DefaultStaleThreshold)
 
-	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
-		return Application{}, err
-	}
-	return application, nil
+	return writeApplicationIfMatch(dataDir, id, application, version)
 }

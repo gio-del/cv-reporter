@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,6 +25,11 @@ type Snippet struct {
 	Kind string   `json:"kind"`
 	Tags []string `json:"tags"`
 	Body string   `json:"body"`
+
+	// Version is the Snippet file's version token, populated by the API
+	// layer (via SnippetVersion) on reads and never persisted — see
+	// Entry.Version and issue #89.
+	Version string `json:"version,omitempty"`
 }
 
 type rawSnippetFrontmatter struct {
@@ -116,6 +122,13 @@ func CreateSnippet(dataDir string, snippet Snippet) (Snippet, error) {
 // file GetSnippet would read for id. On validation failure the file is left
 // untouched.
 func UpdateSnippet(dataDir, id string, snippet Snippet) (Snippet, error) {
+	return UpdateSnippetIfMatch(dataDir, id, snippet, "")
+}
+
+// UpdateSnippetIfMatch is UpdateSnippet, refusing the write with
+// recordversion.ErrMismatch when version no longer matches the file on
+// disk (issue #89, story 13). An empty version writes unconditionally.
+func UpdateSnippetIfMatch(dataDir, id string, snippet Snippet, version string) (Snippet, error) {
 	path := filepath.Join(dataDir, snippetDir, id+".md")
 	if _, err := os.Stat(path); err != nil {
 		return Snippet{}, err
@@ -127,15 +140,36 @@ func UpdateSnippet(dataDir, id string, snippet Snippet) (Snippet, error) {
 		return Snippet{}, fmt.Errorf("%w: %v", ErrValidation, err)
 	}
 
+	if err := recordversion.Check(path, version); err != nil {
+		return Snippet{}, err
+	}
+
 	if err := atomicfile.WriteFile(path, renderSnippet(snippet), 0o644); err != nil {
 		return Snippet{}, err
 	}
 	return snippet, nil
 }
 
+// SnippetVersion returns the version token of the Snippet file GetSnippet
+// would read for id.
+func SnippetVersion(dataDir, id string) (string, error) {
+	return recordversion.Of(filepath.Join(dataDir, snippetDir, id+".md"))
+}
+
 // DeleteSnippet removes the file GetSnippet would read for id.
 func DeleteSnippet(dataDir, id string) error {
-	return os.Remove(filepath.Join(dataDir, snippetDir, id+".md"))
+	return DeleteSnippetIfMatch(dataDir, id, "")
+}
+
+// DeleteSnippetIfMatch is DeleteSnippet, refusing with
+// recordversion.ErrMismatch when version no longer matches the file on
+// disk (issue #89, story 18).
+func DeleteSnippetIfMatch(dataDir, id, version string) error {
+	path := filepath.Join(dataDir, snippetDir, id+".md")
+	if err := recordversion.Check(path, version); err != nil {
+		return err
+	}
+	return os.Remove(path)
 }
 
 // ValidateSnippet checks that a Snippet's required fields are present before

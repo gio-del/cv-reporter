@@ -7,6 +7,7 @@ import ApplicationNotes from '@/components/ApplicationNotes'
 import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
 import ApplyGuidance from '@/components/ApplyGuidance'
+import ConflictAlert from '@/components/ConflictAlert'
 import FreshnessBadge from '@/components/FreshnessBadge'
 import RALBadge from '@/components/RALBadge'
 import StaleEntriesNotice from '@/components/StaleEntriesNotice'
@@ -16,6 +17,7 @@ import {
   deleteJobListing,
   generationFileUrl,
   getJobListing,
+  isConflict,
   jobListingLogoUrl,
   resolveJobListing,
   setJobListingArchived,
@@ -130,12 +132,19 @@ export default function JobListingDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  // conflict is a Status change or delete the backend refused with 409
+  // because the Application or Job Listing changed on disk since this page
+  // read them (issue #89). Method and Contact edits show their own, next to
+  // the draft they preserve.
+  const [conflict, setConflict] = useState<{ record: string; action: 'change' | 'delete' } | null>(null)
+  const [reloading, setReloading] = useState(false)
 
   useEffect(() => {
     setRecord(null)
     setLoadError(null)
     setNotFound(false)
     setActionError(null)
+    setConflict(null)
     getJobListing(id)
       .then(setRecord)
       .catch((err) => {
@@ -179,26 +188,54 @@ export default function JobListingDetailPage() {
   const needsResolve = jobListing.ral.source === 'unresolved' || application.method.kind === 'unresolved'
   const generations = application.generations ?? []
 
+  // reloadRecord re-reads the Job Listing and its Application — the explicit
+  // "reload the current version" action after a conflict, which refreshes
+  // both version tokens (issue #89).
+  async function reloadRecord() {
+    setRecord(await getJobListing(id))
+  }
+
+  async function handleReloadAfterConflict() {
+    setReloading(true)
+    try {
+      await reloadRecord()
+      setConflict(null)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setNotFound(true)
+        return
+      }
+      setActionError(errorMessage(err))
+    } finally {
+      setReloading(false)
+    }
+  }
+
   async function handleStatusChange(status: ApplicationStatus) {
     setActionError(null)
+    setConflict(null)
     setUpdatingStatus(true)
     try {
-      const updated = await updateApplicationStatus(id, status)
+      const updated = await updateApplicationStatus(id, status, application.version)
       setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
     } catch (err) {
-      setActionError(errorMessage(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Application', action: 'change' })
+      } else {
+        setActionError(errorMessage(err))
+      }
     } finally {
       setUpdatingStatus(false)
     }
   }
 
   async function handleMethodChange(method: ApplicationMethod) {
-    const updated = await updateApplicationMethod(id, method)
+    const updated = await updateApplicationMethod(id, method, application.version)
     setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
   }
 
   async function handleContactChange(contact: Contact) {
-    const updated = await updateApplicationContact(id, contact)
+    const updated = await updateApplicationContact(id, contact, application.version)
     setRecord((prev) => (prev ? { ...prev, application: updated } : prev))
   }
 
@@ -231,12 +268,17 @@ export default function JobListingDetailPage() {
   // and is undone by the same button, unlike Delete below.
   async function handleArchiveToggle() {
     setActionError(null)
+    setConflict(null)
     setArchiving(true)
     try {
-      const updated = await setJobListingArchived(id, !jobListing.archived)
+      const updated = await setJobListingArchived(id, !jobListing.archived, jobListing.version)
       setRecord((prev) => (prev ? { ...prev, jobListing: updated } : prev))
     } catch (err) {
-      setActionError(errorMessage(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Job Listing', action: 'change' })
+      } else {
+        setActionError(errorMessage(err))
+      }
     } finally {
       setArchiving(false)
     }
@@ -244,12 +286,19 @@ export default function JobListingDetailPage() {
 
   async function handleConfirmDelete() {
     setDeleteError(null)
+    setConflict(null)
     setDeleting(true)
     try {
-      await deleteJobListing(id)
+      await deleteJobListing(id, jobListing.version, application.version)
       navigate(backTo)
     } catch (err) {
-      setDeleteError(errorMessage(err))
+      if (isConflict(err)) {
+        // Deleting also destroys the Application, so a Status that moved
+        // on since the page was loaded refuses it too (story 19).
+        setConflict({ record: 'Job Listing or its Application', action: 'delete' })
+      } else {
+        setDeleteError(errorMessage(err))
+      }
       setDeleting(false)
       setDeleteOpen(false)
     }
@@ -288,6 +337,15 @@ export default function JobListingDetailPage() {
         </div>
       </div>
 
+      {conflict && (
+        <ConflictAlert
+          record={conflict.record}
+          action={conflict.action}
+          keepsEdits={false}
+          onReload={handleReloadAfterConflict}
+          reloading={reloading}
+        />
+      )}
       {actionError && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {actionError}
@@ -330,14 +388,18 @@ export default function JobListingDetailPage() {
           </div>
         )}
         <RALBadge ral={jobListing.ral} />
-        <ApplicationMethodEditor method={application.method} onSave={handleMethodChange} />
-        <ApplyGuidance jobListing={jobListing} application={application} onSaveContact={handleContactChange} />
+        <ApplicationMethodEditor method={application.method} onSave={handleMethodChange} onReload={reloadRecord} />
+        <ApplyGuidance jobListing={jobListing} application={application} onSaveContact={handleContactChange}
+          onReload={reloadRecord}
+        />
       </section>
 
       <ApplicationNotes
         applicationId={application.id}
+        version={application.version}
         notes={application.notes}
         onApplicationChange={(updated) => setRecord((prev) => (prev ? { ...prev, application: updated } : prev))}
+        onReload={reloadRecord}
       />
 
       <section className="mt-6">

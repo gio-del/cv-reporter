@@ -9,11 +9,23 @@ import (
 	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
 type updateApplicationStatusRequest struct {
 	Status tracking.Status `json:"status"`
+}
+
+// attachApplicationVersion populates application.Version, the read-time
+// token a later conditional write is checked against (issue #89) —
+// computed from the Application's own file, not its Job Listing's.
+func attachApplicationVersion(application *tracking.Application, dataDir string) {
+	version, err := tracking.ApplicationVersion(dataDir, application.ID)
+	if err != nil {
+		return
+	}
+	application.Version = version
 }
 
 func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
@@ -26,9 +38,13 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		application, err := tracking.UpdateApplicationStatus(dataDir, id, req.Status)
+		application, err := tracking.UpdateApplicationStatusIfMatch(dataDir, id, req.Status, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "application not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Application")
 			return
 		}
 		if errors.Is(err, tracking.ErrInvalidTransition) || errors.Is(err, tracking.ErrValidation) {
@@ -39,6 +55,7 @@ func updateApplicationStatusHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, application)
 	}
 }
@@ -92,6 +109,7 @@ func recordApplicationGenerationHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, application)
 	}
 }
@@ -109,9 +127,13 @@ func updateApplicationContactHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		application, err := tracking.UpdateApplicationContact(dataDir, id, req)
+		application, err := tracking.UpdateApplicationContactIfMatch(dataDir, id, req, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "application not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Application")
 			return
 		}
 		if errors.Is(err, tracking.ErrValidation) {
@@ -122,6 +144,7 @@ func updateApplicationContactHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, application)
 	}
 }
@@ -164,9 +187,13 @@ func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		application, err := tracking.UpdateApplicationMethod(dataDir, id, req)
+		application, err := tracking.UpdateApplicationMethodIfMatch(dataDir, id, req, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "application not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Application")
 			return
 		}
 		if errors.Is(err, tracking.ErrValidation) {
@@ -177,6 +204,7 @@ func updateApplicationMethodHandler(dataDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, application)
 	}
 }
@@ -249,6 +277,11 @@ func listApplicationsHandler(dataDir string) http.HandlerFunc {
 		for i, group := range grouped.Groups {
 			items := make([]jobListingSummaryWithApplication, len(group.Items))
 			for j, item := range group.Items {
+				// A row's Status move presents the Application's token, so
+				// the grouped view carries both tokens exactly as the Job
+				// Listings list rows do (issue #89).
+				attachApplicationVersion(&item.Application, dataDir)
+				attachJobListingVersion(&item.JobListing, dataDir)
 				items[j] = summarizeListing(item)
 			}
 			response.Groups[i] = applicationGroupResponse{Status: group.Status, Count: group.Count, Items: items}

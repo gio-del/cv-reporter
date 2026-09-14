@@ -4,9 +4,9 @@ import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import JobListingDetailPage from './JobListingDetailPage'
 import type { JobListingWithApplication } from '@/api/types'
-import { application, listingWithApplication } from '@/test/fixtures'
+import { APPLICATION_VERSION, JOB_LISTING_VERSION, application, listingWithApplication } from '@/test/fixtures'
 import { currentPath, currentSearch, renderApp, renderPage } from '@/test/render'
-import { recordedRequests, requestsTo, server } from '@/test/server'
+import { recordedRequests, requestsTo, server, versionHeadersTo } from '@/test/server'
 
 const DETAIL_PATH = '/api/job-listings/acme'
 
@@ -241,6 +241,37 @@ describe('Application Method and Contact on the Job Listing page', () => {
     ])
   })
 
+  // A conflict keeps the correction on screen; only the explicit reload
+  // replaces it with what is on disk (issue #89, stories 6, 9-10 and 16).
+  it('ApplicationMethod_ChangedOnDisk_KeepsTheDraftUntilTheUserReloads', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(
+      http.patch('/api/applications/acme/method', () => new HttpResponse('changed on disk', { status: 409 })),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Correct' }))
+    const value = screen.getByPlaceholderText('URL or email address')
+    await user.clear(value)
+    await user.type(value, 'https://acme.example/careers')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Application changed on disk since you opened it.')
+    expect(screen.getByPlaceholderText('URL or email address')).toHaveValue('https://acme.example/careers')
+    expect(versionHeadersTo('/api/applications/acme/method').map((r) => r.ifMatch)).toEqual([APPLICATION_VERSION])
+
+    serveDetail(listingWithApplication({}, { method: { kind: 'email', value: 'jobs@acme.example' } }))
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(
+      await screen.findByText(
+        (_, el) => el?.tagName === 'P' && Boolean(el.textContent?.startsWith('Apply via Email: jobs@acme.example')),
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('URL or email address')).not.toBeInTheDocument()
+    expect(await requestsTo(DETAIL_PATH)).toHaveLength(2)
+  })
+
   // A Contact is only ever saved on explicit confirmation — never on entry.
   it('Contact_EnteredForAnEmailApplication_IsSavedOnlyOnceConfirmed', async () => {
     const email = { kind: 'email' as const, value: 'jobs@acme.example' }
@@ -365,6 +396,47 @@ describe('Job Listing deletion', () => {
     expect((await requestsTo(DETAIL_PATH)).map((r) => r.method)).toEqual(['GET', 'DELETE'])
   })
 
+  // The delete removes two files, so it presents two tokens: the Job
+  // Listing's as If-Match, its Application's as Application-If-Match.
+  it('Delete_Confirmed_PresentsBothTheJobListingAndApplicationVersions', async () => {
+    serveDetail(listingWithApplication())
+    server.use(
+      http.delete(DETAIL_PATH, () => new HttpResponse(null, { status: 204 })),
+      http.get('/api/job-listings', () => HttpResponse.json([])),
+    )
+    const { user } = renderApp({ at: '/jobs/acme' })
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Yes, delete' }))
+
+    await waitFor(() => expect(currentPath()).toBe('/jobs'))
+    expect(versionHeadersTo(DETAIL_PATH).filter((r) => r.method === 'DELETE')).toEqual([
+      { method: 'DELETE', path: DETAIL_PATH, ifMatch: JOB_LISTING_VERSION, applicationIfMatch: APPLICATION_VERSION },
+    ])
+  })
+
+  // Story 19: a Status that moved on elsewhere refuses the delete, and the
+  // page stays put with the record intact rather than navigating away.
+  it('Delete_ChangedOnDisk_StaysOnThePageAndOffersAReload', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(http.delete(DETAIL_PATH, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Yes, delete' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Job Listing or its Application changed on disk since you opened it.')
+    expect(alert).toHaveTextContent('Your delete was not applied.')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('heading', { level: 1, name: 'Acme' })).toBeInTheDocument()
+
+    serveDetail(listingWithApplication({}, { status: 'interviewing' }))
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(await screen.findByText('Interviewing')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('Delete_ConfirmationCancelled_DeletesNothingAndStaysOnThePage', async () => {
     const { user } = open(listingWithApplication())
 
@@ -426,6 +498,45 @@ describe('Job Listing archiving', () => {
 
     expect(await screen.findByRole('button', { name: 'Archive' })).toBeInTheDocument()
     expect(screen.queryByText('Archived')).not.toBeInTheDocument()
+  })
+
+  // Archiving rewrites the Job Listing file, so it presents the Job
+  // Listing's token and adopts the fresh one it answers with (issue #89).
+  it('Archive_Toggled_PresentsTheJobListingVersionAndAdoptsTheFreshOne', async () => {
+    const record = listingWithApplication()
+    const { user } = open(record)
+    server.use(
+      http.post(`${DETAIL_PATH}/archive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: true, version: 'job-listing-v2' } }),
+      ),
+      http.post(`${DETAIL_PATH}/unarchive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: false, version: 'job-listing-v3' } }),
+      ),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+    await user.click(await screen.findByRole('button', { name: 'Unarchive' }))
+
+    expect(await screen.findByRole('button', { name: 'Archive' })).toBeInTheDocument()
+    expect(versionHeadersTo(`${DETAIL_PATH}/archive`).map((r) => r.ifMatch)).toEqual([JOB_LISTING_VERSION])
+    expect(versionHeadersTo(`${DETAIL_PATH}/unarchive`).map((r) => r.ifMatch)).toEqual(['job-listing-v2'])
+  })
+
+  it('Archive_ChangedOnDisk_ShowsTheConflictAndReloadRefreshesTheRecord', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(http.post(`${DETAIL_PATH}/archive`, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Job Listing changed on disk since you opened it.')
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument()
+
+    serveDetail(listingWithApplication({ archived: true }))
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(await screen.findByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('Archive_Fails_SurfacesTheErrorInline', async () => {

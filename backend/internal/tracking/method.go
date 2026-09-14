@@ -3,9 +3,7 @@ package tracking
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
 )
 
@@ -34,6 +32,15 @@ var knownMethodKinds = map[ApplicationMethodKind]bool{
 // UpdateApplicationMethod validates and applies a user correction to the
 // Application identified by id (story 6), writing it back to disk.
 func UpdateApplicationMethod(dataDir, id string, method ApplicationMethod) (Application, error) {
+	return UpdateApplicationMethodIfMatch(dataDir, id, method, "")
+}
+
+// UpdateApplicationMethodIfMatch is UpdateApplicationMethod, refusing the
+// write with recordversion.ErrMismatch when version no longer matches the
+// Application file on disk — so a correction cannot silently revert an
+// inferred value that was already corrected elsewhere (issue #89, story
+// 16). An empty version writes unconditionally.
+func UpdateApplicationMethodIfMatch(dataDir, id string, method ApplicationMethod, version string) (Application, error) {
 	if !knownMethodKinds[method.Kind] {
 		return Application{}, fmt.Errorf("%w: unknown application method kind %q", ErrValidation, method.Kind)
 	}
@@ -44,8 +51,5 @@ func UpdateApplicationMethod(dataDir, id string, method ApplicationMethod) (Appl
 	}
 	application.Method = method
 
-	if err := atomicfile.WriteFile(filepath.Join(dataDir, applicationsDir, id+".md"), renderApplication(application), 0o644); err != nil {
-		return Application{}, err
-	}
-	return application, nil
+	return writeApplicationIfMatch(dataDir, id, application, version)
 }

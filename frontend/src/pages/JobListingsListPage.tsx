@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import ApplicationStatusBadges from '@/components/ApplicationStatusBadges'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
+import ConflictAlert from '@/components/ConflictAlert'
 import FreshnessBadge from '@/components/FreshnessBadge'
 import RALBadge from '@/components/RALBadge'
 import {
   exportDataUrl,
+  isConflict,
   jobListingLogoUrl,
   listJobListings,
   setJobListingArchived,
@@ -44,6 +46,11 @@ export default function JobListingsListPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
+  // conflict is a Status change or archive toggle the backend refused with
+  // 409 because the Application or Job Listing changed on disk since this
+  // list was loaded (issue #89).
+  const [conflict, setConflict] = useState<{ record: string; action: 'change' } | null>(null)
+  const [reloading, setReloading] = useState(false)
 
   // The archived view lives in the URL like the filters below (issue #98,
   // story 5), but is not one of them: Clear filters leaves it in place, since
@@ -125,8 +132,10 @@ export default function JobListingsListPage() {
     })
   }
 
-  useEffect(() => {
-    listJobListings({
+  // listQuery is the request the current URL describes, shared by the
+  // fetch below and the reload after a conflict.
+  const listQuery = useMemo(
+    () => ({
       status: statusFilter || undefined,
       company: companyFilter || undefined,
       savedFrom: savedFromFilter || undefined,
@@ -136,7 +145,38 @@ export default function JobListingsListPage() {
       ralMin: hasAppliedRALFilter ? Number(appliedRALMin || 0) : undefined,
       ralMax: hasAppliedRALFilter ? (appliedRALMax === '' ? Number.MAX_SAFE_INTEGER : Number(appliedRALMax)) : undefined,
       ralCurrency: hasAppliedRALFilter ? appliedRALCurrency || 'EUR' : undefined,
-    })
+    }),
+    [
+      statusFilter,
+      companyFilter,
+      savedFromFilter,
+      savedToFilter,
+      archivedView,
+      ralSort,
+      hasAppliedRALFilter,
+      appliedRALMin,
+      appliedRALMax,
+      appliedRALCurrency,
+    ],
+  )
+
+  // handleReloadAfterConflict re-reads the list with the current filters —
+  // the explicit "reload the current version" action after a conflict, which
+  // refreshes every row's content and version tokens (issue #89).
+  async function handleReloadAfterConflict() {
+    setReloading(true)
+    try {
+      setListings((await listJobListings(listQuery)) ?? [])
+      setConflict(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
+    }
+  }
+
+  useEffect(() => {
+    listJobListings(listQuery)
       .then((l) => {
         setListings(l ?? [])
         if (!hasAppliedRALFilter) {
@@ -154,18 +194,7 @@ export default function JobListingsListPage() {
         }
       })
       .catch((e) => setError(e.message))
-  }, [
-    statusFilter,
-    companyFilter,
-    savedFromFilter,
-    savedToFilter,
-    archivedView,
-    ralSort,
-    hasAppliedRALFilter,
-    appliedRALMin,
-    appliedRALMax,
-    appliedRALCurrency,
-  ])
+  }, [listQuery, hasAppliedRALFilter])
 
   function handleApplyRALFilter() {
     setRalFilterError(null)
@@ -203,16 +232,27 @@ export default function JobListingsListPage() {
     })
   }
 
+  // findListing returns the row as last read, whose version tokens every
+  // write on it presents (issue #89).
+  function findListing(jobListingId: string): JobListingSummaryWithApplication | undefined {
+    return listings?.find((l) => l.jobListing.id === jobListingId)
+  }
+
   async function handleStatusChange(jobListingId: string, status: ApplicationStatus) {
     setStatusError(null)
+    setConflict(null)
     setUpdatingId(jobListingId)
     try {
-      const application = await updateApplicationStatus(jobListingId, status)
+      const application = await updateApplicationStatus(jobListingId, status, findListing(jobListingId)?.application.version)
       setListings((prev) =>
         prev ? prev.map((l) => (l.jobListing.id === jobListingId ? { ...l, application } : l)) : prev,
       )
     } catch (err) {
-      setStatusError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Application', action: 'change' })
+      } else {
+        setStatusError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setUpdatingId(null)
     }
@@ -223,15 +263,16 @@ export default function JobListingsListPage() {
   // leaves it; in the All view it stays and just flips.
   async function handleArchiveToggle(jobListingId: string, archived: boolean) {
     setArchiveError(null)
+    setConflict(null)
     setArchivingId(jobListingId)
     try {
-      const updated = await setJobListingArchived(jobListingId, archived)
+      const updated = await setJobListingArchived(jobListingId, archived, findListing(jobListingId)?.jobListing.version)
       setListings((prev) => {
         if (!prev) return prev
         if (archivedView === 'all') {
           return prev.map((l) =>
             l.jobListing.id === jobListingId
-              ? { ...l, jobListing: { ...l.jobListing, archived: updated.archived } }
+              ? { ...l, jobListing: { ...l.jobListing, archived: updated.archived, version: updated.version } }
               : l,
           )
         }
@@ -239,7 +280,11 @@ export default function JobListingsListPage() {
         return prev.filter((l) => l.jobListing.id !== jobListingId || updated.archived === keepArchived)
       })
     } catch (err) {
-      setArchiveError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Job Listing', action: 'change' })
+      } else {
+        setArchiveError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setArchivingId(null)
     }
@@ -268,6 +313,16 @@ export default function JobListingsListPage() {
           </Button>
         </div>
       </div>
+
+      {conflict && (
+        <ConflictAlert
+          record={conflict.record}
+          action={conflict.action}
+          keepsEdits={false}
+          onReload={handleReloadAfterConflict}
+          reloading={reloading}
+        />
+      )}
 
       {statusError && (
         <p role="alert" className="mb-4 font-medium text-destructive">

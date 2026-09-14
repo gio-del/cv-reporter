@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { updateEntry } from '@/api/client'
+import { getEntry, isConflict, updateEntry } from '@/api/client'
 import type { Entry, EntryInput } from '@/api/types'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -52,15 +53,24 @@ function toEntryInput(entry: Entry, form: FormState): EntryInput {
 export default function EntryEditForm({
   entry,
   onSaved,
+  onReloaded,
   onCancel,
 }: {
   entry: Entry
   onSaved: (entry: Entry) => void
+  // onReloaded lets the parent show the on-disk version the user chose to
+  // reload after a conflict, even if they then cancel.
+  onReloaded?: (entry: Entry) => void
   onCancel: () => void
 }) {
+  // base is the Entry as last read from the server: its version token is
+  // what the save presents as If-Match (issue #89).
+  const [base, setBase] = useState<Entry>(entry)
   const [form, setForm] = useState<FormState>(toFormState(entry))
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -69,19 +79,41 @@ export default function EntryEditForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setConflict(false)
     setSaving(true)
     try {
-      const saved = await updateEntry(entry.id, toEntryInput(entry, form))
+      const saved = await updateEntry(base.id, toEntryInput(base, form), base.version)
       onSaved(saved)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setSaving(false)
     }
   }
 
+  async function handleReload() {
+    setReloading(true)
+    try {
+      const fresh = await getEntry(base.id)
+      setBase(fresh)
+      setForm(toFormState(fresh))
+      setConflict(false)
+      setError(null)
+      onReloaded?.(fresh)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setReloading(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit}>
+      {conflict && <ConflictAlert record="Entry" onReload={handleReload} reloading={reloading} />}
       {error && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {error}
@@ -89,7 +121,7 @@ export default function EntryEditForm({
       )}
 
       <FieldGroup>
-        {entry.type === 'experience' ? (
+        {base.type === 'experience' ? (
           <>
             <Field>
               <FieldLabel htmlFor="employer">Employer</FieldLabel>

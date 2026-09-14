@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { deleteEntry, getEntry } from '@/api/client'
+import { deleteEntry, getEntry, isConflict } from '@/api/client'
 import type { Entry } from '@/api/types'
 import {
   AlertDialog,
@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import ConflictAlert from '@/components/ConflictAlert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatRelativeTime } from '@/lib/utils'
@@ -27,12 +28,15 @@ export default function EntryDetailPage() {
   const [editing, setEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConflict, setDeleteConflict] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   useEffect(() => {
     setEntry(null)
     setError(null)
     setEditing(false)
     setDeleteOpen(false)
+    setDeleteConflict(false)
     getEntry(id)
       .then(setEntry)
       .catch((e) => setError(e.message))
@@ -41,12 +45,31 @@ export default function EntryDetailPage() {
   async function handleDelete() {
     setDeleting(true)
     try {
-      await deleteEntry(id)
+      await deleteEntry(id, entry?.version)
       navigate('/')
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      // A refused delete leaves the record on disk and the page usable, so
+      // it shows the conflict alert rather than replacing the page with an
+      // error (issue #89, story 18).
+      if (isConflict(e)) {
+        setDeleteConflict(true)
+      } else {
+        setError(e instanceof Error ? e.message : String(e))
+      }
       setDeleting(false)
       setDeleteOpen(false)
+    }
+  }
+
+  async function handleReload() {
+    setReloading(true)
+    try {
+      setEntry(await getEntry(id))
+      setDeleteConflict(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setReloading(false)
     }
   }
 
@@ -70,6 +93,7 @@ export default function EntryDetailPage() {
             setEntry(saved)
             setEditing(false)
           }}
+          onReloaded={setEntry}
           onCancel={() => setEditing(false)}
         />
       </>
@@ -78,6 +102,9 @@ export default function EntryDetailPage() {
 
   return (
     <>
+      {deleteConflict && (
+        <ConflictAlert record="Entry" action="delete" keepsEdits={false} onReload={handleReload} reloading={reloading} />
+      )}
       <h1>{title}</h1>
       {entry.type === 'experience' && (
         <dl>

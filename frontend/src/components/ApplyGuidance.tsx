@@ -13,10 +13,12 @@ export default function ApplyGuidance({
   jobListing,
   application,
   onSaveContact,
+  onReload,
 }: {
   jobListing: JobListing
   application: Application
   onSaveContact: (contact: Contact) => Promise<void>
+  onReload: () => Promise<void>
 }) {
   const { method, contact } = application
   const [mailtoUri, setMailtoUri] = useState<string | null>(null)
@@ -41,6 +43,7 @@ export default function ApplyGuidance({
           contact={contact}
           inferredEmail={method.value}
           onSave={onSaveContact}
+          onReload={onReload}
         />
         {contact && (
           <>

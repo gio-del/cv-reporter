@@ -10,9 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -207,9 +209,15 @@ func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 			listings = tracking.SortListingsByRAL(listings, order)
 		}
 
+		// An Application and its Job Listing are two separate files
+		// sharing one id, so the combined shape carries both tokens: the
+		// Application patches check the Application's, the Job Listing
+		// delete checks the Job Listing's (issue #89).
 		summaries := make([]jobListingSummaryWithApplication, len(listings))
 		for i := range listings {
 			attachStaleEntries(&listings[i].Application, dataDir, projectRoot)
+			attachApplicationVersion(&listings[i].Application, dataDir)
+			attachJobListingVersion(&listings[i].JobListing, dataDir)
 			summaries[i] = summarizeListing(listings[i])
 		}
 		writeJSON(w, http.StatusOK, summaries)
@@ -235,6 +243,9 @@ type jobListingSummary struct {
 	FreshnessStatus    tracking.FreshnessStatus `json:"freshnessStatus"`
 	FreshnessCheckedAt string                   `json:"freshnessCheckedAt,omitempty"`
 	Archived           bool                     `json:"archived"`
+	// Version is the Job Listing file's version token (issue #89), carried
+	// over from the whole record so a list row can still guard a delete.
+	Version string `json:"version,omitempty"`
 }
 
 // jobListingSummaryWithApplication is one list row: a Job Listing summary
@@ -264,6 +275,7 @@ func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithAp
 			FreshnessStatus:    listing.FreshnessStatus,
 			FreshnessCheckedAt: listing.FreshnessCheckedAt,
 			Archived:           listing.Archived,
+			Version:            listing.Version,
 		},
 		Application: l.Application,
 	}
@@ -290,8 +302,20 @@ func getJobListingHandler(dataDir, projectRoot string) http.HandlerFunc {
 			return
 		}
 		attachStaleEntries(&listing.Application, dataDir, projectRoot)
+		attachApplicationVersion(&listing.Application, dataDir)
+		attachJobListingVersion(&listing.JobListing, dataDir)
 		writeJSON(w, http.StatusOK, listing)
 	}
+}
+
+// attachJobListingVersion populates listing.Version, the read-time token
+// the Job Listing delete is checked against (issue #89).
+func attachJobListingVersion(listing *tracking.JobListing, dataDir string) {
+	version, err := tracking.JobListingVersion(dataDir, listing.ID)
+	if err != nil {
+		return
+	}
+	listing.Version = version
 }
 
 // getJobListingLogoHandler serves the Company Logo file tracking.Save
@@ -324,9 +348,13 @@ func getJobListingLogoHandler(dataDir string) http.HandlerFunc {
 func deleteJobListingHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		err := tracking.Delete(dataDir, id)
+		err := tracking.DeleteIfMatch(dataDir, id, requestVersion(r), strings.TrimSpace(r.Header.Get(applicationVersionHeader)))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Job Listing or its Application")
 			return
 		}
 		if err != nil {
@@ -374,6 +402,8 @@ func resolveJobListingHandler(dataDir string, client tracking.Client) http.Handl
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, saveJobListingResponse{JobListing: listing, Application: application})
 	}
 }
@@ -406,6 +436,8 @@ func createJobListingHandler(dataDir string, client tracking.Client, doer tracki
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, saveJobListingResponse{
 			JobListing:       listing,
 			Application:      application,
@@ -439,6 +471,7 @@ func checkFreshnessHandler(dataDir string, doer tracking.HTTPDoer) http.HandlerF
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
 		writeJSON(w, http.StatusOK, checkFreshnessResponse{JobListing: listing})
 	}
 }
@@ -453,19 +486,26 @@ type archiveJobListingResponse struct {
 // setJobListingArchivedHandler backs both POST /api/job-listings/{id}/archive
 // (archived true) and /unarchive (archived false) (issue #98). Both are
 // idempotent and 404 when id doesn't exist, matching the other id-addressed
-// Job Listing routes.
+// Job Listing routes. Both honour an optional If-Match carrying the Job
+// Listing's version token, since they rewrite the Job Listing file (issue
+// #89), and answer with the fresh token.
 func setJobListingArchivedHandler(dataDir string, archived bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		listing, err := tracking.SetArchived(dataDir, id, archived)
+		listing, err := tracking.SetArchivedIfMatch(dataDir, id, archived, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Job Listing")
 			return
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
 		writeJSON(w, http.StatusOK, archiveJobListingResponse{JobListing: listing})
 	}
 }
@@ -514,6 +554,8 @@ func captureJobListingFromExtensionHandler(dataDir string, client tracking.Clien
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, saveJobListingResponse{
 			JobListing:       listing,
 			Application:      application,

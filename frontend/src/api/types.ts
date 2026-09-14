@@ -21,9 +21,12 @@ export interface Entry {
   bullets?: string[]
   /** Absent when the Entry has no git history yet (freshly added, uncommitted). */
   lastModified?: EntryLastModified
+  // version is the opaque token of the Entry file as read — sent back as
+  // If-Match on a save or delete, never shown (issue #89).
+  version?: string
 }
 
-export type EntryInput = Omit<Entry, 'id'>
+export type EntryInput = Omit<Entry, 'id' | 'version' | 'lastModified'>
 
 export interface Education {
   degree: string
@@ -70,6 +73,8 @@ export interface Profile {
   awards: Award[]
   activities: Activity[]
   languages: Language[]
+  // version is the opaque token of the Profile file as read (issue #89).
+  version?: string
 }
 
 export interface Snippet {
@@ -78,9 +83,11 @@ export interface Snippet {
   tags: string[]
   body: string
   lastUsedAt?: string
+  // version is the opaque token of the Snippet file as read (issue #89).
+  version?: string
 }
 
-export type SnippetInput = Omit<Snippet, 'id'>
+export type SnippetInput = Omit<Snippet, 'id' | 'version'>
 
 export interface SelectedBullet {
   sourceIndex: number
@@ -244,6 +251,9 @@ export interface JobListing {
   // archived is set only by the user (issue #98): it takes the Job Listing
   // out of the default list and changes nothing else.
   archived: boolean
+  // version is the opaque token of the Job Listing file as read — what
+  // the Job Listing delete presents (issue #89).
+  version?: string
 }
 
 // ArchivedView is which Job Listings the list shows by their archived flag
@@ -292,6 +302,10 @@ export interface Application {
   // notes are the user's own log on this Application (issue #96), newest
   // first. Absent means no Notes.
   notes?: Note[]
+  // version is the opaque token of the Application file alone (not its
+  // Job Listing's) — what the Status/Method/Contact patches present
+  // (issue #89).
+  version?: string
 }
 
 // Note is one timestamped Markdown observation on an Application (issue
