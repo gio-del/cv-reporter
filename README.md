@@ -206,6 +206,18 @@ Backend tests are Go `testing`-package HTTP integration tests, run with `go test
 
 Backend lint: `golangci-lint run ./...` from `backend/`. It reads [`.golangci.yml`](.golangci.yml) at the repo root and is the same command CI runs, so a red lint build is reproducible locally. The enabled set is deliberately small — `gofmt`, `errcheck` (with `check-blank`, so `_ = someCall()` is flagged too), `ineffassign`, `unused`, `govet` — with the rationale for what's left out recorded in the config file itself. A genuinely intentional discard gets a `//nolint:errcheck` with a reason rather than a weaker gate. Install: `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2` (the version CI pins).
 
+#### API contract fixtures
+
+`frontend/src/api/types.ts` is hand-written, so a contract test keeps it honest (issue #99, ADR-0035). `backend/internal/api/contract_test.go` drives every JSON-returning route through its real handler and compares the response, normalized (sorted keys, fixed timestamps and clock-derived values), with a golden file in `frontend/src/api/contract/fixtures/`. `frontend/src/api/contract/contract.ts` then type-asserts each fixture against the type `types.ts` declares for that route, so `npm run build` (`tsc -b`) fails with the route and JSON path of any field that is sent but undeclared, declared required but not sent, of the wrong kind, or whose optionality disagrees with the backend (`.populated` fixtures must send every optional field, `.sparse` ones none).
+
+A plain `go test ./...` only verifies, and fails when a response no longer matches its fixture. When a response shape changes on purpose, regenerate the fixtures, review the JSON diff, then update `types.ts` until the frontend build passes:
+
+```
+cd backend && UPDATE_CONTRACT_FIXTURES=1 go test ./internal/api -run TestContract
+```
+
+Adding a route means adding its fixture to `contractFixtures` and an assertion to `contract.ts` (or an exemption with a reason, for a route with no JSON body); `TestContractRoutesAllCovered` fails otherwise.
+
 ### Frontend dev loop
 
 From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`, `npm test` (`npm run test:watch` while working).
