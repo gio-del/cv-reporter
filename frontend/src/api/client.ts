@@ -1,7 +1,9 @@
 import type {
+  AddedTrackedBoard,
   AddTrackedBoardRequest,
   Application,
   ApplicationGroups,
+  ApplicationMailto,
   ApplicationMethod,
   ApplicationStats,
   ApplicationStatus,
@@ -14,6 +16,7 @@ import type {
   GenerateRequest,
   GenerateResult,
   JobListing,
+  JobListingResponse,
   JobListingSummaryWithApplication,
   JobListingWithApplication,
   Profile,
@@ -291,7 +294,7 @@ export function resolveJobListing(jobListingId: string): Promise<JobListingWithA
 }
 
 export async function checkJobListingFreshness(jobListingId: string): Promise<JobListing> {
-  const result = await request<{ jobListing: JobListing }>(
+  const result = await request<JobListingResponse>(
     `/api/job-listings/${encodeURIComponent(jobListingId)}/check-freshness`,
     { method: 'POST' },
   )
@@ -307,7 +310,7 @@ export async function setJobListingArchived(
   archived: boolean,
   version: string | undefined,
 ): Promise<JobListing> {
-  const result = await request<{ jobListing: JobListing }>(
+  const result = await request<JobListingResponse>(
     `/api/job-listings/${encodeURIComponent(jobListingId)}/${archived ? 'archive' : 'unarchive'}`,
     { method: 'POST', headers: versionHeaders(version) },
   )
@@ -330,7 +333,7 @@ export function updateApplicationMethod(id: string, method: ApplicationMethod, v
   })
 }
 
-export function getApplicationMailto(id: string): Promise<{ uri: string }> {
+export function getApplicationMailto(id: string): Promise<ApplicationMailto> {
   return request(`/api/applications/${encodeURIComponent(id)}/mailto`)
 }
 
@@ -393,7 +396,9 @@ export function listTrackedBoards(): Promise<TrackedBoard[]> {
   return request('/api/ats/tracked-boards')
 }
 
-export function addTrackedBoard(req: AddTrackedBoardRequest): Promise<TrackedBoard> {
+// addTrackedBoard answers with the stored board, which has no newCount: only
+// listTrackedBoards computes one.
+export function addTrackedBoard(req: AddTrackedBoardRequest): Promise<AddedTrackedBoard> {
   return request('/api/ats/tracked-boards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

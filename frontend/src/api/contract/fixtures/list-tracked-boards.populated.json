@@ -1,0 +1,9 @@
+[
+  {
+    "id": "greenhouse:acme",
+    "label": "Acme",
+    "newCount": 1,
+    "provider": "greenhouse",
+    "slug": "acme"
+  }
+]

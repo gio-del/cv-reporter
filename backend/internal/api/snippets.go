@@ -43,7 +43,7 @@ func listSnippetsHandler(dataDir string) http.HandlerFunc {
 		enriched := make([]snippetWithUsage, len(snippets))
 		for i, s := range snippets {
 			attachSnippetVersion(&s, dataDir)
-			enriched[i] = snippetWithUsage{Snippet: s, LastUsedAt: lastUsed[s.ID]}
+			enriched[i] = snippetWithUsage{Snippet: snippetForWire(s), LastUsedAt: lastUsed[s.ID]}
 		}
 		writeJSON(w, http.StatusOK, enriched)
 	}
@@ -62,7 +62,7 @@ func getSnippetHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachSnippetVersion(&snippet, dataDir)
-		writeJSON(w, http.StatusOK, snippet)
+		writeJSON(w, http.StatusOK, snippetForWire(snippet))
 	}
 }
 
@@ -94,7 +94,7 @@ func createSnippetHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachSnippetVersion(&created, dataDir)
-		writeJSON(w, http.StatusCreated, created)
+		writeJSON(w, http.StatusCreated, snippetForWire(created))
 	}
 }
 
@@ -126,7 +126,7 @@ func putSnippetHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachSnippetVersion(&updated, dataDir)
-		writeJSON(w, http.StatusOK, updated)
+		writeJSON(w, http.StatusOK, snippetForWire(updated))
 	}
 }
 

@@ -1,0 +1,76 @@
+{
+  "generations": [
+    {
+      "coverLetterPath": "output/globex/cover-letter.pdf",
+      "createdAt": "2026-01-02T03:04:05Z",
+      "cvPath": "output/globex/cv.pdf",
+      "entryIds": [
+        "experience/quantyca-amplifon",
+        "projects/emall"
+      ],
+      "groundedness": {
+        "bullets": [
+          {
+            "entryId": "experience/quantyca-amplifon",
+            "flags": [
+              {
+                "reason": "numeric-mismatch",
+                "sentence": "Served 4 million users."
+              }
+            ],
+            "sourceIndex": 0
+          }
+        ],
+        "coverLetter": [
+          {
+            "reason": "no-source-match",
+            "sentence": "I led a team of 40."
+          }
+        ]
+      },
+      "language": "it",
+      "schemaVersion": 1,
+      "slug": "globex",
+      "sourceSnippetIds": [
+        "opening-ai-platforms"
+      ],
+      "usage": {
+        "cacheReadTokens": 50,
+        "cacheWriteTokens": 60,
+        "calls": [
+          {
+            "cacheReadTokens": 50,
+            "cacheWriteTokens": 60,
+            "callType": "select-and-rewrite",
+            "estimatedCostUsd": 0.5,
+            "inputTokens": 1200,
+            "model": "claude-test",
+            "outputTokens": 340,
+            "webSearchUses": 1
+          }
+        ],
+        "estimatedCostUsd": 0.5,
+        "inputTokens": 1200,
+        "outputTokens": 340,
+        "webSearchUses": 1
+      }
+    }
+  ],
+  "id": "initech",
+  "isStale": false,
+  "jobListingId": "initech",
+  "method": {
+    "kind": "email",
+    "value": "jobs@example.com"
+  },
+  "schemaVersion": 1,
+  "status": "saved",
+  "statusHistory": [
+    {
+      "changedAt": "2026-01-02T03:04:05Z",
+      "status": "saved"
+    }
+  ],
+  "statusUpdatedAt": "2026-01-02T03:04:05Z",
+  "version": "version-1"
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "alreadySaved": false,
+    "description": "<p>Join us.</p>",
+    "location": "Remote",
+    "new": false,
+    "title": "Engineer 1",
+    "url": "https://boards.greenhouse.io/acme/jobs/1"
+  },
+  {
+    "alreadySaved": false,
+    "description": "<p>Join us.</p>",
+    "location": "Remote",
+    "new": true,
+    "title": "Engineer 2",
+    "url": "https://boards.greenhouse.io/acme/jobs/2"
+  }
+]

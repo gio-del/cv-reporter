@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import JobListingsListPage from './JobListingsListPage'
 import type { JobListingSummaryWithApplication } from '@/api/types'
-import { listingSummaryWithApplication, listingWithApplication } from '@/test/fixtures'
+import { generationRecord, listingSummaryWithApplication, listingWithApplication } from '@/test/fixtures'
 import { browserBack, currentPath, currentSearch, renderApp, renderPage } from '@/test/render'
 import { recordedRequests, requestsTo, server } from '@/test/server'
 
@@ -65,7 +65,7 @@ describe('Job Listing rows', () => {
         },
         {
           status: 'sent',
-          generations: [{ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' }],
+          generations: [generationRecord({ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' })],
         },
       ),
     ])

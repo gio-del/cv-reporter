@@ -4,7 +4,7 @@ import type { UserEvent } from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import JobListingDetailPage from './JobListingDetailPage'
 import type { JobListingWithApplication } from '@/api/types'
-import { APPLICATION_VERSION, JOB_LISTING_VERSION, application, listingWithApplication } from '@/test/fixtures'
+import { APPLICATION_VERSION, JOB_LISTING_VERSION, application, generationRecord, listingWithApplication } from '@/test/fixtures'
 import { currentPath, currentSearch, renderApp, renderPage } from '@/test/render'
 import { recordedRequests, requestsTo, server, versionHeadersTo } from '@/test/server'
 
@@ -304,13 +304,13 @@ describe('Generation history on the Job Listing page', () => {
         {},
         {
           generations: [
-            { slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' },
-            {
+            generationRecord({ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' }),
+            generationRecord({
               slug: 'acme-2',
               createdAt: '2026-01-20T10:00:00Z',
               cvPath: 'output/acme-2/cv.pdf',
               coverLetterPath: 'output/acme-2/cover-letter.pdf',
-            },
+            }),
           ],
         },
       ),
@@ -336,12 +336,12 @@ describe('Generation history on the Job Listing page', () => {
         {},
         {
           generations: [
-            {
+            generationRecord({
               slug: 'acme-1',
               createdAt: '2026-01-10T10:00:00Z',
               cvPath: 'output/acme-1/cv.pdf',
               staleEntries: ['Globex — Backend Engineer'],
-            },
+            }),
           ],
         },
       ),
@@ -356,7 +356,7 @@ describe('Generation history on the Job Listing page', () => {
     open(
       listingWithApplication(
         {},
-        { generations: [{ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' }] },
+        { generations: [generationRecord({ slug: 'acme-1', createdAt: '2026-01-10T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' })] },
       ),
     )
 

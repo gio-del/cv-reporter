@@ -1,0 +1,22 @@
+{
+  "cacheReadTokens": 50,
+  "cacheWriteTokens": 60,
+  "calls": [
+    {
+      "cacheReadTokens": 50,
+      "cacheWriteTokens": 60,
+      "callType": "select-and-rewrite",
+      "estimatedCostUsd": 0.5,
+      "inputTokens": 1200,
+      "model": "claude-test",
+      "outputTokens": 340,
+      "webSearchUses": 1
+    }
+  ],
+  "estimatedCostUsd": 0.5,
+  "incomplete": true,
+  "incompleteReason": "The standalone usage log (usage-log.json) is unreadable, so its calls are missing from this total and new ones are not being recorded until it is fixed or removed: parse usage-log.json: invalid character 'o' in literal null (expecting 'u')",
+  "inputTokens": 1200,
+  "outputTokens": 340,
+  "webSearchUses": 1
+}

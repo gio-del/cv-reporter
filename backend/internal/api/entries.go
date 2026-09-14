@@ -21,6 +21,7 @@ func listEntriesHandler(dataDir, projectRoot string) http.HandlerFunc {
 		for i := range entries {
 			attachLastModified(&entries[i], dataDir, projectRoot)
 			attachEntryVersion(&entries[i], dataDir)
+			entries[i] = entryForWire(entries[i])
 		}
 		writeJSON(w, http.StatusOK, entries)
 	}
@@ -40,7 +41,7 @@ func getEntryHandler(dataDir, projectRoot string) http.HandlerFunc {
 		}
 		attachLastModified(&entry, dataDir, projectRoot)
 		attachEntryVersion(&entry, dataDir)
-		writeJSON(w, http.StatusOK, entry)
+		writeJSON(w, http.StatusOK, entryForWire(entry))
 	}
 }
 
@@ -84,7 +85,7 @@ func createEntryHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachEntryVersion(&created, dataDir)
-		writeJSON(w, http.StatusCreated, created)
+		writeJSON(w, http.StatusCreated, entryForWire(created))
 	}
 }
 
@@ -116,7 +117,7 @@ func putEntryHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 		attachEntryVersion(&updated, dataDir)
-		writeJSON(w, http.StatusOK, updated)
+		writeJSON(w, http.StatusOK, entryForWire(updated))
 	}
 }
 

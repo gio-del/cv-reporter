@@ -1,0 +1,15 @@
+{
+  "bullets": [
+    "Managed charging stations."
+  ],
+  "end": "2022",
+  "id": "projects/emall",
+  "name": "eMall",
+  "repo": "GitHub",
+  "start": "2022",
+  "tags": [
+    "React"
+  ],
+  "type": "project",
+  "version": "version-1"
+}

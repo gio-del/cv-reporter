@@ -11,6 +11,7 @@ import {
   APPLICATION_VERSION,
   application,
   applicationGroups,
+  generationRecord,
   listingSummaryWithApplication,
   listingWithApplication,
 } from '@/test/fixtures'
@@ -85,8 +86,8 @@ describe('ApplicationsPage', () => {
               method: { kind: 'email', value: 'jobs@acme.example' },
               contact: { name: 'Jane Recruiter', email: 'jane@acme.example' },
               generations: [
-                { slug: 'acme-1', createdAt: '2026-01-08T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' },
-                { slug: 'acme-2', createdAt: '2026-01-09T10:00:00Z', cvPath: 'output/acme-2/cv.pdf' },
+                generationRecord({ slug: 'acme-1', createdAt: '2026-01-08T10:00:00Z', cvPath: 'output/acme-1/cv.pdf' }),
+                generationRecord({ slug: 'acme-2', createdAt: '2026-01-09T10:00:00Z', cvPath: 'output/acme-2/cv.pdf' }),
               ],
             },
           ),

@@ -23,7 +23,7 @@ export interface Entry {
   lastModified?: EntryLastModified
   // version is the opaque token of the Entry file as read — sent back as
   // If-Match on a save or delete, never shown (issue #89).
-  version?: string
+  version: string
 }
 
 export type EntryInput = Omit<Entry, 'id' | 'version' | 'lastModified'>
@@ -74,7 +74,7 @@ export interface Profile {
   activities: Activity[]
   languages: Language[]
   // version is the opaque token of the Profile file as read (issue #89).
-  version?: string
+  version: string
 }
 
 export interface Snippet {
@@ -84,7 +84,7 @@ export interface Snippet {
   body: string
   lastUsedAt?: string
   // version is the opaque token of the Snippet file as read (issue #89).
-  version?: string
+  version: string
 }
 
 export type SnippetInput = Omit<Snippet, 'id' | 'version'>
@@ -103,6 +103,10 @@ export interface SelectedEntry {
 
 export interface SelectionResult {
   entries: SelectedEntry[]
+  // language is the ISO 639-1 code Selection detected (or was told via
+  // languageOverride). Absent in Default Mode and from Preview; the
+  // normalized value Text Review uses is GenerateResult.language.
+  language?: string
 }
 
 export type GenerateMode = 'default' | 'tailored'
@@ -237,6 +241,9 @@ export type JobListingSource = 'manual'
 export type FreshnessStatus = 'not-yet-checked' | 'live' | 'unreachable' | 'unknown'
 
 export interface JobListing {
+  // schemaVersion is the record format generation (ADR-0034): 0 for a
+  // legacy record not yet migrated.
+  schemaVersion: number
   id: string
   title?: string
   company: string
@@ -253,7 +260,7 @@ export interface JobListing {
   archived: boolean
   // version is the opaque token of the Job Listing file as read — what
   // the Job Listing delete presents (issue #89).
-  version?: string
+  version: string
 }
 
 // ArchivedView is which Job Listings the list shows by their archived flag
@@ -271,12 +278,20 @@ export interface ApplicationMethod {
 }
 
 export interface GenerationRecord {
+  // schemaVersion is absent on a Generation recorded before ADR-0034, whose
+  // missing sourceSnippetIds/entryIds/language are then unknowable rather
+  // than genuinely empty.
+  schemaVersion?: number
   slug: string
   createdAt: string
   cvPath: string
   coverLetterPath?: string
+  groundedness?: GroundednessResult
   sourceSnippetIds?: string[]
-  usage?: GenerationUsage
+  // usage is always sent: zero-valued for a Default Mode Generation or one
+  // recorded before usage was kept.
+  usage: GenerationUsage
+  language?: string
   entryIds?: string[]
   // staleEntries names (by employer/client + role) which of entryIds have
   // been edited in Master Data since createdAt — computed read-time by the
@@ -290,7 +305,17 @@ export interface Contact {
   email: string
 }
 
+// StatusChange is one entry of an Application's Status history: the Status
+// it moved to, and when.
+export interface StatusChange {
+  status: ApplicationStatus
+  changedAt: string
+}
+
 export interface Application {
+  // schemaVersion is the record format generation (ADR-0034): 0 for a
+  // legacy record not yet migrated.
+  schemaVersion: number
   id: string
   jobListingId: string
   status: ApplicationStatus
@@ -299,13 +324,17 @@ export interface Application {
   contact?: Contact
   isStale: boolean
   generations?: GenerationRecord[]
+  // statusHistory is every Status the Application moved to, oldest first,
+  // its initial Saved included. Absent only on a record migrated while
+  // already past Saved, whose transitions were never recorded (ADR-0034).
+  statusHistory?: StatusChange[]
   // notes are the user's own log on this Application (issue #96), newest
   // first. Absent means no Notes.
   notes?: Note[]
   // version is the opaque token of the Application file alone (not its
   // Job Listing's) — what the Status/Method/Contact patches present
   // (issue #89).
-  version?: string
+  version: string
 }
 
 // Note is one timestamped Markdown observation on an Application (issue
@@ -376,6 +405,18 @@ export interface JobListingWithApplication {
   application: Application
 }
 
+// JobListingResponse is what the check-freshness, archive and unarchive
+// actions answer with: the updated Job Listing alone, since none of them
+// touches the Application.
+export interface JobListingResponse {
+  jobListing: JobListing
+}
+
+// ApplicationMailto is GET /api/applications/{id}/mailto's draft.
+export interface ApplicationMailto {
+  uri: string
+}
+
 // JobListingSummary is a Job Listing as GET /api/job-listings returns it
 // (issue #97): every field but the Job Description text, which only the
 // detail endpoint carries — a separate type rather than an optional field,
@@ -431,6 +472,10 @@ export interface TrackedBoard {
   label?: string
   newCount: number
 }
+
+// AddedTrackedBoard is what POST /api/ats/tracked-boards answers with: the
+// stored board, without the newCount only the list computes.
+export type AddedTrackedBoard = Omit<TrackedBoard, 'newCount'>
 
 export interface AddTrackedBoardRequest {
   provider: AtsProvider

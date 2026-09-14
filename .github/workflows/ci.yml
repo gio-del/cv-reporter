@@ -101,6 +101,9 @@ jobs:
         working-directory: frontend
         run: npm test
 
+      # tsc -b also type-asserts the backend's golden API response fixtures
+      # against src/api/types.ts (ADR-0035); the backend job's go test
+      # fails when those fixtures are stale.
       - name: Build
         working-directory: frontend
         run: npm run build

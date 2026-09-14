@@ -83,7 +83,8 @@ export default function AtsBrowsePage() {
         setTrackedBoards((prev) => prev.filter((b) => b.id !== currentTracked.id))
       } else {
         const board = await addTrackedBoard({ provider, slug, label: titleCase(slug) })
-        setTrackedBoards((prev) => [...prev.filter((b) => b.id !== board.id), board])
+        // A board tracked just now has seen nothing yet, so nothing is new.
+        setTrackedBoards((prev) => [...prev.filter((b) => b.id !== board.id), { ...board, newCount: 0 }])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

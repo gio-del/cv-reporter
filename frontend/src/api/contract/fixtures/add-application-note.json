@@ -1,0 +1,26 @@
+{
+  "id": "initech",
+  "isStale": false,
+  "jobListingId": "initech",
+  "method": {
+    "kind": "email",
+    "value": "jobs@example.com"
+  },
+  "notes": [
+    {
+      "body": "Recruiter replied.",
+      "createdAt": "2026-01-02T03:04:05Z",
+      "id": "note-1"
+    }
+  ],
+  "schemaVersion": 1,
+  "status": "saved",
+  "statusHistory": [
+    {
+      "changedAt": "2026-01-02T03:04:05Z",
+      "status": "saved"
+    }
+  ],
+  "statusUpdatedAt": "2026-01-02T03:04:05Z",
+  "version": "version-1"
+}

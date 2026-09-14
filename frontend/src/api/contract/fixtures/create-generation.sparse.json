@@ -1,0 +1,40 @@
+{
+  "language": "en",
+  "mode": "default",
+  "selection": {
+    "entries": [
+      {
+        "bullets": [
+          {
+            "rewritten": "Designed and built an AI Platform.",
+            "source": "Designed and built an AI Platform.",
+            "sourceIndex": 0
+          },
+          {
+            "rewritten": "Built the platform's front end in React.",
+            "source": "Built the platform's front end in React.",
+            "sourceIndex": 1
+          }
+        ],
+        "entryId": "experience/quantyca-amplifon",
+        "reason": "Default Mode: included in full."
+      },
+      {
+        "bullets": [
+          {
+            "rewritten": "Designed and implemented a system for managing charging stations.",
+            "source": "Designed and implemented a system for managing charging stations.",
+            "sourceIndex": 0
+          }
+        ],
+        "entryId": "projects/emall",
+        "reason": "Default Mode: included in full."
+      }
+    ]
+  },
+  "usage": {
+    "estimatedCostUsd": 0,
+    "inputTokens": 0,
+    "outputTokens": 0
+  }
+}

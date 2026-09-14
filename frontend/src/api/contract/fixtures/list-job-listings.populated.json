@@ -1,0 +1,174 @@
+[
+  {
+    "application": {
+      "id": "initech",
+      "isStale": false,
+      "jobListingId": "initech",
+      "method": {
+        "kind": "email",
+        "value": "jobs@example.com"
+      },
+      "schemaVersion": 1,
+      "status": "saved",
+      "statusHistory": [
+        {
+          "changedAt": "2026-01-02T03:04:05Z",
+          "status": "saved"
+        }
+      ],
+      "statusUpdatedAt": "2026-01-02T03:04:05Z",
+      "version": "version-1"
+    },
+    "jobListing": {
+      "archived": false,
+      "company": "Initech",
+      "freshnessStatus": "not-yet-checked",
+      "hasJobDescription": true,
+      "id": "initech",
+      "ral": {
+        "currency": "EUR",
+        "max": 55000,
+        "min": 45000,
+        "source": "stated"
+      },
+      "savedAt": "2026-01-02T03:04:05Z",
+      "schemaVersion": 1,
+      "source": "manual",
+      "version": "version-2"
+    }
+  },
+  {
+    "application": {
+      "contact": {
+        "email": "ada@example.com",
+        "name": "Ada Lovelace"
+      },
+      "generations": [
+        {
+          "coverLetterPath": "output/globex/cover-letter.pdf",
+          "createdAt": "2026-01-02T03:04:05Z",
+          "cvPath": "output/globex/cv.pdf",
+          "entryIds": [
+            "experience/quantyca-amplifon",
+            "projects/emall"
+          ],
+          "groundedness": {
+            "bullets": [
+              {
+                "entryId": "experience/quantyca-amplifon",
+                "flags": [
+                  {
+                    "reason": "numeric-mismatch",
+                    "sentence": "Served 4 million users."
+                  }
+                ],
+                "sourceIndex": 0
+              }
+            ],
+            "coverLetter": [
+              {
+                "reason": "no-source-match",
+                "sentence": "I led a team of 40."
+              }
+            ]
+          },
+          "language": "it",
+          "schemaVersion": 1,
+          "slug": "globex",
+          "sourceSnippetIds": [
+            "opening-ai-platforms"
+          ],
+          "staleEntries": [
+            "Quantyca S.p.A. – Data Engineer"
+          ],
+          "usage": {
+            "cacheReadTokens": 50,
+            "cacheWriteTokens": 60,
+            "calls": [
+              {
+                "cacheReadTokens": 50,
+                "cacheWriteTokens": 60,
+                "callType": "select-and-rewrite",
+                "estimatedCostUsd": 0.5,
+                "inputTokens": 1200,
+                "model": "claude-test",
+                "outputTokens": 340,
+                "webSearchUses": 1
+              }
+            ],
+            "estimatedCostUsd": 0.5,
+            "inputTokens": 1200,
+            "outputTokens": 340,
+            "webSearchUses": 1
+          }
+        }
+      ],
+      "id": "globex",
+      "isStale": false,
+      "jobListingId": "globex",
+      "method": {
+        "kind": "email",
+        "value": "jobs@example.com"
+      },
+      "notes": [
+        {
+          "body": "Recruiter called back.",
+          "createdAt": "2026-01-02T03:04:05Z",
+          "editedAt": "2026-01-02T03:04:05Z",
+          "id": "note-1"
+        },
+        {
+          "body": "Applied through the careers page.",
+          "createdAt": "2026-01-02T03:04:05Z",
+          "id": "note-2"
+        }
+      ],
+      "schemaVersion": 1,
+      "status": "sent",
+      "statusHistory": [
+        {
+          "changedAt": "2026-01-02T03:04:05Z",
+          "status": "saved"
+        },
+        {
+          "changedAt": "2026-01-02T03:04:05Z",
+          "status": "tailoring"
+        },
+        {
+          "changedAt": "2026-01-02T03:04:05Z",
+          "status": "sent"
+        }
+      ],
+      "statusUpdatedAt": "2026-01-02T03:04:05Z",
+      "version": "version-3"
+    },
+    "jobListing": {
+      "archived": false,
+      "company": "Globex",
+      "freshnessCheckedAt": "2026-01-02T03:04:05Z",
+      "freshnessStatus": "live",
+      "hasJobDescription": true,
+      "id": "globex",
+      "logo": "globex.png",
+      "ral": {
+        "descriptionStated": {
+          "currency": "EUR",
+          "max": 50000,
+          "min": 40000
+        },
+        "listingStated": {
+          "currency": "EUR",
+          "max": 80000,
+          "min": 70000
+        },
+        "source": "conflict"
+      },
+      "savedAt": "2026-01-02T03:04:05Z",
+      "schemaVersion": 1,
+      "source": "manual",
+      "title": "Senior Go Engineer",
+      "url": "https://jobs.example/globex/1",
+      "version": "version-4"
+    }
+  }
+]
