@@ -14,7 +14,7 @@ import (
 
 func TestGetProfile_ReturnsContactInfoAndStaticSections(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/profile")
@@ -56,7 +56,7 @@ func TestGetProfile_ReturnsContactInfoAndStaticSections(t *testing.T) {
 
 func TestUpdateProfile_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -116,7 +116,7 @@ func TestUpdateProfile_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 
 func TestUpdateProfile_MissingRequiredField_Returns400AndFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	original, err := os.ReadFile(filepath.Join(dataDir, "profile.yaml"))
@@ -152,7 +152,7 @@ func TestUpdateProfile_MissingRequiredField_Returns400AndFileUnchanged(t *testin
 
 func TestUpdateProfile_InvalidEmail_Returns400AndFileUnchanged(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	original, err := os.ReadFile(filepath.Join(dataDir, "profile.yaml"))

@@ -30,7 +30,7 @@ func postArchiveAction(t *testing.T, serverURL, id, action string) (int, map[str
 
 func TestArchiveJobListing_PersistsFlagAndReturnsUpdatedListing(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -59,7 +59,7 @@ func TestArchiveJobListing_PersistsFlagAndReturnsUpdatedListing(t *testing.T) {
 
 func TestArchiveJobListing_Twice_IsIdempotent(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -78,7 +78,7 @@ func TestArchiveJobListing_Twice_IsIdempotent(t *testing.T) {
 
 func TestUnarchiveJobListing_ClearsFlagAndOmitsKeyOnDisk(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -107,7 +107,7 @@ func TestUnarchiveJobListing_ClearsFlagAndOmitsKeyOnDisk(t *testing.T) {
 
 func TestUnarchiveJobListing_NeverArchived_IsIdempotent(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -119,7 +119,7 @@ func TestUnarchiveJobListing_NeverArchived_IsIdempotent(t *testing.T) {
 
 func TestArchiveAndUnarchiveJobListing_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	for _, action := range []string{"archive", "unarchive"} {
@@ -134,7 +134,7 @@ func TestArchiveAndUnarchiveJobListing_UnknownID_Returns404(t *testing.T) {
 
 func TestArchiveJobListing_LeavesApplicationUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -184,7 +184,7 @@ status: saved
 method:
     kind: other
 `)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	detail := getJobListingDetail(t, server.URL, "legacy-corp")

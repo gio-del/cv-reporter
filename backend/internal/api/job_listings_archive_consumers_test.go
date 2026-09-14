@@ -36,7 +36,7 @@ func getStatsBody(t *testing.T, serverURL string) map[string]any {
 // view (#36) must report identical figures before and after.
 func TestApplicationsStats_UnchangedByArchiving(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Saved Corp")
@@ -74,7 +74,7 @@ func TestApplicationsStats_UnchangedByArchiving(t *testing.T) {
 // re-saving a role already archived warns instead of silently duplicating.
 func TestCreateJobListing_DuplicateOfArchivedListing_StillWarns(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	first := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -115,7 +115,7 @@ func TestCreateJobListing_DuplicateOfArchivedListing_StillWarns(t *testing.T) {
 // is unchanged for an archived Job Listing.
 func TestDeleteJobListing_ArchivedListing_StillDeletes(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")

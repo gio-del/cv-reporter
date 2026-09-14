@@ -62,7 +62,7 @@ func seedActiveAndArchived(t *testing.T, serverURL string) (activeID, archivedID
 
 func TestListJobListings_Default_OmitsArchived(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 	seedActiveAndArchived(t, server.URL)
 
@@ -72,7 +72,7 @@ func TestListJobListings_Default_OmitsArchived(t *testing.T) {
 
 func TestListJobListings_ArchivedOnly_ReturnsOnlyArchived(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 	seedActiveAndArchived(t, server.URL)
 
@@ -81,7 +81,7 @@ func TestListJobListings_ArchivedOnly_ReturnsOnlyArchived(t *testing.T) {
 
 func TestListJobListings_ArchivedAll_ReturnsBoth(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 	seedActiveAndArchived(t, server.URL)
 
@@ -90,7 +90,7 @@ func TestListJobListings_ArchivedAll_ReturnsBoth(t *testing.T) {
 
 func TestListJobListings_InvalidArchivedValue_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings?archived=true")
@@ -105,7 +105,7 @@ func TestListJobListings_InvalidArchivedValue_Returns400(t *testing.T) {
 
 func TestListJobListings_RowsCarryArchivedFlag(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 	seedActiveAndArchived(t, server.URL)
 
@@ -129,7 +129,7 @@ func TestListJobListings_RowsCarryArchivedFlag(t *testing.T) {
 
 func TestListJobListings_UnarchiveReturnsListingToDefaultView(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 	_, archivedID := seedActiveAndArchived(t, server.URL)
 
@@ -158,7 +158,7 @@ status: saved
 method:
     kind: other
 `)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	assertCompanies(t, listCompanies(t, server.URL, ""), []string{"Legacy Corp"})
@@ -166,7 +166,7 @@ method:
 
 func TestListJobListings_ArchivedView_ComposesWithStatusFilter(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	savedArchived := saveJobListing(t, server.URL, "Saved Archived Corp")
@@ -186,7 +186,7 @@ func TestListJobListings_ArchivedView_ComposesWithStatusFilter(t *testing.T) {
 
 func TestListJobListings_ArchivedView_ComposesWithRALFilterAndSort(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	save := func(company, jd string) string {

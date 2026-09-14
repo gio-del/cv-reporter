@@ -22,7 +22,7 @@ func TestGetUsage_SumsGenerationAndStandaloneUsage(t *testing.T) {
 			{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -70,7 +70,7 @@ func TestGetUsage_SumsGenerationAndStandaloneUsage(t *testing.T) {
 
 func TestGetUsage_NothingRecordedYet_ReturnsZeroValue(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	got := getUsage(t, server.URL)
@@ -85,7 +85,7 @@ func TestGetUsage_CorruptUsageLog_ReportsIncomplete(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dataDir, "usage-log.json"), []byte("not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	assertUsageIncomplete(t, getUsage(t, server.URL))
@@ -144,7 +144,7 @@ func TestSaveJobListing_CorruptUsageLog_LeavesLogUntouched(t *testing.T) {
 	if err := os.WriteFile(logPath, corrupt, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, usageReportingClient()))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: usageReportingClient()}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -173,7 +173,7 @@ func TestGetUsage_LogHealthyAndRecordingAgain_ClearsIncompleteness(t *testing.T)
 		t.Fatal(err)
 	}
 	client := usageReportingClient()
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Acme Corp")
@@ -216,7 +216,7 @@ func TestSaveJobListing_UsageLogWriteFails_SaveStillSucceedsAndLogIsUntouched(t 
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(dataDir, 0o755) })
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, usageReportingClient()))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: usageReportingClient()}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{

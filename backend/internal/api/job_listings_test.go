@@ -27,7 +27,7 @@ func TestCreateJobListing_StatedRAL_WritesFilesAndCreatesSavedApplication(t *tes
 			return generation.RALRange{Source: generation.RALSourceNA}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -102,7 +102,7 @@ func TestCreateJobListing_StatedRAL_WritesFilesAndCreatesSavedApplication(t *tes
 
 func TestCreateJobListing_TitleCarriesThrough(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -129,7 +129,7 @@ func TestCreateJobListing_TitleCarriesThrough(t *testing.T) {
 
 func TestCreateJobListing_NoTitle_OmitsTitleField(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer."}
@@ -156,7 +156,7 @@ func TestCreateJobListing_InfersApplicationMethodFromJobDescription(t *testing.T
 			return tracking.ApplicationMethod{Kind: tracking.MethodEmail, Value: "jobs@acme.example"}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Email your CV to jobs@acme.example."}
@@ -191,7 +191,7 @@ func TestCreateJobListing_NoStatedRAL_CallsClientEstimateRAL(t *testing.T) {
 			return generation.RALRange{Min: &min, Max: &max, Currency: "EUR", Source: generation.RALSourceEstimated}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer, remote."}
@@ -228,7 +228,7 @@ func TestCreateJobListing_RALEstimationFails_StillSavesWithUnresolvedRAL(t *test
 			return tracking.ApplicationMethod{Kind: tracking.MethodOther}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer, remote."}
@@ -274,7 +274,7 @@ func TestCreateJobListing_MethodInferenceFails_StillSavesWithUnresolvedMethod(t 
 			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer. Salary: €50,000 - €60,000."}
@@ -320,7 +320,7 @@ func TestCreateJobListing_BothRALAndMethodFail_BothMarkedUnresolved(t *testing.T
 			return tracking.ApplicationMethod{}, errors.New("claude api unreachable")
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescription": "Go backend engineer, remote."}
@@ -355,7 +355,7 @@ func TestCreateJobListing_JobDescriptionURL_FetchesText(t *testing.T) {
 	defer jdServer.Close()
 
 	client := &fakeGenerationClient{}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp", "jobDescriptionUrl": jdServer.URL}
@@ -378,7 +378,7 @@ func TestCreateJobListing_JobDescriptionURL_FetchesText(t *testing.T) {
 
 func TestCreateJobListing_MissingCompany_Returns400AndNoFilesCreated(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"jobDescription": "Go backend engineer."}
@@ -393,7 +393,7 @@ func TestCreateJobListing_MissingCompany_Returns400AndNoFilesCreated(t *testing.
 
 func TestCreateJobListing_MissingJobDescription_Returns400AndNoFilesCreated(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{"company": "Acme Corp"}
@@ -423,7 +423,7 @@ func TestCreateJobListing_LogoURLPresent_DownloadsAndPersistsLogo(t *testing.T) 
 			Body:       io.NopCloser(bytes.NewReader(fixturePNG)),
 		}, nil
 	}}
-	server := httptest.NewServer(api.NewRouterWithClients(dataDir, &fakeGenerationClient{}, doer))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}, ATSHTTPDoer: doer}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -462,7 +462,7 @@ func TestCreateJobListing_LogoURLPresent_DownloadsAndPersistsLogo(t *testing.T) 
 // — no doer call, no logo field on the saved listing.
 func TestCreateJobListing_NoLogoURL_SavesWithoutLogo(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	payload := map[string]any{
@@ -489,7 +489,7 @@ func TestCreateJobListing_NoLogoURL_SavesWithoutLogo(t *testing.T) {
 func TestListJobListings_ReturnsEachWithItsApplicationNewestFirst(t *testing.T) {
 	dataDir := seedDataDir(t)
 	client := &fakeGenerationClient{}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -540,7 +540,7 @@ func TestListJobListings_ReturnsEachWithItsApplicationNewestFirst(t *testing.T) 
 
 func TestListJobListings_NoneSaved_ReturnsEmptyArray(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings")
@@ -585,7 +585,7 @@ func getJobListingDetail(t *testing.T, serverURL, id string) map[string]any {
 
 func TestGetJobListing_ReturnsSavedRecordWithItsApplication(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -620,7 +620,7 @@ func TestGetJobListing_ReturnsSavedRecordWithItsApplication(t *testing.T) {
 
 func TestGetJobListing_AfterContactAndGeneration_CarriesTheWholeApplication(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -676,7 +676,7 @@ func listJobListingsJSON(t *testing.T, serverURL string) []map[string]any {
 // does not grow by a full posting with every save.
 func TestListJobListings_OmitsTheJobDescriptionText(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveJobListing(t, server.URL, "Acme Corp")
@@ -693,7 +693,7 @@ func TestListJobListings_OmitsTheJobDescriptionText(t *testing.T) {
 
 func TestListJobListings_ReportsWhetherEachListingHasAJobDescription(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	withDescription := saveJobListing(t, server.URL, "Acme Corp")
@@ -730,7 +730,7 @@ func TestListJobListings_ReportsWhetherEachListingHasAJobDescription(t *testing.
 
 func TestListJobListings_SummaryKeepsEveryFieldTheListRenders(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{
@@ -767,7 +767,7 @@ func TestListJobListings_SummaryKeepsEveryFieldTheListRenders(t *testing.T) {
 // carries it verbatim.
 func TestGetJobListing_CarriesTheFullJobDescriptionVerbatim(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	description := "We are hiring.\n\n**Requirements**\n\n- Go\n- [Postgres](https://postgres.example)"
@@ -786,7 +786,7 @@ func TestGetJobListing_CarriesTheFullJobDescriptionVerbatim(t *testing.T) {
 // whether there is one.
 func TestGetJobListing_MatchesWhatTheListEndpointReturnsForTheSameRecord(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -807,7 +807,7 @@ func TestGetJobListing_MatchesWhatTheListEndpointReturnsForTheSameRecord(t *test
 
 func TestGetJobListing_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings/does-not-exist")
@@ -831,7 +831,7 @@ func TestSuggestContact_ResearchesAndDoesNotPersist(t *testing.T) {
 			return tracking.Contact{Name: "Jane Recruiter", Email: "jane@acme.example"}, nil
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -861,7 +861,7 @@ func TestSuggestContact_ResearchesAndDoesNotPersist(t *testing.T) {
 
 func TestSuggestContact_UnknownJobListing_Returns404(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings/does-not-exist/suggest-contact", nil)
@@ -879,7 +879,7 @@ func TestCreateJobListing_ClientRecordsUsage_LogsToStandaloneUsageLog(t *testing
 			{CallType: "ral_estimation", InputTokens: 10, OutputTokens: 5, EstimatedCostUSD: 0.001},
 		},
 	}
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, client))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: client}))
 	defer server.Close()
 
 	resp := postJSON(t, server.URL+"/api/job-listings", map[string]any{

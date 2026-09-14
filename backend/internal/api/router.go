@@ -8,61 +8,68 @@ import (
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
-// NewRouter builds the HTTP handler for the app's API. dataDir is the root
-// directory containing profile.yaml, experience/, and projects/ — the same
-// files the tailor-cv skill reads and writes. Generation calls the real
-// Claude API (ADR-0005), reading ANTHROPIC_API_KEY from the environment.
-// Render uses the current directory as its project root (see NewRouterFull
-// for tests/deployments needing a different one).
-func NewRouter(dataDir string) http.Handler {
-	return NewRouterFull(dataDir, ".", claude.New())
+// RouterConfig holds everything NewRouter needs to build the app's API
+// handler. Only DataDir is required; the zero value of every other field
+// selects the default documented on it, so a call site names the
+// dependencies it actually controls and stays silent about the rest.
+type RouterConfig struct {
+	// DataDir is the root directory containing profile.yaml, experience/,
+	// projects/ and cover-letter-snippets/ — the same Master Data files the
+	// tailor-cv skill reads and writes, alongside the tracked Job Listings
+	// and Applications. Required — it is the one field with no sensible
+	// default, so NewRouter panics on an empty DataDir rather than
+	// silently rooting the app at the process working directory and
+	// serving an empty Master Data set that would read as data loss.
+	DataDir string
+
+	// ProjectRoot is the directory holding template/, output/ and data/,
+	// which Render passes to typst as its single --root (ADR-0012).
+	// Empty means ".", the process working directory.
+	ProjectRoot string
+
+	// GenerationClient backs Generation, RAL estimation and the other
+	// Claude-API-facing routes (tracking.Client embeds generation.Client).
+	// Nil means a real claude.New() client, which calls the Claude API
+	// directly (ADR-0005) using ANTHROPIC_API_KEY from the environment.
+	// Tests inject a fake here.
+	GenerationClient tracking.Client
+
+	// ATSHTTPDoer performs the outbound calls to public ATS job boards
+	// (Greenhouse/Lever/Ashby) made by job-board aggregation and the
+	// freshness recheck (ADR-0007). Nil means http.DefaultClient. Tests
+	// that must not reach a live board inject a fake here.
+	ATSHTTPDoer atsboard.HTTPDoer
+
+	// LANAuthToken opts the handler into LAN-reachable mode's auth gate
+	// (issue #57, see lan_auth.go): once non-empty, every /api/* route
+	// requires it via the X-CV-Reporter-Token header. Empty — the default
+	// — leaves every route unwrapped with no check wired in at all,
+	// preserving ADR-0004's localhost-only, no-auth default exactly.
+	LANAuthToken string
 }
 
-// NewRouterWithGenerationClient builds the HTTP handler with an explicit
-// tracking.Client (which embeds generation.Client), so tests can inject a
-// fake instead of calling the real Claude API (see the PRD's Testing
-// Decisions).
-func NewRouterWithGenerationClient(dataDir string, generationClient tracking.Client) http.Handler {
-	return NewRouterFull(dataDir, ".", generationClient)
-}
+// NewRouter builds the HTTP handler for the app's API from cfg. See
+// RouterConfig for what each field controls and what its zero value
+// defaults to.
+func NewRouter(cfg RouterConfig) http.Handler {
+	dataDir := cfg.DataDir
+	if dataDir == "" {
+		panic("api.NewRouter: RouterConfig.DataDir is required")
+	}
+	projectRoot := cfg.ProjectRoot
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+	generationClient := cfg.GenerationClient
+	if generationClient == nil {
+		generationClient = claude.New()
+	}
+	atsHTTPDoer := cfg.ATSHTTPDoer
+	if atsHTTPDoer == nil {
+		atsHTTPDoer = http.DefaultClient
+	}
+	lanAuthToken := cfg.LANAuthToken
 
-// NewRouterWithClients builds the HTTP handler with both an explicit
-// tracking.Client and an explicit atsboard.HTTPDoer, so tests can fake the
-// outbound calls to ATS public job board APIs alongside the Claude API
-// (see the ATS Job Board Aggregation PRD's Testing Decisions).
-func NewRouterWithClients(dataDir string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
-	return NewRouterFullWithATS(dataDir, ".", generationClient, atsHTTPDoer)
-}
-
-// NewRouterFull builds the HTTP handler with an explicit projectRoot: the
-// directory containing template/ and output/ that Render's typst
-// invocation needs as its --root (see CLAUDE.md and ADR-0012). ATS calls
-// use http.DefaultClient — see NewRouterWithClients for tests needing a
-// fake.
-func NewRouterFull(dataDir, projectRoot string, generationClient tracking.Client) http.Handler {
-	return NewRouterFullWithATS(dataDir, projectRoot, generationClient, http.DefaultClient)
-}
-
-// NewRouterFullWithATS is NewRouterFull plus an explicit atsboard.HTTPDoer.
-func NewRouterFullWithATS(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer) http.Handler {
-	return NewRouterFullWithATSAndAuth(dataDir, projectRoot, generationClient, atsHTTPDoer, "")
-}
-
-// NewRouterWithAuth builds the HTTP handler for the app's API, matching
-// NewRouter, but with LAN-reachable mode's auth gate applied when
-// lanAuthToken is non-empty (see issue #57 and lan_auth.go). An empty
-// lanAuthToken behaves exactly like NewRouter — no check is wired in at
-// all — so default (localhost-only) mode is unaffected.
-func NewRouterWithAuth(dataDir, lanAuthToken string) http.Handler {
-	return NewRouterFullWithATSAndAuth(dataDir, ".", claude.New(), http.DefaultClient, lanAuthToken)
-}
-
-// NewRouterFullWithATSAndAuth is NewRouterFullWithATS plus an explicit LAN
-// auth token. Every /api/* route requires the token (via the
-// X-CV-Reporter-Token header) once lanAuthToken is non-empty; an empty
-// lanAuthToken (the default) leaves every route unwrapped, matching
-// today's no-auth behavior exactly.
-func NewRouterFullWithATSAndAuth(dataDir, projectRoot string, generationClient tracking.Client, atsHTTPDoer atsboard.HTTPDoer, lanAuthToken string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthHandler)
 	mux.HandleFunc("GET /api/export", exportDataHandler(dataDir))

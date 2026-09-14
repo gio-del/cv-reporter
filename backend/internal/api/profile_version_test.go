@@ -31,7 +31,7 @@ github: testuser
 
 func TestGetProfile_ReturnsNonEmptyVersionToken(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	getVersion(t, server.URL+"/api/master-data/profile")
@@ -39,7 +39,7 @@ func TestGetProfile_ReturnsNonEmptyVersionToken(t *testing.T) {
 
 func TestUpdateProfile_WithCurrentVersion_Succeeds(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/profile"
@@ -57,7 +57,7 @@ func TestUpdateProfile_WithCurrentVersion_Succeeds(t *testing.T) {
 
 func TestUpdateProfile_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/profile"
@@ -78,7 +78,7 @@ func TestUpdateProfile_WithStaleVersion_Returns409AndLeavesFileUntouched(t *test
 
 func TestUpdateProfile_WithNoVersion_IsUnconditional(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	writeOutOfBand(t, filepath.Join(dataDir, "profile.yaml"), profileOutOfBand)
@@ -92,7 +92,7 @@ func TestUpdateProfile_WithNoVersion_IsUnconditional(t *testing.T) {
 
 func TestUpdateProfile_VersionIsNeverPersistedToTheFile(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/profile"

@@ -38,7 +38,7 @@ discuss how my background fits this role.
 
 func TestListSnippets_ReturnsSnippetsSeededOnDisk(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/cover-letter-snippets")
@@ -80,7 +80,7 @@ func TestListSnippets_ReturnsSnippetsSeededOnDisk(t *testing.T) {
 
 func TestListSnippets_IncludesLastUsedAtFromRecordedGenerations(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
@@ -124,7 +124,7 @@ func TestListSnippets_IncludesLastUsedAtFromRecordedGenerations(t *testing.T) {
 
 func TestGetSnippet_ReturnsFrontmatterAndBody(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/cover-letter-snippets/closing-standard")
@@ -159,7 +159,7 @@ func TestGetSnippet_ReturnsFrontmatterAndBody(t *testing.T) {
 
 func TestGetSnippet_UnknownID_Returns404(t *testing.T) {
 	dataDir := seedSnippetsDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/master-data/cover-letter-snippets/does-not-exist")

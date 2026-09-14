@@ -30,7 +30,7 @@ func saveListing(t *testing.T, serverURL, company, jobDescription string) string
 
 func TestListJobListings_FilterByCompany_ReturnsOnlyMatching(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	saveListing(t, server.URL, "Acme Corp", "Go backend role.")
@@ -56,7 +56,7 @@ func TestListJobListings_FilterByCompany_ReturnsOnlyMatching(t *testing.T) {
 
 func TestListJobListings_NoFilters_ReturnsEverything(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	saveListing(t, server.URL, "Acme Corp", "Go backend role.")
@@ -79,7 +79,7 @@ func TestListJobListings_NoFilters_ReturnsEverything(t *testing.T) {
 
 func TestListJobListings_InvalidStatus_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings?status=not-a-real-status")
@@ -97,7 +97,7 @@ func TestListJobListings_InvalidStatus_Returns400(t *testing.T) {
 // Withdrawn Status (#50) the status filter had been rejecting with a 400.
 func TestListJobListings_FilterByWithdrawnStatus_ReturnsOnlyWithdrawn(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
 	saveListing(t, server.URL, "Acme Corp", "Go backend role.")
@@ -113,7 +113,7 @@ func TestListJobListings_FilterByWithdrawnStatus_ReturnsOnlyWithdrawn(t *testing
 
 func TestListJobListings_InvalidDate_Returns400(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + "/api/job-listings?savedFrom=not-a-date")
@@ -129,7 +129,7 @@ func TestListJobListings_InvalidDate_Returns400(t *testing.T) {
 
 func TestListJobListings_FilterByStatus_ReturnsOnlyMatching(t *testing.T) {
 	dataDir := seedDataDir(t)
-	server := httptest.NewServer(api.NewRouter(dataDir))
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
 	saveListing(t, server.URL, "Acme Corp", "Go backend role.")
