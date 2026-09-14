@@ -76,7 +76,7 @@ func aggregateUsage(calls []CallUsage) GenerationUsage {
 // UsageRecorder, or a recorder that panics, yields no usage rather than an
 // error.
 func DrainUsage(usageSource any) (calls []CallUsage) {
-	defer func() { recover() }()
+	defer func() { recover() }() //nolint:errcheck // deliberate: see the doc comment — a panicking recorder must yield no usage, not propagate
 	recorder, ok := usageSource.(UsageRecorder)
 	if !ok {
 		return nil

@@ -70,7 +70,7 @@ func Check(ctx context.Context, doer HTTPDoer, targetURL string) Status {
 		// confirm the posting itself is gone.
 		return StatusUnknown
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // idiomatic response-body drain: the read is already done and there's nothing to do about a close failure
 
 	return classify(targetURL, resp)
 }
