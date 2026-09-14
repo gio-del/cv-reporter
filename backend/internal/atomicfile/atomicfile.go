@@ -53,8 +53,8 @@ func WriteFile(name string, data []byte, perm os.FileMode) error {
 
 	// Any exit before the successful rename leaves nothing behind.
 	cleanup := func(err error) error {
-		f.Close()
-		os.Remove(tmp)
+		f.Close()      //nolint:errcheck // best-effort cleanup on a write that already failed; err is what the caller needs
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup; a stranded temp file is harmless by its name (see tempPattern)
 		return err
 	}
 
@@ -74,12 +74,12 @@ func WriteFile(name string, data []byte, perm os.FileMode) error {
 		return cleanup(err)
 	}
 	if err := f.Close(); err != nil {
-		os.Remove(tmp)
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup; a stranded temp file is harmless by its name (see tempPattern)
 		return err
 	}
 
 	if err := os.Rename(tmp, name); err != nil {
-		os.Remove(tmp)
+		os.Remove(tmp) //nolint:errcheck // best-effort cleanup; a stranded temp file is harmless by its name (see tempPattern)
 		return err
 	}
 	return nil

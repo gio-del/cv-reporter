@@ -37,7 +37,7 @@ func FetchAshbyListings(ctx context.Context, doer HTTPDoer, boardSlug string) ([
 	if err != nil {
 		return nil, fmt.Errorf("fetching Ashby board %q: %w", boardSlug, err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // idiomatic response-body drain: the read is already done and there's nothing to do about a close failure
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("Ashby board %q: %w", boardSlug, ErrBoardNotFound)
