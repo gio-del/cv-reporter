@@ -101,11 +101,11 @@ The Tailoring step that adjusts an Entry's bullet phrasing to better match a Job
 _Avoid_: rephrasing, editing
 
 **Default Mode**:
-A Generation run without a Job Description. Selection falls back to the most recent/representative Entries; Rewrite is skipped since there is no Job Description to tailor phrasing toward.
+A Generation run without a Job Description. Selection falls back to the most recent/representative Entries; Rewrite is skipped since there is no Job Description to tailor phrasing toward, and no Cover Letter is produced, since there is nothing to ground one in.
 _Avoid_: generic CV, general CV (that's the output; this is the mode that produces it)
 
 **Text Review**:
-The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render. Alongside it, an automated groundedness check scores every rewritten bullet against its source bullet and flags likely-invented content — the same check whether the Generation came from the web app or the `tailor-cv` skill (ADR-0028). A signal shown here, not a second checkpoint; the human decision stays Text Review's alone.
+The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render — and the Cover Letter prose, when there is one, which can be corrected or rejected on its own without discarding the approved CV content. Alongside it, an automated groundedness check scores every rewritten bullet against its source bullet and flags likely-invented content — the same check whether the Generation came from the web app or the `tailor-cv` skill (ADR-0028). A signal shown here, not a second checkpoint; the human decision stays Text Review's alone.
 _Avoid_: draft review
 
 **Render**:
