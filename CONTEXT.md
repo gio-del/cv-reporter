@@ -105,7 +105,7 @@ A Generation run without a Job Description. Selection falls back to the most rec
 _Avoid_: generic CV, general CV (that's the output; this is the mode that produces it)
 
 **Text Review**:
-The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render.
+The first Human-in-the-Loop checkpoint: the user approves or corrects the Tailoring output (Selection + Rewrite) as text, before Render. Alongside it, an automated groundedness check scores every rewritten bullet against its source bullet and flags likely-invented content — the same check whether the Generation came from the web app or the `tailor-cv` skill (ADR-0028). A signal shown here, not a second checkpoint; the human decision stays Text Review's alone.
 _Avoid_: draft review
 
 **Render**:
@@ -113,7 +113,7 @@ The Typst compilation step that turns approved Tailoring output into a PDF.
 _Avoid_: compile, build
 
 **Visual Review**:
-The second Human-in-the-Loop checkpoint: the user checks the rendered PDF for layout issues (overflow, bad page breaks) after Text Review is approved. Alongside it, Render also attaches an automated ATS-parsability check (extracted PDF text vs. the rendered source data) as a non-blocking warning badge — a second signal shown here, not a third checkpoint; the human decision stays Visual Review's alone.
+The second Human-in-the-Loop checkpoint: the user checks the rendered PDF for layout issues (overflow, bad page breaks) after Text Review is approved. Alongside it, an automated ATS-parsability check (extracted PDF text vs. the rendered source data) and page count are shown as non-blocking warnings — attached by Render in the web app, run by the `tailor-cv` skill right after its compile, the same check either way (ADR-0028). A second signal shown here, not a third checkpoint; the human decision stays Visual Review's alone.
 _Avoid_: final check, PDF review
 
 **Tailored CV**:

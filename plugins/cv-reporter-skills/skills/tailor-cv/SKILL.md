@@ -74,14 +74,15 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 3. Run the Pipeline below in full (Load Master Data → Selection → Rewrite → Text Review → Assemble → Render → Visual Review) — nothing about it changes for this mode. Come back here once Visual Review is approved.
 
-4. **Record the Generation.** POST the rendered result to the same endpoint the web app's own Generate button uses, so it appears in the Application's history there (`<id>` is the id from step 1):
+4. **Record the Generation.** POST the rendered result to the same endpoint the web app's own Generate button uses, so it appears in the Application's history there (`<id>` is the id from step 1, `<lang>` the target language written into `data.json`). The groundedness result is attached the same way the app attaches it, by re-running the check over the approved `selection.json` in JSON mode, in the same command:
    ```
+   groundedness="$(./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json --json)"
    curl -sf -X POST http://127.0.0.1:8080/api/applications/<id>/generations \
      -H 'Content-Type: application/json' \
-     -d '{"slug": "<slug>", "cvPath": "output/<slug>/cv.pdf"}'
+     -d "{\"slug\": \"<slug>\", \"cvPath\": \"output/<slug>/cv.pdf\", \"language\": \"<lang>\", \"groundedness\": ${groundedness:-null}}"
    ```
    Use the full timestamped `<slug>` from step 5 (the directory actually written), not the bare label.
-   Omit `coverLetterPath` — this skill doesn't draft Cover Letters. A connection error or non-2xx response means the Generation was **not** recorded — stop and tell the user; don't report the run as complete.
+   The check's `--json` output is exactly the `groundedness` shape the endpoint accepts (`{}` when nothing was flagged), so the Generation displays in the web app like an app-produced one. If the check couldn't run it prints nothing and `null` is sent — never an invented result. Omit `coverLetterPath` — this skill doesn't draft Cover Letters. Omit `usage` too, deliberately: it records the backend's own Claude API calls, and a skill run makes none, so there's no honest figure to send. A connection error or non-2xx response means the Generation was **not** recorded — stop and tell the user; don't report the run as complete.
 
 5. **Offer the Status move.** If `application.status` (from step 1) was `"saved"`, ask the user whether to move it to `"tailoring"`. If they say yes:
    ```
@@ -99,9 +100,38 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 3. **Rewrite.** Adjust bullet phrasing to better match the Job Description's language and emphasis. Do not introduce facts, tools, or claims that aren't present in the source Entry — Rewrite may reword, not invent.
 
-4. **Text Review (HITL, required).** Present the Selection + Rewrite result to the user as text — what was kept, dropped, reordered, and reworded (a diff against the source bullets is more useful than just the final text). Wait for approval or corrections before rendering. Do not proceed to Render until the user explicitly approves.
+   **Target language.** Detect the language the Job Description is written in, as an ISO 639-1 code (`it`, `en`, `fr`, …), and write the rewritten bullets in it. The tool supports `en` and `it`; any other language falls back to `en` — the same rule the web app applies (`generation.NormalizeLanguage`), and the groundedness check in step 4 prints the resolved code, which is authoritative. An unsupported language never stops the run. In Default Mode there's no Job Description, so the target language is `en` without asking.
 
-5. **Assemble the data file.** Merge the approved tailored content with the static parts of `data/profile.yaml` into a single JSON object matching the shape `template/cv.typ` expects (see the comment at the top of that file): `name`, `location`, `email`, `phone`, `linkedin`, `github`, `education`, `experience` (grouped-by-employer array, each item has `employer`, `role`, `client`, `location`, `start`, `end`, `bullets`), `projects`, `tech_stack` (derived — collect the `tags` of every selected Entry, deduplicated), `publications`, `awards`, `activities`, `languages`. Write it to `output/<slug>/data.json`, where `<slug>` is this Generation's own, brand-new directory name — the same scheme the web app's Render uses, so a skill run and an app run can never overwrite each other's files (issue #105):
+4. **Text Review (HITL, required).** Before presenting anything, persist the Selection + Rewrite result and run the groundedness check over it — the same check the web app runs over its own Rewrite output, via the same Go code (ADR-0028):
+
+   1. **Write the Selection + Rewrite artifact** to `output/<slug>/selection.json` (choose `<slug>` now, following step 5's naming rule, and reuse it there). It's the `SelectionResult` shape the backend uses:
+      ```json
+      {
+        "language": "it",
+        "entries": [
+          {
+            "entryId": "experience/example-client-a",
+            "reason": "Why Selection kept this Entry",
+            "bullets": [
+              { "sourceIndex": 0, "source": "<the Master Data bullet, copied verbatim>", "rewritten": "<the rewritten bullet>" }
+            ]
+          }
+        ]
+      }
+      ```
+      `entryId` is `experience/<file name>` or `projects/<file name>` without `.md`; `sourceIndex` is the bullet's 0-based position in that Entry file's bullet list; `source` must be the Master Data bullet character-for-character (the check refuses an artifact whose source text doesn't match, since scoring a rewrite against an edited source proves nothing); entries and bullets go in render order; `language` is the code detected in step 3. Write it in Default Mode too (with `rewritten` equal to `source` and `language` `"en"`) — it's this Generation's durable record of what was selected, so a groundedness verdict can be re-derived later instead of living only in this conversation.
+
+   2. **Run the groundedness check** (skip it in Default Mode — Rewrite is skipped there, so there's nothing to check — and don't mention it):
+      ```
+      ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json
+      ```
+      It's offline and needs no running backend (it builds `backend/cmd/cvcheck` from this checkout with Go). Exit `0`: every rewritten bullet traced back to its source — say so in one line. Exit `1`: some bullets were flagged — stdout lists each as `<entryId> bullet <sourceIndex> [<reason>: …]` plus the flagged sentence. Exit `2`: the check couldn't run; stderr says why. If the reason is the artifact itself (malformed JSON, an unknown field, a `source` that isn't verbatim), fix `selection.json` and re-run; if it's the tooling (no Go / no `cvcheck`, build failure), tell the user the groundedness check was unavailable and carry on. None of these exit codes stops the pipeline.
+
+   Then present the Selection + Rewrite result to the user as text — what was kept, dropped, reordered, and reworded (a diff against the source bullets is more useful than just the final text). Fold the groundedness flags into that diff, next to the bullets they belong to, with the reason spelled out: `numeric-mismatch` means the rewrite states a number or date its source bullet doesn't (the fabricated-specific case — look hardest at these); `no-source-match` means the rewrite shares too little with its source to plausibly trace back to it (often a heavy paraphrase the user may be fine with — and expect more of these when rewriting into a language other than the Master Data's, exactly as in the app). Flags are signals for this checkpoint, not a second checkpoint: the user can approve a flagged bullet as-is. Also state the target language (the check's `Target language:` line) and that it can be corrected here; a correction replaces `language` in `selection.json` and means rewriting the bullets in the corrected language.
+
+   If the user's corrections change any bullet or the language, update `selection.json` to match and re-run the check before rendering, so the artifact and its flags reflect what was actually approved. Wait for approval or corrections before rendering. Do not proceed to Render until the user explicitly approves.
+
+5. **Assemble the data file.** Merge the approved tailored content with the static parts of `data/profile.yaml` into a single JSON object matching the shape `template/cv.typ` expects (see the comment at the top of that file): `name`, `lang` (the target language approved at Text Review — the resolved `en`/`it` code, `en` in Default Mode; the template sets the document language from it), `location`, `email`, `phone`, `linkedin`, `github`, `education`, `experience` (grouped-by-employer array, each item has `employer`, `role`, `client`, `location`, `start`, `end`, `bullets`), `projects`, `tech_stack` (derived — collect the `tags` of every selected Entry, deduplicated), `publications`, `awards`, `activities`, `languages`. Write it to `output/<slug>/data.json`, where `<slug>` is this Generation's own, brand-new directory name — the same scheme the web app's Render uses, so a skill run and an app run can never overwrite each other's files (issue #105):
    - Start from a short kebab-case **label** (e.g. the company applied to, or `default`). The label alone is never the directory name.
    - Append the current UTC time as `-yyyymmdd-hhmmss`: `<slug>` = `<label>-<yyyymmdd-hhmmss>`, e.g. `acme-corp-20260911-143022` (`date -u +%Y%m%d-%H%M%S`).
    - Never write into a directory that already exists. If `output/<slug>/` exists, append `-2`, then `-3`, … until the name is free (e.g. `acme-corp-20260911-143022-2`), and create it with a plain `mkdir` (not `mkdir -p`, which silently succeeds on an existing directory).
@@ -111,15 +141,22 @@ Once an Application is matched (step 1 above), any of the four actions below can
    ```
    ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh
    ```
-   It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. Then render:
+   It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. (The rendered PDF gets its own mechanical check at the start of Visual Review, step 7.) Then render:
    ```
    typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
    ```
 
-7. **Visual Review (HITL, required).** Tell the user the PDF is ready at `output/<slug>/cv.pdf` and ask them to check it — page count (must be one page), overflow, awkward breaks. If they report an issue, fix the data or trim Selection and re-render; don't guess silently. If this run is targeting a tracked Application, once approved here go back to "Targeting a tracked Application" step 4 to record it.
+7. **Visual Review (HITL, required).** First run the PDF check over the rendered file — the same page-count and ATS-parsability checks the web app's Render attaches to its own Visual Review, via the same Go code (ADR-0028), plus a check that `data.json` carries a supported `lang`:
+   ```
+   ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json
+   ```
+   It prints three lines of signal. `Page count:` — anything but 1 is overflow to fix. `ATS-parsability:` — `ok`; `warning`, followed by which expected fields (name, section headers, employers, project names) were missing from the PDF's extracted text layer or came out in the wrong order, i.e. what an automated screener may not see; or `unavailable` (e.g. `pdftotext` isn't installed), which is a tooling gap and must be reported as "the check couldn't run", never as the PDF being unparsable. `Language:` — the resolved code, with a warning if `data.json`'s `lang` is missing or unsupported (fix `data.json` and re-render). Exit `0` = all clear, `1` = something flagged, `2` = couldn't run (a stderr note, or parsability unavailable with nothing else flagged) — none of them stops the pipeline.
+
+   Then tell the user the PDF is ready at `output/<slug>/cv.pdf`, show those results as signals alongside it, and ask them to check it — overflow, awkward breaks, and anything the check flagged. The check doesn't add a checkpoint: the user's decision is still the gate, and they can approve despite a warning. If you re-render after a fix, re-run the check before asking again. If they report an issue, fix the data or trim Selection and re-render; don't guess silently. If this run is targeting a tracked Application, once approved here go back to "Targeting a tracked Application" step 4 to record it.
 
 ## Notes
 
 - `output/` is gitignored — it's derived, not Master Data. Never edit it as if it were a source of truth.
+- `scripts/quality-check.sh` wraps the backend's `cvcheck` CLI (`backend/cmd/cvcheck`) so this skill runs the web app's automated checks through the app's own Go code rather than a prose re-description of them (ADR-0028). Every check is advisory: exit `0` = ran clean, `1` = ran and flagged something, `2` = couldn't run — and none of them is a reason to stop the pipeline.
 - To add new Master Data (a new job, a new project), create a new file under `data/experience/` or `data/projects/` following the frontmatter shape of the existing files — this is normal manual editing, not something this skill automates.
 - This skill never drafts Cover Letters, edits Master Data, or captures new Job Listings — those stay website/extension-only (see the FE's own Generate button, ADR-0005).

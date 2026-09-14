@@ -26,7 +26,7 @@ See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagemen
 
 ## Two parts
 
-**1. The tailoring pipeline** — a Claude Code skill (`plugins/cv-reporter-skills/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required). Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
+**1. The tailoring pipeline** — a Claude Code skill (`plugins/cv-reporter-skills/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite → Text Review (approval required) → Render → Visual Review (approval required), running the same automated quality checks the web app runs along the way (see below). Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
@@ -37,9 +37,9 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
 - `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/...) + Markdown bullets.
 - `template/cv.typ` — pure presentation. Reads one assembled JSON file and renders it; contains no selection/relevance logic.
-- `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data. Each Generation gets its own `output/<label>-<UTC yyyymmdd-hhmmss>/` directory (with a `-2`, `-3`, … suffix if that name is already taken), so a later Generation never overwrites an earlier one's files; both the web app and the skill follow this scheme. Clearing `output/` is safe — Application/Generation records survive, and the app shows a "no longer on disk" note for their files.
+- `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data. Each Generation gets its own `output/<label>-<UTC yyyymmdd-hhmmss>/` directory (with a `-2`, `-3`, … suffix if that name is already taken), so a later Generation never overwrites an earlier one's files; both the web app and the skill follow this scheme. Clearing `output/` is safe — Application/Generation records survive, and the app shows a "no longer on disk" note for their files. The skill also writes its Selection + Rewrite result into that directory as `selection.json`, so a groundedness verdict can be re-derived later.
 - `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
-- `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`).
+- `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`). `backend/cmd/cvcheck` is a small offline CLI over the same Generation quality checks, which the `tailor-cv` skill shells out to (ADR-0028).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
 - `extension/` — browser extension that captures the LinkedIn or Indeed job posting you're viewing into the app as a Job Listing (see [`extension/README.md`](extension/README.md)).
 - `brand/` — logo (full lockup + icon-only mark) and color palette; the shared identity the web app's UI is meant to match.
@@ -59,6 +59,20 @@ claude plugin install cv-reporter-skills@cv-reporter-local
 ```
 typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
 ```
+
+The skill runs the web app's automated quality checks through the app's own Go code, via `plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh` (a wrapper that builds and runs `backend/cmd/cvcheck`; needs Go on `PATH`, no running backend — ADR-0028). Before Text Review it writes the Selection + Rewrite result to `output/<slug>/selection.json` and checks every rewritten bullet's groundedness against its source bullet:
+
+```
+./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json [--json]
+```
+
+and, before Visual Review, checks the rendered PDF's page count, ATS-parsability (its text layer via `pdftotext`, which must be on `PATH` for that part — otherwise it reports itself unavailable) and the assembled data's `lang`:
+
+```
+./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json [--json]
+```
+
+Checks are advisory — exit `0` clean, `1` flagged, `2` couldn't run — and never stop the pipeline.
 
 Adding a new job or project means adding a new Markdown file under `data/experience/` or `data/projects/` following the existing frontmatter shape — not writing code.
 
