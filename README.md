@@ -128,7 +128,9 @@ Backend tests are Go `testing`-package HTTP integration tests, run with `go test
 
 ### Frontend dev loop
 
-From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`.
+From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`, `npm test` (`npm run test:watch` while working).
+
+Frontend tests are Vitest + Testing Library, rendering the real page inside a real router and faking only HTTP with Mock Service Worker — the API client, its query-string building and its error handling all run for real, and an unhandled request fails the test. They need no backend, no `ANTHROPIC_API_KEY` and no `typst`. See [`docs/adr/0019-frontend-tests-fake-only-the-network.md`](docs/adr/0019-frontend-tests-fake-only-the-network.md) for why that seam, and `frontend/src/pages/GenerationPage.test.tsx` for the example to copy when adding more.
 
 ## Further reading
 
