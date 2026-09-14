@@ -18,8 +18,26 @@ export interface RecordedRequest {
 
 const pending: Promise<RecordedRequest>[] = []
 
+// VersionHeaders are the conditional-write headers a request carried (issue
+// #89), recorded apart from RecordedRequest so the many assertions on
+// method/path/body keep their exact shape. Absent headers are undefined.
+export interface VersionHeaders {
+  method: string
+  path: string
+  ifMatch?: string
+  applicationIfMatch?: string
+}
+
+const headersLog: VersionHeaders[] = []
+
 server.events.on('request:start', ({ request }) => {
   const clone = request.clone()
+  headersLog.push({
+    method: request.method,
+    path: new URL(request.url).pathname,
+    ifMatch: request.headers.get('If-Match') ?? undefined,
+    applicationIfMatch: request.headers.get('Application-If-Match') ?? undefined,
+  })
   pending.push(
     (async () => {
       const url = new URL(request.url)
@@ -47,6 +65,15 @@ export async function requestsTo(path: string): Promise<RecordedRequest[]> {
   return (await recordedRequests()).filter((r) => r.path === path)
 }
 
+/**
+ * versionHeadersTo is the If-Match / Application-If-Match each request to
+ * path carried, in order — what a page presented as the version it read.
+ */
+export function versionHeadersTo(path: string): VersionHeaders[] {
+  return headersLog.filter((r) => r.path === path)
+}
+
 export function resetRecordedRequests(): void {
   pending.length = 0
+  headersLog.length = 0
 }

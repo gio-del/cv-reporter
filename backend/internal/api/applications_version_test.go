@@ -199,15 +199,68 @@ func TestRecordGeneration_StaysUnconditionalAfterAnOutOfBandChange(t *testing.T)
 	}
 }
 
-func TestGetJobListing_ReturnsTheJobListingToken(t *testing.T) {
+// GET /api/job-listings/{id} answers with the {jobListing, application}
+// pair since the Job Listing detail page landed (issue #94), and that page
+// runs every Application action and the delete from it — so the pair
+// carries both tokens, the same ones the list rows do.
+func TestGetJobListing_ReturnsTheJobListingAndApplicationTokens(t *testing.T) {
 	dataDir := seedDataDir(t)
 	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
 	defer server.Close()
 
 	id := saveJobListing(t, server.URL, "Acme Corp")
-	fromList, _ := listingVersions(t, server.URL, id)
+	listJobListing, listApplication := listingVersions(t, server.URL, id)
 
-	if got := getVersion(t, server.URL+"/api/job-listings/"+id); got != fromList {
-		t.Errorf("expected the detail read to carry the same Job Listing token as the list, got %q want %q", got, fromList)
+	resp, err := http.Get(server.URL + "/api/job-listings/" + id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	jobListing, application := pairVersions(t, resp)
+	if jobListing == "" || application == "" {
+		t.Fatalf("expected both tokens on the detail pair, got (%q, %q)", jobListing, application)
+	}
+	if jobListing != listJobListing || application != listApplication {
+		t.Errorf("expected the detail read to carry the same tokens as the list, got (%q, %q) want (%q, %q)", jobListing, application, listJobListing, listApplication)
+	}
+}
+
+// The detail pair's tokens are usable as-is: the Application's for a Status
+// patch, then both for the delete, the detail page's exact sequence.
+func TestGetJobListing_PairTokensGuardTheDetailPageWrites(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouterWithGenerationClient(dataDir, &fakeGenerationClient{}))
+	defer server.Close()
+
+	id := saveJobListing(t, server.URL, "Acme Corp")
+
+	resp, err := http.Get(server.URL + "/api/job-listings/" + id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobListing, application := pairVersions(t, resp)
+	resp.Body.Close()
+
+	patch := doJSON(t, http.MethodPatch, server.URL+"/api/applications/"+id+"/status", map[string]any{"status": "tailoring"}, application)
+	defer patch.Body.Close()
+	if patch.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", patch.StatusCode)
+	}
+	freshApplication := decodeVersion(t, patch)
+
+	// The page swaps in the patch response, so the stale Application token
+	// it read first must no longer delete, and the fresh one must.
+	stale := deleteJobListing(t, server.URL, id, jobListing, application)
+	stale.Body.Close()
+	if stale.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 for the pre-patch Application token, got %d", stale.StatusCode)
+	}
+	fresh := deleteJobListing(t, server.URL, id, jobListing, freshApplication)
+	fresh.Body.Close()
+	if fresh.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204 with the fresh tokens, got %d", fresh.StatusCode)
 	}
 }
