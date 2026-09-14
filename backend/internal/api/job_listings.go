@@ -222,6 +222,7 @@ func listJobListingsHandler(dataDir, projectRoot string) http.HandlerFunc {
 // several kilobytes per posting. GET /api/job-listings/{id} stays the one
 // place the Job Description text comes from.
 type jobListingSummary struct {
+	SchemaVersion      int                      `json:"schemaVersion"`
 	ID                 string                   `json:"id"`
 	Title              string                   `json:"title,omitempty"`
 	Company            string                   `json:"company"`
@@ -250,6 +251,7 @@ func summarizeListing(l tracking.ListingWithApplication) jobListingSummaryWithAp
 	listing := l.JobListing
 	return jobListingSummaryWithApplication{
 		JobListing: jobListingSummary{
+			SchemaVersion:      listing.SchemaVersion,
 			ID:                 listing.ID,
 			Title:              listing.Title,
 			Company:            listing.Company,

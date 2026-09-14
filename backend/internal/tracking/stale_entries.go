@@ -11,9 +11,9 @@ import "time"
 // dependency on how lookupFn resolves an Entry's last-modified time (see
 // masterdata.EntryLastModified, issue #40) — only that it reports ok=false
 // when it can't find one, which this function treats as "not checkable",
-// never as stale. entryIDs being empty (a GenerationRecord persisted before
-// this field existed) degrades the same way: nothing to check, so nothing
-// is reported stale.
+// never as stale. entryIDs being empty degrades the same way: nothing to
+// check, so nothing is reported stale. The caller can tell "Selection
+// recorded none" from "no data" with GenerationRecord.IsLegacy (issue #100).
 func StaleEntries(entryIDs []string, generationCreatedAt time.Time, lookupFn func(entryID string) (time.Time, bool)) []string {
 	var stale []string
 	for _, id := range entryIDs {

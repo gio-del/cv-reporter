@@ -45,6 +45,9 @@ type SaveRequest struct {
 }
 
 type rawJobListingFrontmatter struct {
+	// SchemaVersion is omitempty so a legacy Job Listing rewritten by an
+	// edit keeps reading as legacy (no key) until MigrateRecords runs.
+	SchemaVersion      int                 `yaml:"schemaVersion,omitempty"`
 	Title              string              `yaml:"title,omitempty"`
 	Company            string              `yaml:"company"`
 	URL                string              `yaml:"url,omitempty"`
@@ -61,6 +64,7 @@ type rawJobListingFrontmatter struct {
 }
 
 type rawApplication struct {
+	SchemaVersion   int                `yaml:"schemaVersion,omitempty"`
 	JobListingID    string             `yaml:"jobListingId"`
 	Status          Status             `yaml:"status"`
 	StatusUpdatedAt string             `yaml:"statusUpdatedAt,omitempty"`
@@ -106,6 +110,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 	logo := downloadLogoBestEffort(ctx, doer, req.LogoURL, jobsFullDir, slug)
 
 	listing := JobListing{
+		SchemaVersion:   CurrentSchemaVersion,
 		ID:              slug,
 		Title:           req.Title,
 		Company:         req.Company,
@@ -126,6 +131,7 @@ func Save(ctx context.Context, dataDir string, client Client, doer HTTPDoer, req
 		return JobListing{}, Application{}, err
 	}
 	application := Application{
+		SchemaVersion:   CurrentSchemaVersion,
 		ID:              slug,
 		JobListingID:    slug,
 		Status:          StatusSaved,
@@ -237,15 +243,19 @@ func parseJobListing(slug string, content []byte) (JobListing, error) {
 	if err := yaml.Unmarshal(fm, &raw); err != nil {
 		return JobListing{}, err
 	}
-	// Existing Job Listing files predate FreshnessStatus (issue #59) and
-	// have no value for it in their frontmatter — default them (and any
-	// listing saved without ever being checked) to FreshnessNotYetChecked,
-	// distinct from FreshnessUnknown (story 9).
+	if err := checkSchemaVersion(raw.SchemaVersion); err != nil {
+		return JobListing{}, fmt.Errorf("job listing %s: %w", slug, err)
+	}
+	// A legacy Job Listing may predate FreshnessStatus (issue #59), so it
+	// reads as FreshnessNotYetChecked — exactly what MigrateRecords writes
+	// down for it. A current record always carries the field (Save writes
+	// it, migration backfills it), so it is read as stored (issue #100).
 	freshnessStatus := raw.FreshnessStatus
-	if freshnessStatus == "" {
+	if freshnessStatus == "" && raw.SchemaVersion == LegacySchemaVersion {
 		freshnessStatus = FreshnessNotYetChecked
 	}
 	return JobListing{
+		SchemaVersion:      raw.SchemaVersion,
 		ID:                 slug,
 		Title:              raw.Title,
 		Company:            raw.Company,
@@ -270,8 +280,12 @@ func getApplication(dataDir, slug string) (Application, error) {
 	if err := yaml.Unmarshal(content, &raw); err != nil {
 		return Application{}, err
 	}
+	if err := checkApplicationSchemaVersions(raw); err != nil {
+		return Application{}, fmt.Errorf("application %s: %w", slug, err)
+	}
 	sortNotesNewestFirst(raw.Notes)
 	return Application{
+		SchemaVersion:   raw.SchemaVersion,
 		ID:              slug,
 		JobListingID:    raw.JobListingID,
 		Status:          raw.Status,
@@ -290,6 +304,21 @@ func getApplication(dataDir, slug string) (Application, error) {
 // masterdata's Entry file shape (ADR-0003 extended to Job Listings by
 // ADR-0008).
 func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
+	frontmatter, closingAndBody, err := locateFrontmatter(content)
+	if err != nil {
+		return nil, nil, err
+	}
+	after := closingAndBody[len("---"):]
+	after = bytes.TrimPrefix(after, []byte("\r\n"))
+	after = bytes.TrimPrefix(after, []byte("\n"))
+	return frontmatter, after, nil
+}
+
+// locateFrontmatter finds a Job Listing file's frontmatter and returns it
+// alongside the untouched remainder of the file, starting at the closing
+// "---" delimiter — so MigrateRecords can rewrite the frontmatter while
+// keeping the Job Description body byte for byte.
+func locateFrontmatter(content []byte) (frontmatter, closingAndBody []byte, err error) {
 	trimmed := bytes.TrimLeft(content, "\n")
 	if !bytes.HasPrefix(trimmed, []byte("---")) {
 		return nil, nil, fmt.Errorf("missing frontmatter delimiter")
@@ -302,17 +331,12 @@ func splitFrontmatter(content []byte) (frontmatter, body []byte, err error) {
 	if idx == -1 {
 		return nil, nil, fmt.Errorf("missing closing frontmatter delimiter")
 	}
-	frontmatter = rest[:idx]
-
-	after := rest[idx+len("\n---"):]
-	after = bytes.TrimPrefix(after, []byte("\r\n"))
-	after = bytes.TrimPrefix(after, []byte("\n"))
-	body = after
-	return frontmatter, body, nil
+	return rest[:idx], rest[idx+1:], nil
 }
 
 func renderJobListing(l JobListing) []byte {
 	raw := rawJobListingFrontmatter{
+		SchemaVersion:      l.SchemaVersion,
 		Title:              l.Title,
 		Company:            l.Company,
 		URL:                l.URL,
@@ -337,6 +361,7 @@ func renderJobListing(l JobListing) []byte {
 
 func renderApplication(a Application) []byte {
 	raw := rawApplication{
+		SchemaVersion:   a.SchemaVersion,
 		JobListingID:    a.JobListingID,
 		Status:          a.Status,
 		StatusUpdatedAt: a.StatusUpdatedAt,

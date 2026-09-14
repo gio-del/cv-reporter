@@ -85,6 +85,29 @@ This binds both services to `0.0.0.0` instead of `127.0.0.1`, and requires every
 
 This is a single static shared secret, not a login/session system — proportional to a personal, single-user tool, not a multi-user auth model. There is no TLS/HTTPS termination: the token travels in plaintext over your LAN, so only enable this on a network you trust. There's also no frontend UI yet for entering/storing the token per device — until that lands, attach the header manually from whatever client you use to reach the app over the LAN.
 
+#### Migrating Job Listing and Application records
+
+Every Job Listing and Application record carries a `schemaVersion` (issue #100, [ADR-0034](docs/adr/0034-record-schema-version-and-one-shot-migration.md)); records saved before it existed have none and read as the legacy version. The app keeps working on legacy records, but run the one-shot migration once to bring them current. It is a dry run by default and only writes when given `-write`:
+
+```
+cd backend
+go run ./cmd/migrate-records -data-dir ../data          # dry run: report only, writes nothing
+cp -r ../data ../data-backup                            # data/jobs and data/applications are gitignored
+go run ./cmd/migrate-records -data-dir ../data -write   # apply
+```
+
+(No Go locally? `docker run --rm -v "$PWD":/src -w /src/backend golang:1.26 go run ./cmd/migrate-records -data-dir ../data` from the repo root, adding `-write` to apply.) `-data-dir` defaults to `$DATA_DIR`, else `./data`. Exit status: `0` nothing pending (or `-write` applied it), `3` a dry run found records still to migrate (usable as a check), `1` an error, `2` a bad flag.
+
+What it backfills, because the value is provably on disk already:
+- `freshnessStatus: not-yet-checked` on a Job Listing without one.
+- `statusUpdatedAt` and a single `saved` `statusHistory` entry, both from the Job Listing's `savedAt`, on an Application **still at Status Saved** — no Status moves back to Saved, so its saved date is the date its Status was set.
+
+What it deliberately leaves empty, and names in the report as unknowable:
+- `statusUpdatedAt` and `statusHistory` on an Application past Saved. It never invents a history: the funnel's time-in-stage is computed from consecutive history entries, and the stale nudges from `statusUpdatedAt`.
+- `sourceSnippetIds`, `entryIds`, `usage` and `language` on existing Generations, which stay legacy (no `schemaVersion`) for good. Newly recorded Generations are stamped, so on them an absent field means genuinely none.
+
+Every record is read and checked before anything is written, so an unparseable record or one at a newer `schemaVersion` stops the run naming the file, with nothing changed. A Job Listing without an Application file (or the reverse) is reported, not skipped. The Job Description body is kept byte for byte, keys the migration does not know are kept, Company Logo files are never touched, each rewrite goes through a temporary file and a rename, and running it again on a migrated corpus reports nothing to do.
+
 ### Backend API
 
 | Method | Path | |
