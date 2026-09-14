@@ -1,0 +1,30 @@
+{
+  "cacheReadTokens": 55,
+  "cacheWriteTokens": 67,
+  "calls": [
+    {
+      "cacheReadTokens": 50,
+      "cacheWriteTokens": 60,
+      "callType": "select-and-rewrite",
+      "estimatedCostUsd": 0.5,
+      "inputTokens": 1200,
+      "model": "claude-test",
+      "outputTokens": 340,
+      "webSearchUses": 1
+    },
+    {
+      "cacheReadTokens": 5,
+      "cacheWriteTokens": 7,
+      "callType": "estimate-ral",
+      "estimatedCostUsd": 0.25,
+      "inputTokens": 100,
+      "model": "claude-test",
+      "outputTokens": 20,
+      "webSearchUses": 1
+    }
+  ],
+  "estimatedCostUsd": 0.75,
+  "inputTokens": 1300,
+  "outputTokens": 360,
+  "webSearchUses": 2
+}

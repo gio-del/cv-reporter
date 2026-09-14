@@ -1,0 +1,14 @@
+{
+  "bullets": [
+    "Built a Go HTTP API."
+  ],
+  "employer": "Globex",
+  "end": null,
+  "id": "experience/globex",
+  "role": "Backend Engineer",
+  "start": "2021-01",
+  "tags": [
+    "Go"
+  ],
+  "type": "experience"
+}

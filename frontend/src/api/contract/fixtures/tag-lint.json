@@ -1,0 +1,43 @@
+{
+  "groups": [
+    {
+      "confidence": "confident",
+      "key": "go",
+      "occurrences": [
+        {
+          "entryId": "experience/acme-backend",
+          "entryType": "experience",
+          "tag": "Go"
+        },
+        {
+          "entryId": "projects/side-project",
+          "entryType": "project",
+          "tag": "go"
+        }
+      ]
+    },
+    {
+      "confidence": "suggested",
+      "key": "kubernetes",
+      "occurrences": [
+        {
+          "entryId": "experience/acme-backend",
+          "entryType": "experience",
+          "tag": "Kubernetes"
+        },
+        {
+          "entryId": "projects/side-project",
+          "entryType": "project",
+          "tag": "Kubernets"
+        }
+      ]
+    }
+  ],
+  "singletons": [
+    {
+      "entryId": "experience/acme-backend",
+      "entryType": "experience",
+      "tag": "Python"
+    }
+  ]
+}

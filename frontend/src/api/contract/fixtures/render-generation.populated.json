@@ -1,0 +1,12 @@
+{
+  "coverLetterParsability": {
+    "status": "ok"
+  },
+  "coverLetterPath": "output/globex/cover-letter.pdf",
+  "cvPageCount": 1,
+  "cvParsability": {
+    "status": "ok"
+  },
+  "cvPath": "output/globex/cv.pdf",
+  "slug": "globex"
+}

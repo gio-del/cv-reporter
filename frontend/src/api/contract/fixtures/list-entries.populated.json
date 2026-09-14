@@ -1,0 +1,40 @@
+[
+  {
+    "bullets": [
+      "Designed and built an AI Platform."
+    ],
+    "client": "Amplifon",
+    "employer": "Quantyca S.p.A.",
+    "end": null,
+    "id": "experience/quantyca-amplifon",
+    "lastModified": {
+      "at": "2026-01-02T03:04:05Z",
+      "subject": "edit amplifon"
+    },
+    "role": "Data Engineer",
+    "start": "2024-10",
+    "tags": [
+      "React"
+    ],
+    "type": "experience"
+  },
+  {
+    "bullets": [
+      "Designed and implemented a system for managing charging stations."
+    ],
+    "end": "2022",
+    "id": "projects/emall",
+    "lastModified": {
+      "at": "2026-01-02T03:04:05Z",
+      "subject": "seed master data"
+    },
+    "name": "eMall",
+    "repo": "GitHub",
+    "start": "2022",
+    "tags": [
+      "JavaScript",
+      "React"
+    ],
+    "type": "project"
+  }
+]

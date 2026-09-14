@@ -1,0 +1,30 @@
+{
+  "generations": [
+    {
+      "createdAt": "2026-01-02T03:04:05Z",
+      "cvPath": "output/hooli/cv.pdf",
+      "schemaVersion": 1,
+      "slug": "hooli",
+      "usage": {
+        "estimatedCostUsd": 0,
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    }
+  ],
+  "id": "hooli",
+  "isStale": false,
+  "jobListingId": "hooli",
+  "method": {
+    "kind": "other"
+  },
+  "schemaVersion": 1,
+  "status": "saved",
+  "statusHistory": [
+    {
+      "changedAt": "2026-01-02T03:04:05Z",
+      "status": "saved"
+    }
+  ],
+  "statusUpdatedAt": "2026-01-02T03:04:05Z"
+}

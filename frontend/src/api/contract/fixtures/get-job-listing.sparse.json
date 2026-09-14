@@ -1,0 +1,25 @@
+{
+  "application": {
+    "id": "legacy-co",
+    "isStale": false,
+    "jobListingId": "legacy-co",
+    "method": {
+      "kind": "other"
+    },
+    "schemaVersion": 1,
+    "status": "sent"
+  },
+  "jobListing": {
+    "archived": false,
+    "company": "Legacy Co",
+    "freshnessStatus": "not-yet-checked",
+    "id": "legacy-co",
+    "jobDescription": "",
+    "ral": {
+      "source": "n/a"
+    },
+    "savedAt": "2026-01-02T03:04:05Z",
+    "schemaVersion": 1,
+    "source": "manual"
+  }
+}

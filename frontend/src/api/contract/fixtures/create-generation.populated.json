@@ -1,0 +1,77 @@
+{
+  "coverLetter": {
+    "body": "I build AI platforms. I once led a team of 40 engineers at Initech in 2015.",
+    "sourceSnippetIds": [
+      "opening-ai-platforms"
+    ]
+  },
+  "groundedness": {
+    "bullets": [
+      {
+        "entryId": "experience/quantyca-amplifon",
+        "flags": [
+          {
+            "reason": "numeric-mismatch",
+            "sentence": "Designed and built an AI Platform serving 4 million users since 2019."
+          }
+        ],
+        "sourceIndex": 0
+      }
+    ],
+    "coverLetter": [
+      {
+        "reason": "no-source-match",
+        "sentence": "I build AI platforms."
+      },
+      {
+        "reason": "numeric-mismatch",
+        "sentence": "I once led a team of 40 engineers at Initech in 2015."
+      }
+    ]
+  },
+  "jobDescription": "Looking for a Go engineer.\nSalary: €40,000 - €50,000",
+  "language": "it",
+  "mode": "tailored",
+  "ral": {
+    "currency": "EUR",
+    "max": 50000,
+    "min": 40000,
+    "source": "stated"
+  },
+  "selection": {
+    "entries": [
+      {
+        "bullets": [
+          {
+            "rewritten": "Designed and built an AI Platform serving 4 million users since 2019.",
+            "source": "Designed and built an AI Platform.",
+            "sourceIndex": 0
+          }
+        ],
+        "entryId": "experience/quantyca-amplifon",
+        "reason": "Relevant AI platform work."
+      }
+    ],
+    "language": "it"
+  },
+  "usage": {
+    "cacheReadTokens": 50,
+    "cacheWriteTokens": 60,
+    "calls": [
+      {
+        "cacheReadTokens": 50,
+        "cacheWriteTokens": 60,
+        "callType": "select-and-rewrite",
+        "estimatedCostUsd": 0.5,
+        "inputTokens": 1200,
+        "model": "claude-test",
+        "outputTokens": 340,
+        "webSearchUses": 1
+      }
+    ],
+    "estimatedCostUsd": 0.5,
+    "inputTokens": 1200,
+    "outputTokens": 340,
+    "webSearchUses": 1
+  }
+}

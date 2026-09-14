@@ -1,0 +1,31 @@
+{
+  "conversions": null,
+  "counts": [
+    {
+      "count": 0,
+      "status": "saved"
+    },
+    {
+      "count": 0,
+      "status": "tailoring"
+    },
+    {
+      "count": 0,
+      "status": "sent"
+    },
+    {
+      "count": 0,
+      "status": "interviewing"
+    },
+    {
+      "count": 0,
+      "status": "rejected"
+    },
+    {
+      "count": 0,
+      "status": "offer"
+    }
+  ],
+  "timeInStage": null,
+  "total": 0
+}

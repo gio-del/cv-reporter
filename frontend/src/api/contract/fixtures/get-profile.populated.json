@@ -1,0 +1,52 @@
+{
+  "activities": [
+    {
+      "description": "A description.",
+      "title": "An Activity"
+    }
+  ],
+  "awards": [
+    {
+      "description": "A description.",
+      "title": "An Award"
+    }
+  ],
+  "education": [
+    {
+      "courses": [
+        "Distributed Systems"
+      ],
+      "degree": "MSc",
+      "end": "2024",
+      "grade": "110/110",
+      "institution": "Test University",
+      "program": "Computer Science",
+      "start": "2022"
+    }
+  ],
+  "email": "test@example.com",
+  "github": "testuser",
+  "languages": [
+    {
+      "level": "Native",
+      "name": "Italian"
+    },
+    {
+      "level": "Fluent",
+      "name": "English"
+    }
+  ],
+  "linkedin": "testuser",
+  "location": "Milan, Italy",
+  "name": "Test User",
+  "phone": "+39 333 000 0000",
+  "publications": [
+    {
+      "authors": "Test User",
+      "link": "https://example.com/paper",
+      "note": "A note.",
+      "title": "A Paper",
+      "venue": "Test Venue"
+    }
+  ]
+}

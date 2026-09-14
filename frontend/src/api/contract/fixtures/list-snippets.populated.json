@@ -1,0 +1,17 @@
+[
+  {
+    "body": "Thank you for your time.",
+    "id": "closing-standard",
+    "kind": "closing",
+    "tags": null
+  },
+  {
+    "body": "I build AI platforms.",
+    "id": "opening-ai-platforms",
+    "kind": "opening",
+    "lastUsedAt": "2026-01-02T03:04:05Z",
+    "tags": [
+      "AI Platform"
+    ]
+  }
+]

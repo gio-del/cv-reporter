@@ -1,0 +1,33 @@
+{
+  "application": {
+    "id": "hooli",
+    "isStale": false,
+    "jobListingId": "hooli",
+    "method": {
+      "kind": "portal",
+      "value": "https://jobs.example/hooli/apply"
+    },
+    "schemaVersion": 1,
+    "status": "saved",
+    "statusHistory": [
+      {
+        "changedAt": "2026-01-02T03:04:05Z",
+        "status": "saved"
+      }
+    ],
+    "statusUpdatedAt": "2026-01-02T03:04:05Z"
+  },
+  "jobListing": {
+    "archived": false,
+    "company": "Hooli",
+    "freshnessStatus": "not-yet-checked",
+    "id": "hooli",
+    "jobDescription": "A backend role.",
+    "ral": {
+      "source": "n/a"
+    },
+    "savedAt": "2026-01-02T03:04:05Z",
+    "schemaVersion": 1,
+    "source": "manual"
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "conversions": [
+    {
+      "from": "saved",
+      "rate": 0.5,
+      "to": "tailoring"
+    },
+    {
+      "from": "tailoring",
+      "rate": 1,
+      "to": "sent"
+    },
+    {
+      "from": "sent",
+      "rate": 0,
+      "to": "interviewing"
+    }
+  ],
+  "counts": [
+    {
+      "count": 1,
+      "status": "saved"
+    },
+    {
+      "count": 0,
+      "status": "tailoring"
+    },
+    {
+      "count": 1,
+      "status": "sent"
+    },
+    {
+      "count": 0,
+      "status": "interviewing"
+    },
+    {
+      "count": 0,
+      "status": "rejected"
+    },
+    {
+      "count": 0,
+      "status": "offer"
+    }
+  ],
+  "timeInStage": [
+    {
+      "averageDays": 1.5,
+      "sampleSize": 1,
+      "status": "saved"
+    },
+    {
+      "averageDays": 1.5,
+      "sampleSize": 1,
+      "status": "tailoring"
+    }
+  ],
+  "total": 2
+}
