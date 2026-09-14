@@ -3,9 +3,9 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import JobListingsListPage from './JobListingsListPage'
 import type { JobListingSummaryWithApplication } from '@/api/types'
-import { jobListing, listingSummaryWithApplication } from '@/test/fixtures'
+import { JOB_LISTING_VERSION, jobListing, listingSummaryWithApplication } from '@/test/fixtures'
 import { currentSearch, renderPage } from '@/test/render'
-import { requestsTo, server } from '@/test/server'
+import { requestsTo, server, versionHeadersTo } from '@/test/server'
 
 // Archiving (issue #98) is a view concern: the list asks the backend for one
 // of three archived views, and each row can be archived or unarchived in
@@ -141,6 +141,48 @@ describe('Archiving a row', () => {
 
     expect(await within(row).findByRole('button', { name: 'Archive' })).toBeInTheDocument()
     expect(within(row).queryByText('Archived')).not.toBeInTheDocument()
+  })
+
+  // In the All view the row stays and flips, so it must also adopt the fresh
+  // Job Listing token the toggle answered with, or its next toggle would
+  // present a spent one and be refused (issue #89).
+  it('ArchiveToggle_InTheAllView_PresentsTheRowsVersionThenTheFreshOne', async () => {
+    server.use(
+      http.post('/api/job-listings/acme/archive', () =>
+        HttpResponse.json({ jobListing: jobListing({ ...ACME, archived: true, version: 'job-listing-v2' }) }),
+      ),
+      http.post('/api/job-listings/acme/unarchive', () =>
+        HttpResponse.json({ jobListing: jobListing({ ...ACME, archived: false, version: 'job-listing-v3' }) }),
+      ),
+    )
+    const { user } = open('/jobs?archived=all')
+    const row = (await screen.findByText('Acme')).closest('li')!
+
+    await user.click(within(row).getByRole('button', { name: 'Archive' }))
+    await user.click(await within(row).findByRole('button', { name: 'Unarchive' }))
+
+    expect(await within(row).findByRole('button', { name: 'Archive' })).toBeInTheDocument()
+    expect(versionHeadersTo('/api/job-listings/acme/archive').map((r) => r.ifMatch)).toEqual([JOB_LISTING_VERSION])
+    expect(versionHeadersTo('/api/job-listings/acme/unarchive').map((r) => r.ifMatch)).toEqual(['job-listing-v2'])
+  })
+
+  it('ArchiveButton_ChangedOnDisk_KeepsTheRowAndReloadReReadsTheList', async () => {
+    server.use(
+      http.post('/api/job-listings/acme/archive', () => new HttpResponse('changed on disk', { status: 409 })),
+    )
+    const { user } = open()
+    const row = (await screen.findByText('Acme')).closest('li')!
+
+    await user.click(within(row).getByRole('button', { name: 'Archive' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Job Listing changed on disk since you opened it.')
+    expect(screen.getByText('Acme')).toBeInTheDocument()
+
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(await requestsTo('/api/job-listings')).toHaveLength(2)
   })
 
   it('ArchivedRow_InTheArchivedView_IsDeEmphasizedButKeepsItsStatusMove', async () => {

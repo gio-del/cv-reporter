@@ -300,10 +300,16 @@ export async function checkJobListingFreshness(jobListingId: string): Promise<Jo
 
 // setJobListingArchived archives (true) or unarchives (false) a Job Listing
 // (issue #98). Both calls are idempotent and never touch the Application.
-export async function setJobListingArchived(jobListingId: string, archived: boolean): Promise<JobListing> {
+// They rewrite the Job Listing file, so they present its version token
+// (issue #89) and answer with the fresh one.
+export async function setJobListingArchived(
+  jobListingId: string,
+  archived: boolean,
+  version: string | undefined,
+): Promise<JobListing> {
   const result = await request<{ jobListing: JobListing }>(
     `/api/job-listings/${encodeURIComponent(jobListingId)}/${archived ? 'archive' : 'unarchive'}`,
-    { method: 'POST' },
+    { method: 'POST', headers: versionHeaders(version) },
   )
   return result.jobListing
 }
@@ -345,29 +351,37 @@ export function recordApplicationGeneration(id: string, req: RecordGenerationReq
 }
 
 // addApplicationNote writes a Note (issue #96) and answers with the whole
-// updated Application, as every other Application action does.
-export function addApplicationNote(id: string, body: string): Promise<Application> {
+// updated Application, as every other Application action does. Every Note
+// write rewrites the Application file, so each presents the Application's
+// version token (issue #89).
+export function addApplicationNote(id: string, body: string, version: string | undefined): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/notes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify({ body }),
   })
 }
 
 // editApplicationNote corrects a Note's body; its createdAt never changes.
-export function editApplicationNote(id: string, noteId: string, body: string): Promise<Application> {
+export function editApplicationNote(
+  id: string,
+  noteId: string,
+  body: string,
+  version: string | undefined,
+): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(version),
     body: JSON.stringify({ body }),
   })
 }
 
 // deleteApplicationNote hard-deletes one Note, answering with the updated
 // Application.
-export function deleteApplicationNote(id: string, noteId: string): Promise<Application> {
+export function deleteApplicationNote(id: string, noteId: string, version: string | undefined): Promise<Application> {
   return request(`/api/applications/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, {
     method: 'DELETE',
+    headers: versionHeaders(version),
   })
 }
 

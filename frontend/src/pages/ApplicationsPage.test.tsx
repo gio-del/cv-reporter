@@ -8,13 +8,14 @@ import type { ApplicationGroups, ApplicationStatus } from '@/api/types'
 import AppNav from '@/components/AppNav'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import {
+  APPLICATION_VERSION,
   application,
   applicationGroups,
   listingSummaryWithApplication,
   listingWithApplication,
 } from '@/test/fixtures'
 import { currentPath, renderApp, renderPage } from '@/test/render'
-import { recordedRequests, requestsTo, server } from '@/test/server'
+import { recordedRequests, requestsTo, server, versionHeadersTo } from '@/test/server'
 
 function showApplications(groups: ApplicationGroups) {
   server.use(http.get('/api/applications', () => HttpResponse.json(groups)))
@@ -264,6 +265,48 @@ describe('Moving an Application from its row', () => {
     expect(await requestsTo(STATUS_PATH)).toEqual([
       { method: 'PATCH', path: STATUS_PATH, search: '', body: { status: 'rejected' } },
     ])
+  })
+
+  // The row move rewrites the Application file, so it presents the row's
+  // Application token from the grouped view (issue #89, extended to the
+  // Applications page).
+  it('StatusMove_Sent_PresentsTheRowsApplicationVersion', async () => {
+    serveStatefully('sent')
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await moveTo(user, 'Interviewing')
+
+    expect(await screen.findByRole('region', { name: 'Interviewing, 1 Application' })).toBeInTheDocument()
+    expect(versionHeadersTo(STATUS_PATH)).toEqual([
+      { method: 'PATCH', path: STATUS_PATH, ifMatch: APPLICATION_VERSION, applicationIfMatch: undefined },
+    ])
+  })
+
+  it('StatusMove_ChangedOnDisk_LeavesTheRowAndReloadShowsWhereItNowIs', async () => {
+    serveStatefully('sent')
+    server.use(http.patch(STATUS_PATH, () => new HttpResponse('changed on disk', { status: 409 })))
+    const { user } = renderPage(<ApplicationsPage />, { at: '/applications', pattern: '/applications' })
+
+    await moveTo(user, 'Interviewing')
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Application changed on disk since you opened it.')
+    expect(within(group('Sent')).getByRole('link', { name: 'Acme' })).toBeInTheDocument()
+    expect(await requestsTo('/api/applications')).toHaveLength(1)
+
+    server.use(
+      http.get('/api/applications', () =>
+        HttpResponse.json(
+          applicationGroups({
+            offer: [listingSummaryWithApplication({ id: 'acme', company: 'Acme' }, { status: 'offer' })],
+          }),
+        ),
+      ),
+    )
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(await screen.findByRole('region', { name: 'Offer, 1 Application' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('StatusMove_UpdateFails_LeavesTheRowWhereItWasAndSaysWhy', async () => {

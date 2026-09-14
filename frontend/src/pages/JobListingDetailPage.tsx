@@ -268,12 +268,17 @@ export default function JobListingDetailPage() {
   // and is undone by the same button, unlike Delete below.
   async function handleArchiveToggle() {
     setActionError(null)
+    setConflict(null)
     setArchiving(true)
     try {
-      const updated = await setJobListingArchived(id, !jobListing.archived)
+      const updated = await setJobListingArchived(id, !jobListing.archived, jobListing.version)
       setRecord((prev) => (prev ? { ...prev, jobListing: updated } : prev))
     } catch (err) {
-      setActionError(errorMessage(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Job Listing', action: 'change' })
+      } else {
+        setActionError(errorMessage(err))
+      }
     } finally {
       setArchiving(false)
     }
@@ -391,8 +396,10 @@ export default function JobListingDetailPage() {
 
       <ApplicationNotes
         applicationId={application.id}
+        version={application.version}
         notes={application.notes}
         onApplicationChange={(updated) => setRecord((prev) => (prev ? { ...prev, application: updated } : prev))}
+        onReload={reloadRecord}
       />
 
       <section className="mt-6">

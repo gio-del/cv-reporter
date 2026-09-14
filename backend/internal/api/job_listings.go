@@ -486,19 +486,26 @@ type archiveJobListingResponse struct {
 // setJobListingArchivedHandler backs both POST /api/job-listings/{id}/archive
 // (archived true) and /unarchive (archived false) (issue #98). Both are
 // idempotent and 404 when id doesn't exist, matching the other id-addressed
-// Job Listing routes.
+// Job Listing routes. Both honour an optional If-Match carrying the Job
+// Listing's version token, since they rewrite the Job Listing file (issue
+// #89), and answer with the fresh token.
 func setJobListingArchivedHandler(dataDir string, archived bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
-		listing, err := tracking.SetArchived(dataDir, id, archived)
+		listing, err := tracking.SetArchivedIfMatch(dataDir, id, archived, requestVersion(r))
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, "job listing not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, recordversion.ErrMismatch) {
+			writeConflict(w, "Job Listing")
 			return
 		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		attachJobListingVersion(&listing, dataDir)
 		writeJSON(w, http.StatusOK, archiveJobListingResponse{JobListing: listing})
 	}
 }

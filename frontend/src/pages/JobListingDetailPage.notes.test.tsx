@@ -3,9 +3,9 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import JobListingDetailPage from './JobListingDetailPage'
 import type { JobListingWithApplication, Note } from '@/api/types'
-import { application, listingWithApplication } from '@/test/fixtures'
+import { APPLICATION_VERSION, application, listingWithApplication } from '@/test/fixtures'
 import { renderPage } from '@/test/render'
-import { requestsTo, server } from '@/test/server'
+import { requestsTo, server, versionHeadersTo } from '@/test/server'
 
 // Notes (issue #96) are the user's own timestamped log on an Application,
 // shown on the Job Listing page next to its Application Method and Contact.
@@ -244,5 +244,105 @@ describe('Deleting a Note', () => {
     expect(await within(item).findByRole('alert')).toHaveTextContent('permission denied')
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(within(item).getByText('Screening call booked.')).toBeInTheDocument()
+  })
+})
+
+// Every Note write rewrites the Application file, so each presents the
+// Application's version token, and a 409 is the shared "changed on disk"
+// alert with an explicit reload rather than a generic failure (issue #89,
+// extended to Notes).
+describe('Note conflicts', () => {
+  const NOTE_PATH = '/api/applications/acme/notes/n1'
+  const DETAIL_PATH = '/api/job-listings/acme'
+
+  it('AddNote_Sent_PresentsTheApplicationVersionAndAdoptsTheFreshOne', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(
+      http.post(NOTES_PATH, () =>
+        HttpResponse.json(application({ notes: [note({ id: 'n9' })], version: 'application-v2' }), { status: 201 }),
+      ),
+    )
+
+    const section = await notesSection()
+    await user.type(within(section).getByRole('textbox', { name: 'New Note' }), 'First.')
+    await user.click(within(section).getByRole('button', { name: 'Add Note' }))
+    await within(section).findByText('Screening call booked.')
+    await user.type(within(section).getByRole('textbox', { name: 'New Note' }), 'Second.')
+    await user.click(within(section).getByRole('button', { name: 'Add Note' }))
+
+    await waitFor(() => expect(versionHeadersTo(NOTES_PATH)).toHaveLength(2))
+    expect(versionHeadersTo(NOTES_PATH).map((r) => r.ifMatch)).toEqual([APPLICATION_VERSION, 'application-v2'])
+  })
+
+  it('AddNote_ChangedOnDisk_KeepsWhatWasTypedAndReloadsTheLogOnRequest', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(http.post(NOTES_PATH, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    const section = await notesSection()
+    await user.type(within(section).getByRole('textbox', { name: 'New Note' }), 'Call went well.')
+    await user.click(within(section).getByRole('button', { name: 'Add Note' }))
+
+    const alert = await within(section).findByRole('alert')
+    expect(alert).toHaveTextContent('This Application changed on disk since you opened it.')
+    expect(within(section).getByRole('textbox', { name: 'New Note' })).toHaveValue('Call went well.')
+
+    server.use(
+      http.get(DETAIL_PATH, () =>
+        HttpResponse.json(listingWithApplication({}, { notes: [note({ body: 'Added by the skill.' })] })),
+      ),
+    )
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(await within(section).findByText('Added by the skill.')).toBeInTheDocument()
+    expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    expect(within(section).getByRole('textbox', { name: 'New Note' })).toHaveValue('Call went well.')
+    expect(await requestsTo(DETAIL_PATH)).toHaveLength(2)
+  })
+
+  it('EditNote_ChangedOnDisk_KeepsTheCorrectionUntilReloadThenClosesOntoTheCurrentNote', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note({ body: 'Typo hre.' })] }))
+    server.use(http.patch(NOTE_PATH, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Edit Note' }))
+    const editor = within(item).getByRole('textbox', { name: 'Edit Note' })
+    await user.clear(editor)
+    await user.type(editor, 'Typo here.')
+    await user.click(within(item).getByRole('button', { name: 'Save Note' }))
+
+    const alert = await within(item).findByRole('alert')
+    expect(alert).toHaveTextContent('This Application changed on disk since you opened it.')
+    expect(alert).toHaveTextContent('Your edits are still here')
+    expect(within(item).getByRole('textbox', { name: 'Edit Note' })).toHaveValue('Typo here.')
+    expect(versionHeadersTo(NOTE_PATH).map((r) => r.ifMatch)).toEqual([APPLICATION_VERSION])
+
+    server.use(
+      http.get(DETAIL_PATH, () =>
+        HttpResponse.json(listingWithApplication({}, { notes: [note({ body: 'Fixed elsewhere.' })] })),
+      ),
+    )
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    const [reloaded] = shownNotes(await notesSection())
+    expect(await within(reloaded).findByText('Fixed elsewhere.')).toBeInTheDocument()
+    expect(within(reloaded).queryByRole('textbox', { name: 'Edit Note' })).not.toBeInTheDocument()
+    expect(within(reloaded).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('DeleteNote_ChangedOnDisk_KeepsTheNoteAndOffersAReload', async () => {
+    const { user } = open(listingWithApplication({}, { notes: [note()] }))
+    server.use(http.delete(NOTE_PATH, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    const [item] = shownNotes(await notesSection())
+    await user.click(within(item).getByRole('button', { name: 'Delete Note' }))
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Yes, delete' }))
+
+    const alert = await within(item).findByRole('alert')
+    expect(alert).toHaveTextContent('Your delete was not applied.')
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+    expect(within(item).getByText('Screening call booked.')).toBeInTheDocument()
+    expect(versionHeadersTo(NOTE_PATH)).toEqual([
+      { method: 'DELETE', path: NOTE_PATH, ifMatch: APPLICATION_VERSION, applicationIfMatch: undefined },
+    ])
   })
 })

@@ -277,6 +277,11 @@ func listApplicationsHandler(dataDir string) http.HandlerFunc {
 		for i, group := range grouped.Groups {
 			items := make([]jobListingSummaryWithApplication, len(group.Items))
 			for j, item := range group.Items {
+				// A row's Status move presents the Application's token, so
+				// the grouped view carries both tokens exactly as the Job
+				// Listings list rows do (issue #89).
+				attachApplicationVersion(&item.Application, dataDir)
+				attachJobListingVersion(&item.JobListing, dataDir)
 				items[j] = summarizeListing(item)
 			}
 			response.Groups[i] = applicationGroupResponse{Status: group.Status, Count: group.Count, Items: items}

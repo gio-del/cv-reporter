@@ -500,6 +500,45 @@ describe('Job Listing archiving', () => {
     expect(screen.queryByText('Archived')).not.toBeInTheDocument()
   })
 
+  // Archiving rewrites the Job Listing file, so it presents the Job
+  // Listing's token and adopts the fresh one it answers with (issue #89).
+  it('Archive_Toggled_PresentsTheJobListingVersionAndAdoptsTheFreshOne', async () => {
+    const record = listingWithApplication()
+    const { user } = open(record)
+    server.use(
+      http.post(`${DETAIL_PATH}/archive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: true, version: 'job-listing-v2' } }),
+      ),
+      http.post(`${DETAIL_PATH}/unarchive`, () =>
+        HttpResponse.json({ jobListing: { ...record.jobListing, archived: false, version: 'job-listing-v3' } }),
+      ),
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+    await user.click(await screen.findByRole('button', { name: 'Unarchive' }))
+
+    expect(await screen.findByRole('button', { name: 'Archive' })).toBeInTheDocument()
+    expect(versionHeadersTo(`${DETAIL_PATH}/archive`).map((r) => r.ifMatch)).toEqual([JOB_LISTING_VERSION])
+    expect(versionHeadersTo(`${DETAIL_PATH}/unarchive`).map((r) => r.ifMatch)).toEqual(['job-listing-v2'])
+  })
+
+  it('Archive_ChangedOnDisk_ShowsTheConflictAndReloadRefreshesTheRecord', async () => {
+    const { user } = open(listingWithApplication())
+    server.use(http.post(`${DETAIL_PATH}/archive`, () => new HttpResponse('changed on disk', { status: 409 })))
+
+    await user.click(await screen.findByRole('button', { name: 'Archive' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('This Job Listing changed on disk since you opened it.')
+    expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument()
+
+    serveDetail(listingWithApplication({ archived: true }))
+    await user.click(within(alert).getByRole('button', { name: 'Reload the current version' }))
+
+    expect(await screen.findByRole('button', { name: 'Unarchive' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('Archive_Fails_SurfacesTheErrorInline', async () => {
     const { user } = open(listingWithApplication())
     server.use(http.post(`${DETAIL_PATH}/archive`, () => new HttpResponse('disk full', { status: 500 })))

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
 	"github.com/gio-del/cv-reporter/backend/internal/tracking"
 )
 
@@ -18,6 +19,8 @@ type noteRequest struct {
 // addApplicationNoteHandler adds a Note to the Application identified by id,
 // answering 201 with the whole updated Application, as the other
 // per-Application actions do, so the FE replaces its state from one response.
+// Like every Note route it honours an optional If-Match carrying the
+// Application's version token (issue #89).
 func addApplicationNoteHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req noteRequest
@@ -26,10 +29,11 @@ func addApplicationNoteHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		application, err := tracking.AddNote(dataDir, r.PathValue("id"), req.Body)
+		application, err := tracking.AddNoteIfMatch(dataDir, r.PathValue("id"), req.Body, requestVersion(r))
 		if writeNoteError(w, err) {
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusCreated, application)
 	}
 }
@@ -45,10 +49,11 @@ func editApplicationNoteHandler(dataDir string) http.HandlerFunc {
 			return
 		}
 
-		application, err := tracking.EditNote(dataDir, r.PathValue("id"), r.PathValue("noteId"), req.Body)
+		application, err := tracking.EditNoteIfMatch(dataDir, r.PathValue("id"), r.PathValue("noteId"), req.Body, requestVersion(r))
 		if writeNoteError(w, err) {
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, application)
 	}
 }
@@ -57,17 +62,18 @@ func editApplicationNoteHandler(dataDir string) http.HandlerFunc {
 // Application id, answering 200 with the whole updated Application.
 func deleteApplicationNoteHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		application, err := tracking.DeleteNote(dataDir, r.PathValue("id"), r.PathValue("noteId"))
+		application, err := tracking.DeleteNoteIfMatch(dataDir, r.PathValue("id"), r.PathValue("noteId"), requestVersion(r))
 		if writeNoteError(w, err) {
 			return
 		}
+		attachApplicationVersion(&application, dataDir)
 		writeJSON(w, http.StatusOK, application)
 	}
 }
 
 // writeNoteError maps a Note operation's error to its status code and
 // reports whether it wrote a response: a missing Application or Note is
-// 404, an empty body 400.
+// 404, an empty body 400, a stale If-Match 409.
 func writeNoteError(w http.ResponseWriter, err error) bool {
 	switch {
 	case err == nil:
@@ -76,6 +82,8 @@ func writeNoteError(w http.ResponseWriter, err error) bool {
 		http.Error(w, "note not found", http.StatusNotFound)
 	case errors.Is(err, os.ErrNotExist):
 		http.Error(w, "application not found", http.StatusNotFound)
+	case errors.Is(err, recordversion.ErrMismatch):
+		writeConflict(w, "Application")
 	case errors.Is(err, tracking.ErrValidation):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:

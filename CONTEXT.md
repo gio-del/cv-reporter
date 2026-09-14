@@ -73,7 +73,7 @@ The recruiter/hiring-manager name and email for an email-method Application. Ent
 _Avoid_: recruiter
 
 **Schema Version** (of a Job Listing, Application or Generation record):
-Which generation of the persisted record format a record was written in, stamped on the record itself. What it buys is the meaning of an absent field: on a current record, absent means genuinely none (a Generation with no Snippet ids used no Cover Letter Snippet); on a **legacy** record — one written before Schema Versions existed — absent means unknowable. Brought current only by the one-shot record migration, which backfills what is provably on disk and leaves the rest legacy-empty, never guessed.
+Which generation of the persisted record format a record was written in, stamped on the record itself. What it buys is the meaning of an absent field: on a current record, absent means genuinely none (a Generation with no Snippet ids used no Cover Letter Snippet); on a **legacy** record — one written before Schema Versions existed — absent means unknowable. Brought current only by the one-shot record migration, which backfills what is provably on disk and leaves the rest legacy-empty, never guessed. Not the web app's read-time version token (README's "Lost-update protection"), which identifies one record file's exact bytes, changes on every write and is never stored.
 _Avoid_: format version, revision, vintage
 
 **Cover Letter**:

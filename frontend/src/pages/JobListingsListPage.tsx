@@ -46,8 +46,9 @@ export default function JobListingsListPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
-  // conflict is a Status change the backend refused with 409 because the
-  // Application changed on disk since this list was loaded (issue #89).
+  // conflict is a Status change or archive toggle the backend refused with
+  // 409 because the Application or Job Listing changed on disk since this
+  // list was loaded (issue #89).
   const [conflict, setConflict] = useState<{ record: string; action: 'change' } | null>(null)
   const [reloading, setReloading] = useState(false)
 
@@ -262,15 +263,16 @@ export default function JobListingsListPage() {
   // leaves it; in the All view it stays and just flips.
   async function handleArchiveToggle(jobListingId: string, archived: boolean) {
     setArchiveError(null)
+    setConflict(null)
     setArchivingId(jobListingId)
     try {
-      const updated = await setJobListingArchived(jobListingId, archived)
+      const updated = await setJobListingArchived(jobListingId, archived, findListing(jobListingId)?.jobListing.version)
       setListings((prev) => {
         if (!prev) return prev
         if (archivedView === 'all') {
           return prev.map((l) =>
             l.jobListing.id === jobListingId
-              ? { ...l, jobListing: { ...l.jobListing, archived: updated.archived } }
+              ? { ...l, jobListing: { ...l.jobListing, archived: updated.archived, version: updated.version } }
               : l,
           )
         }
@@ -278,7 +280,11 @@ export default function JobListingsListPage() {
         return prev.filter((l) => l.jobListing.id !== jobListingId || updated.archived === keepArchived)
       })
     } catch (err) {
-      setArchiveError(err instanceof Error ? err.message : String(err))
+      if (isConflict(err)) {
+        setConflict({ record: 'Job Listing', action: 'change' })
+      } else {
+        setArchiveError(err instanceof Error ? err.message : String(err))
+      }
     } finally {
       setArchivingId(null)
     }

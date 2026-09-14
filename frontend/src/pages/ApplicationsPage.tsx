@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { jobListingLogoUrl, listApplications, updateApplicationStatus } from '@/api/client'
+import { isConflict, jobListingLogoUrl, listApplications, updateApplicationStatus } from '@/api/client'
 import type { ApplicationGroups, ApplicationStatus, JobListingSummaryWithApplication } from '@/api/types'
 import ApplicationStatusControl from '@/components/ApplicationStatusControl'
+import ConflictAlert from '@/components/ConflictAlert'
 import RALBadge from '@/components/RALBadge'
 import StaleBadge from '@/components/StaleBadge'
 import { Badge } from '@/components/ui/badge'
@@ -45,6 +46,10 @@ export default function ApplicationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  // conflict is a row Status move the backend refused with 409 because the
+  // Application changed on disk since this view was loaded (issue #89).
+  const [conflict, setConflict] = useState(false)
+  const [reloading, setReloading] = useState(false)
 
   useEffect(() => {
     listApplications()
@@ -55,15 +60,22 @@ export default function ApplicationsPage() {
   // A move goes through the same per-Application PATCH every page uses, and
   // the backend stays the authority on whether it is legal. Only once it has
   // persisted is the view re-read, so the row lands where the server's
-  // grouping puts it and a failed move never shows as a moved row.
+  // grouping puts it and a failed move never shows as a moved row. The move
+  // presents the row's Application token, so a row the skill or another tab
+  // moved on since this view loaded is refused rather than moved backwards.
   async function handleStatusChange(id: string, status: ApplicationStatus) {
     setStatusError(null)
+    setConflict(false)
     setUpdatingId(id)
     const row = data?.groups.flatMap((group) => group.items).find((item) => item.application.id === id)
     try {
       await updateApplicationStatus(id, status, row?.application.version)
     } catch (err) {
-      setStatusError(errorMessage(err))
+      if (isConflict(err)) {
+        setConflict(true)
+      } else {
+        setStatusError(errorMessage(err))
+      }
       setUpdatingId(null)
       return
     }
@@ -73,6 +85,18 @@ export default function ApplicationsPage() {
       setStatusError(`Status changed, but the Applications view could not refresh: ${errorMessage(err)}`)
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  async function handleReloadAfterConflict() {
+    setReloading(true)
+    try {
+      setData(await listApplications())
+      setConflict(false)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setReloading(false)
     }
   }
 
@@ -88,6 +112,15 @@ export default function ApplicationsPage() {
     <>
       <h1>Applications</h1>
 
+      {conflict && (
+        <ConflictAlert
+          record="Application"
+          action="change"
+          keepsEdits={false}
+          onReload={handleReloadAfterConflict}
+          reloading={reloading}
+        />
+      )}
       {statusError && (
         <p role="alert" className="mb-4 font-medium text-destructive">
           {statusError}
