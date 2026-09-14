@@ -146,9 +146,11 @@ type GenerationRecord struct {
 	// Generation caused, as returned in GenerateResult.Usage — passed through
 	// verbatim by the FE at record time (issue #39: cost/usage visibility
 	// persisted per-Generation, not just shown transiently at Generate time).
-	// Zero-value (omitted) for a Default Mode Generation; unknowable on a
-	// legacy record (see IsLegacy).
-	Usage generation.GenerationUsage `json:"usage,omitempty"`
+	// Zero-valued, but still sent, for a Default Mode Generation: it is a
+	// struct value, which encoding/json never omits, so the tag carries no
+	// omitempty to suggest otherwise (issue #99). Unknowable on a legacy
+	// record (see IsLegacy).
+	Usage generation.GenerationUsage `json:"usage"`
 
 	// Language is the final, normalized target language the CV/Cover
 	// Letter were written in (generation.GenerateResult.Language) — kept
