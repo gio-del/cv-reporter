@@ -7,7 +7,12 @@ WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/. .
-RUN CGO_ENABLED=0 go build -o /out/server ./cmd/server
+# Stamped by the release workflow (docker build --build-arg VERSION=x.y.z); a
+# local `docker compose build` leaves it unset and the binary reports "dev".
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build \
+    -ldflags "-X github.com/gio-del/sumisura/backend/internal/version.Version=${VERSION}" \
+    -o /out/server ./cmd/server
 
 # Render (backend/internal/generation/render.go) shells out to the typst
 # CLI, which distroless/static can't provide — it has no package manager

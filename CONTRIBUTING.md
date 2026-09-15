@@ -27,9 +27,12 @@ describing the change and it can be implemented independently.
 
 ## Pull request titles
 
-<!-- release-automation:pr-title -->
-PR titles are checked in CI once release automation lands (see the release
-issue). Until then, write titles in the Conventional Commits style anyway:
+PR titles follow [Conventional Commits](https://www.conventionalcommits.org)
+and **CI rejects a title that doesn't**
+(`.github/workflows/pr-title.yml`). The reason is not style: the title becomes
+the commit on `main`, and release-please reads those commits to build
+`CHANGELOG.md` and pick the next version — an unparseable title is a change
+missing from the changelog.
 
 ```
 feat: add an Applications view grouped by Status
@@ -39,9 +42,28 @@ build(deps): bump jsdom to 30.0.1
 ```
 
 Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`,
-`chore`, `revert`. Only `feat`, `fix`, `perf` and breaking changes appear in the
-changelog. PRs are squash-merged, so **the PR title becomes the commit message
-on `main`** — write it for someone reading `git log` a year from now.
+`chore`, `revert`. Subjects start lowercase and don't end with a period. Only
+`feat`, `fix`, `perf` and breaking changes (`!`, or a `BREAKING CHANGE:`
+footer) appear in the changelog. PRs are squash-merged, so **the PR title
+becomes the commit message on `main`** — write it for someone reading
+`git log` a year from now.
+
+## Releases
+
+Releases are cut from an open **Release PR** that release-please keeps up to
+date: it accumulates the changelog and bumps the version in `CHANGELOG.md`, the
+extension manifest, both `package.json` files, `plugin.json` and
+`marketplace.json`. Merging that PR tags `vX.Y.Z`, publishes the GitHub Release,
+and attaches the extension zip.
+
+One version covers the whole product — backend, frontend, extension and plugin
+are only guaranteed to work together at the same commit. Before 1.0 a breaking
+change bumps the minor version; **1.0.0 is reserved for the hosted launch**.
+
+A change is breaking if a self-hoster has to act: a renamed environment
+variable or header, a record schema change needing `migrate-records`, a removed
+API route, or a plugin that must be reinstalled. Say so in the PR body as well
+as the `!`.
 
 ## Dev loop
 

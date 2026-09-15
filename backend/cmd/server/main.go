@@ -10,6 +10,7 @@ import (
 
 	"github.com/gio-del/sumisura/backend/internal/api"
 	"github.com/gio-del/sumisura/backend/internal/claude"
+	"github.com/gio-del/sumisura/backend/internal/version"
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 	if lanAuthToken != "" {
 		log.Printf("LAN-reachable mode: binding %s, auth required", srv.Addr)
 	}
-	log.Printf("sumisura backend listening on %s (data dir: %s, project root: %s)", srv.Addr, dataDir, projectRoot)
+	log.Printf("sumisura %s backend listening on %s (data dir: %s, project root: %s)", version.Version, srv.Addr, dataDir, projectRoot)
 	// SIGINT (Ctrl-C in a local `go run`) and SIGTERM (`docker compose
 	// down`, a restart to pick up an .env change) both reach here: the
 	// Dockerfile's exec-form ENTRYPOINT makes the server PID 1, so the

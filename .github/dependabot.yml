@@ -41,6 +41,12 @@ updates:
     directory: /backend
     schedule:
       interval: monthly
+    # build(deps) keeps Dependabot's titles valid for the PR-title check
+    # (.github/workflows/pr-title.yml) while staying out of the changelog:
+    # release-please only surfaces feat/fix/perf and breaking changes.
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
     # 2 per block: room for one grouped minor/patch pull request plus at most
     # one major at a time. The steady state should be ~1 per surface per month.
     open-pull-requests-limit: 2
@@ -64,6 +70,12 @@ updates:
     directory: /frontend
     schedule:
       interval: monthly
+    # build(deps) keeps Dependabot's titles valid for the PR-title check
+    # (.github/workflows/pr-title.yml) while staying out of the changelog:
+    # release-please only surfaces feat/fix/perf and breaking changes.
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
     open-pull-requests-limit: 2
     labels:
       - dependencies
@@ -81,6 +93,12 @@ updates:
     directory: /extension
     schedule:
       interval: monthly
+    # build(deps) keeps Dependabot's titles valid for the PR-title check
+    # (.github/workflows/pr-title.yml) while staying out of the changelog:
+    # release-please only surfaces feat/fix/perf and breaking changes.
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
     open-pull-requests-limit: 2
     labels:
       - dependencies
@@ -98,6 +116,12 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # build(deps) keeps Dependabot's titles valid for the PR-title check
+    # (.github/workflows/pr-title.yml) while staying out of the changelog:
+    # release-please only surfaces feat/fix/perf and breaking changes.
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
     open-pull-requests-limit: 2
     labels:
       - dependencies
@@ -121,6 +145,12 @@ updates:
       - /frontend
     schedule:
       interval: monthly
+    # build(deps) keeps Dependabot's titles valid for the PR-title check
+    # (.github/workflows/pr-title.yml) while staying out of the changelog:
+    # release-please only surfaces feat/fix/perf and breaking changes.
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
     open-pull-requests-limit: 2
     labels:
       - dependencies

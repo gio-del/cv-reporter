@@ -1,0 +1,48 @@
+# Runs when a release is published (i.e. when the Release PR is merged and
+# release-please creates the release). Attaches the artifacts a user would
+# otherwise have to clone the repo to get. Today that is the browser extension;
+# the prebuilt container images land here too once they exist.
+name: Release assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  extension-zip:
+    name: Attach the browser extension zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      # Ship what the browser loads and nothing else: no node_modules, no test
+      # tooling, no fixtures. The version inside manifest.json was stamped by
+      # release-please in the Release PR, so the zip and the tag agree.
+      - name: Build the zip
+        run: |
+          set -euo pipefail
+          version="${{ github.event.release.tag_name }}"
+          staging="$(mktemp -d)/sumisura-extension"
+          mkdir -p "$staging"
+          rsync -a --exclude node_modules \
+                   --exclude 'fixtures' \
+                   --exclude '*.test.js' \
+                   --exclude 'package.json' \
+                   --exclude 'package-lock.json' \
+                   extension/ "$staging/"
+          manifest_version="$(node -p "require('$staging/manifest.json').version")"
+          if [ "$manifest_version" != "${version#v}" ]; then
+            echo "manifest.json says $manifest_version but the tag is $version" >&2
+            exit 1
+          fi
+          (cd "$(dirname "$staging")" && zip -qr "$GITHUB_WORKSPACE/sumisura-extension-${version}.zip" sumisura-extension)
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "sumisura-extension-${{ github.event.release.tag_name }}.zip" --clobber

@@ -1,0 +1,41 @@
+# The PR title is the commit message on main (squash-merge only, enforced in
+# repo settings), and release-please reads those commits to build the changelog
+# and pick the next version. So the title format is not a style preference —
+# an unparseable title means a change silently missing from the changelog.
+name: PR title
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-commit:
+    name: Conventional Commit format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Only feat, fix and perf (plus anything marked breaking with "!")
+          # reach the changelog; the rest exist so that routine work still has
+          # a parseable title. build(deps) is what Dependabot is configured to
+          # send (.github/dependabot.yml).
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+          subjectPattern: ^(?![A-Z])(?!.*\.$).+$
+          subjectPatternError: |
+            The subject "{subject}" must start lowercase and must not end with a period.
