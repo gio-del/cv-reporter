@@ -100,6 +100,12 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 3. **Rewrite.** Adjust bullet phrasing to better match the Job Description's language and emphasis. Do not introduce facts, tools, or claims that aren't present in the source Entry — Rewrite may reword, not invent.
 
+   **House style (applies to rewritten bullets and to the Cover Letter).** The output has to read like the user wrote it on a good day, not like a model produced it. A reader who suspects the letter was generated stops reading it, so this is a quality bar, not a preference.
+
+   Never write: "I am writing to express my keen interest", "I am thrilled/excited to apply", "passionate about", "leverage", "cutting-edge", "seamlessly", "robust", "delve", "spearhead", "in today's fast-paced world", "your innovative approach to", "I believe my skills align". Avoid the rule-of-three list ("scalable, reliable, and maintainable"), sentences that all run to the same length, and paragraphs that open with a participle.
+
+   Do write: short declarative sentences with a concrete fact, number or system name in each one. Plain verbs — built, cut, migrated, shipped, owned. At most one sentence about the employer, and it has to name something specific about them; skip it entirely rather than pad it. Prefer the phrasing already in Master Data over a smoother synonym: the user's own words are the point.
+
    **Target language.** Detect the language the Job Description is written in, as an ISO 639-1 code (`it`, `en`, `fr`, …), and write the rewritten bullets in it. The tool supports `en` and `it`; any other language falls back to `en` — the same rule the web app applies (`generation.NormalizeLanguage`), and the groundedness check in step 4 prints the resolved code, which is authoritative. An unsupported language never stops the run. In Default Mode there's no Job Description, so the target language is `en` without asking.
 
    **Draft the Cover Letter.** Skip this entirely in Default Mode — a Cover Letter is grounded in the Job Description, and Default Mode has none, so don't draft one or offer one (the app's Default Mode Generation has no Cover Letter either). Otherwise draft one now, following the same contract the web app gives its own drafting call (`draft_cover_letter` in `backend/internal/claude/client.go`), so the two paths produce the same kind of letter:
