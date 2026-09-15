@@ -21,7 +21,10 @@ export default function AppNav() {
       aria-label="Primary"
     >
       <NavLink to="/" className="mr-auto flex items-center">
-        <img src="/logo-lockup.svg" alt="CV Reporter" className="h-7 w-auto" />
+        {/* Two files rather than one: the wordmark is navy on light surfaces
+            and chalk on dark ones (brand/palette.md). */}
+        <img src="/logo-lockup.svg" alt="Sumisura" className="h-7 w-auto dark:hidden" />
+        <img src="/logo-lockup-dark.svg" alt="" aria-hidden className="hidden h-7 w-auto dark:block" />
       </NavLink>
       {navItems.map((item) => (
         <NavLink

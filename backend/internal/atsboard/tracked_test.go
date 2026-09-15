@@ -3,7 +3,7 @@ package atsboard_test
 import (
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
 )
 
 func TestTrackedBoards_AddThenList_ReturnsIt(t *testing.T) {

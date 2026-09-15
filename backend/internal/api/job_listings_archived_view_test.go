@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // listCompanies GETs /api/job-listings with query (which may be empty) and

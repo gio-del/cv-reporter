@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 func occ(tag, entryID string) masterdata.TagOccurrence {

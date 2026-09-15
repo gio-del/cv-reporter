@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 func TestTrackedBoards_AddThenList(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // assembledData returns a data.json in the shape SKILL.md's Assemble step

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // The tests in this file assert externally observable lifecycle behaviour

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // Notes (issue #96) are exercised through the HTTP API over a temporary

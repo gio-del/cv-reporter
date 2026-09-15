@@ -3,7 +3,7 @@ package tracking
 import (
 	"path/filepath"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
 )
 
 // RecordGeneration appends record to the Application identified by id's

@@ -76,7 +76,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 4. **Record the Generation.** POST the rendered result to the same endpoint the web app's own Generate button uses, so it appears in the Application's history there (`<id>` is the id from step 1, `<lang>` the target language written into `data.json`). The groundedness result is attached the same way the app attaches it, by re-running the check over the approved `selection.json` in JSON mode, in the same command:
    ```
-   groundedness="$(./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json --json)"
+   groundedness="$(./plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json --json)"
    curl -sf -X POST http://127.0.0.1:8080/api/applications/<id>/generations \
      -H 'Content-Type: application/json' \
      -d "{\"slug\": \"<slug>\", \"cvPath\": \"output/<slug>/cv.pdf\", \"coverLetterPath\": \"output/<slug>/cover-letter.pdf\", \"sourceSnippetIds\": [<ids>], \"language\": \"<lang>\", \"groundedness\": ${groundedness:-null}}"
@@ -133,7 +133,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
    2. **Run the groundedness check** (skip it in Default Mode — Rewrite is skipped there, so there's nothing to check — and don't mention it):
       ```
-      ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json
+      ./plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json
       ```
       It's offline and needs no running backend (it builds `backend/cmd/cvcheck` from this checkout with Go). Exit `0`: every rewritten bullet traced back to its source — say so in one line. Exit `1`: some bullets were flagged — stdout lists each as `<entryId> bullet <sourceIndex> [<reason>: …]` plus the flagged sentence. Exit `2`: the check couldn't run; stderr says why. If the reason is the artifact itself (malformed JSON, an unknown field, a `source` that isn't verbatim), fix `selection.json` and re-run; if it's the tooling (no Go / no `cvcheck`, build failure), tell the user the groundedness check was unavailable and carry on. None of these exit codes stops the pipeline.
 
@@ -169,7 +169,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 6. **Render.** This repo's render path is pinned to a specific `typst` version and the Liberation Sans font — recorded once in `typst-version.txt` at the repo root and shared with the container's own render path (ADR-0012), so the skill's host-side render and the container's stay in sync instead of silently drifting apart (issue #55). Before compiling, run the preflight check against that pin:
    ```
-   ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh
+   ./plugins/sumisura/skills/tailor-cv/scripts/preflight-typst.sh
    ```
    It compares the host's `typst --version` and installed fonts (via `fc-list`, where available) against `typst-version.txt` and prints a warning naming expected vs. detected on any mismatch or missing font — non-blocking, so a warning doesn't stop the render, it's a hint to weigh before Visual Review. If `typst` isn't installed at all, the check is a no-op and the compile step below fails with the normal "typst not found" error. (The rendered PDF gets its own mechanical check at the start of Visual Review, step 7.) Then render:
    ```
@@ -185,7 +185,7 @@ Once an Application is matched (step 1 above), any of the four actions below can
 
 7. **Visual Review (HITL, required).** First run the PDF check over the rendered file — the same page-count and ATS-parsability checks the web app's Render attaches to its own Visual Review, via the same Go code (ADR-0028), plus a check that `data.json` carries a supported `lang`:
    ```
-   ./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json
+   ./plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json
    ```
    It prints three lines of signal. `Page count:` — anything but 1 is overflow to fix. `ATS-parsability:` — `ok`; `warning`, followed by which expected fields (name, section headers, employers, project names) were missing from the PDF's extracted text layer or came out in the wrong order, i.e. what an automated screener may not see; or `unavailable` (e.g. `pdftotext` isn't installed), which is a tooling gap and must be reported as "the check couldn't run", never as the PDF being unparsable. `Language:` — the resolved code, with a warning if `data.json`'s `lang` is missing or unsupported (fix `data.json` and re-render). Exit `0` = all clear, `1` = something flagged, `2` = couldn't run (a stderr note, or parsability unavailable with nothing else flagged) — none of them stops the pipeline.
 

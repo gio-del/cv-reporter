@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 )
 
 // ErrNoteNotFound marks an edit or delete addressing a Note id the

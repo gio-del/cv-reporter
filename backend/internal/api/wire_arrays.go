@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // encoding/json sends a nil slice as null, but the frontend declares these

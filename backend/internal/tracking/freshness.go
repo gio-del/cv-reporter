@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
-	"github.com/gio-del/cv-reporter/backend/internal/freshness"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/freshness"
 )
 
 // CheckFreshness runs an on-demand liveness check (issue #59, "Job

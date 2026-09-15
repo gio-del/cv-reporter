@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
 )
 
 // makeReadOnly makes dir unwritable so that creating the helper's temp file

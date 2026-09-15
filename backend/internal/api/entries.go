@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 )
 
 func listEntriesHandler(dataDir, projectRoot string) http.HandlerFunc {

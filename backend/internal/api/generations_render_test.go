@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // seedProjectRoot builds a temp project root containing Master Data (the

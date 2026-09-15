@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 func unknowableFields(m tracking.RecordMigration) map[string]string {

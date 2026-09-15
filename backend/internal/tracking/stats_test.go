@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 func countFor(t *testing.T, stats tracking.Stats, status tracking.Status) int {

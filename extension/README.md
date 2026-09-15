@@ -1,17 +1,17 @@
-# CV Reporter — Job Capture
+# Sumisura — Job Capture
 
-A browser extension that captures the LinkedIn or Indeed job posting you're currently viewing into your local CV Reporter app as a Job Listing. See `docs/adr/0007-job-sourcing.md` for why this is scoped to reading a page you're already looking at, never scraping.
+A browser extension that captures the LinkedIn or Indeed job posting you're currently viewing into your local Sumisura app as a Job Listing. See `docs/adr/0007-job-sourcing.md` for why this is scoped to reading a page you're already looking at, never scraping.
 
 ## How it works
 
-- A "Save to CV Reporter" button appears (bottom-right) on any `linkedin.com/jobs/*` or `*.indeed.com/viewjob*` page.
+- A "Save to Sumisura" button appears (bottom-right) on any `linkedin.com/jobs/*` or `*.indeed.com/viewjob*` page.
 - Clicking it reads the Job Title, company, location, Company Logo, and Job Description (as Markdown) already rendered on the page — no request to LinkedIn/Indeed is made by the extension.
 - That content is sent to your local backend (`POST http://localhost:8080/api/job-listings/from-extension`), which saves it as a Job Listing the same way a manually-pasted one is saved (Company Logo downloaded, RAL Range looked up, Application Method inferred, Application created at Saved).
 - The button shows a success/failure message after each attempt.
 - Nothing happens automatically in the background — only an explicit click triggers a capture.
 - `content.js` (LinkedIn) and `content-indeed.js` (Indeed) are board-specific: each has its own selectors and its own known fragility. They share only what's genuinely board-agnostic — the button/status UI, the message-passing to `background.js`, and Turndown-based HTML-to-Markdown conversion — via `capture-common.js`.
 
-Requires the CV Reporter backend running locally (`docker-compose up` from the repo root; see the root `README.md`).
+Requires the Sumisura backend running locally (`docker-compose up` from the repo root; see the root `README.md`).
 
 ## Loading it (unpacked, for local personal use — not published to any store)
 
@@ -20,13 +20,13 @@ Requires the CV Reporter backend running locally (`docker-compose up` from the r
 1. Open `chrome://extensions`.
 2. Enable **Developer mode** (top-right toggle).
 3. Click **Load unpacked** and select this `extension/` directory.
-4. Visit any LinkedIn or Indeed job posting page — the "Save to CV Reporter" button should appear.
+4. Visit any LinkedIn or Indeed job posting page — the "Save to Sumisura" button should appear.
 
 **Firefox:**
 
 1. Open `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on…** and select `extension/manifest.json` (the manifest file itself, not the folder).
-3. Visit any LinkedIn or Indeed job posting page — the "Save to CV Reporter" button should appear.
+3. Visit any LinkedIn or Indeed job posting page — the "Save to Sumisura" button should appear.
 
 Note: Firefox unloads temporary add-ons when the browser restarts — you'll need to reload it each session. `manifest.json` declares both `background.service_worker` (Chrome) and `background.scripts` (Firefox) so the same extension works unmodified in both.
 

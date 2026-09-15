@@ -1,4 +1,4 @@
-module github.com/gio-del/cv-reporter/backend
+module github.com/gio-del/sumisura/backend
 
 go 1.26.5
 

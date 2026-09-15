@@ -51,17 +51,17 @@ var defaultModels = map[callSite]anthropic.Model{
 }
 
 // defaultModelEnvVar overrides the model for every call site at once.
-const defaultModelEnvVar = "CV_REPORTER_MODEL_DEFAULT"
+const defaultModelEnvVar = "SUMISURA_MODEL_DEFAULT"
 
 // modelEnvVar is the variable overriding site's model alone, e.g.
-// CV_REPORTER_MODEL_SELECTION_REWRITE.
+// SUMISURA_MODEL_SELECTION_REWRITE.
 func modelEnvVar(site callSite) string {
-	return "CV_REPORTER_MODEL_" + strings.ToUpper(string(site))
+	return "SUMISURA_MODEL_" + strings.ToUpper(string(site))
 }
 
 // resolveModels builds a Client's per-call-site model lookup from
 // defaultModels and the environment. Precedence per call site: its own
-// CV_REPORTER_MODEL_<CALL_SITE>, then CV_REPORTER_MODEL_DEFAULT, then the
+// SUMISURA_MODEL_<CALL_SITE>, then SUMISURA_MODEL_DEFAULT, then the
 // built-in default; an empty (or whitespace-only) value counts as unset.
 //
 // An override value is passed to the API as-is, never validated against a

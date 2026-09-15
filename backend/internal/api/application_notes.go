@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // noteRequest is the body of adding a Note, and of editing one: its
