@@ -19,3 +19,8 @@ extension/node_modules/
 
 # backend
 backend/server
+
+# site (Astro landing page + docs)
+site/node_modules/
+site/dist/
+site/.astro/

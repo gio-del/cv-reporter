@@ -8,18 +8,27 @@ on:
   push:
     branches: [main]
 
+# Used only by the fallback path below; with the App token these come from the
+# App's own installation permissions.
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    env:
+      # secrets can't be read in a step `if:`, so surface it as env first.
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
     steps:
       # A PR opened with the default GITHUB_TOKEN does not trigger CI, which
-      # would leave the Release PR unchecked. A GitHub App token does, so the
-      # Release PR runs the same checks as any other PR.
+      # leaves the Release PR unchecked. A GitHub App token does. Until the
+      # app exists, fall back to GITHUB_TOKEN so releases still work — the only
+      # cost is having to push an empty commit (or re-run CI) on the Release PR
+      # before merging it.
       - name: Mint a GitHub App token
         id: app-token
+        if: env.RELEASE_APP_ID != ''
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
@@ -27,6 +36,6 @@ jobs:
 
       - uses: googleapis/release-please-action@v4
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
