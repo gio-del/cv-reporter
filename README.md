@@ -56,6 +56,7 @@ browser extension while you read a posting on LinkedIn or Indeed.
 ```sh
 git clone https://github.com/gio-del/sumisura.git && cd sumisura
 cp .env.example .env            # set ANTHROPIC_API_KEY
+cp data/profile.example.yaml data/profile.yaml   # your contact details stay untracked
 docker compose up               # app on 127.0.0.1:5173, API on :8080
 claude plugin marketplace add . && claude plugin install sumisura@sumisura-local
 ```
@@ -71,7 +72,7 @@ tailoring, tracking, configuration, LAN mode, upgrading and troubleshooting.
 
 | Path | What's in it |
 |---|---|
-| `data/` | Your Master Data: `profile.yaml`, `experience/*.md`, `projects/*.md`, `cover-letter-snippets/*.md`. Ships with stubs. |
+| `data/` | Your Master Data: `experience/*.md`, `projects/*.md`, `cover-letter-snippets/*.md` (tracked, ship as stubs) and `profile.yaml` — your contact details, **gitignored**, copied from `profile.example.yaml` (ADR-0037). |
 | `template/` | `cv.typ` and `cover-letter.typ` — pure presentation, each reads one assembled JSON file. |
 | `output/` | Gitignored. One directory per Generation: PDFs, the assembled data, and `selection.json`. Safe to delete. |
 | `backend/` | Go API over `data/`, plus `cmd/cvcheck` (the quality checks, offline) and `cmd/migrate-records`. |

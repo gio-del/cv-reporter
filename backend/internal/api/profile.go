@@ -13,6 +13,12 @@ func getProfileHandler(dataDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		profile, err := masterdata.GetProfile(dataDir)
 		if err != nil {
+			// A missing profile.yaml is a setup step the user has not done
+			// yet (ADR-0037), not a server fault — say so, and say what to do.
+			if errors.Is(err, masterdata.ErrNoProfile) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

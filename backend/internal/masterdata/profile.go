@@ -1,6 +1,7 @@
 package masterdata
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,10 +71,19 @@ type Profile struct {
 	Version string `yaml:"-" json:"version,omitempty"`
 }
 
+// ErrNoProfile is returned when profile.yaml does not exist. It is the
+// expected state of a fresh clone, not a corrupt install: profile.yaml holds
+// the user's real contact details and is deliberately untracked (ADR-0037),
+// so the repo ships profile.example.yaml and the user copies it once.
+var ErrNoProfile = errors.New("no data/profile.yaml yet — copy data/profile.example.yaml to data/profile.yaml and fill in your own details")
+
 // GetProfile reads and parses dataDir/profile.yaml.
 func GetProfile(dataDir string) (Profile, error) {
 	content, err := os.ReadFile(filepath.Join(dataDir, "profile.yaml"))
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return Profile{}, ErrNoProfile
+		}
 		return Profile{}, err
 	}
 	var profile Profile

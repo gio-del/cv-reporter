@@ -8,6 +8,11 @@ editor; both write the same thing.
 
 ## `data/profile.yaml`
 
+**This file is gitignored.** Copy it from `data/profile.example.yaml` once, then
+edit it freely — your real name, email and phone never enter git history
+([ADR-0037](https://github.com/gio-del/sumisura/blob/main/docs/adr/0037-profile-is-local-only.md)).
+The Entry files below *are* tracked, so their history is yours to keep.
+
 Contact details plus the **Static Sections** — education, publications, awards,
 activities, languages. These are always included in full, never selected or
 rewritten.

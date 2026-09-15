@@ -34,7 +34,7 @@ Note: ADR-0001 ("no Node.js/JS toolchain") only ever applied to the tailoring pi
 
 ## Architecture
 
-- `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten.
+- `data/profile.yaml` — contact info + Static Sections (education, publications, awards, activities, languages). Always included in full, never selected or rewritten. **Gitignored** (ADR-0037): it is the one file holding the user's identity, so the repo tracks `data/profile.example.yaml` and setup copies it. A missing `profile.yaml` is a setup step, not a fault — `masterdata.GetProfile` returns `ErrNoProfile` and the API answers 404.
 - `data/experience/*.md`, `data/projects/*.md` — Master Data. One file per Entry: YAML frontmatter (`employer`/`client`/dates/`tags`/…) + Markdown bullets. A single employer can have multiple Entries (one per Client Engagement, e.g. `data/experience/example-client-*.md`) so Selection can surface one client's work independently of another's.
 - `data/cover-letter-snippets/*.md` — optional Master Data. One file per Cover Letter Snippet: YAML frontmatter (`kind`, optional `tags`) + a Markdown paragraph body.
 - `template/cover-letter.typ` — the Cover Letter's equivalent: reads a seven-field JSON (contact fields + `body`) and lays it out, no drafting logic.
