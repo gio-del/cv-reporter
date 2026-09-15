@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Sumisura">
+  <title>Sumisura</title>
+  <rect width="64" height="64" rx="14" fill="#1B2A4A"/>
+  <g transform="translate(32 32) scale(0.86) translate(-32 -32)">
+    <path d="M45 17C45 8.5 19 8.5 19 21C19 31.5 45 33.5 45 44C45 55.5 19 55.5 19 47" fill="none" stroke="#F2B705" stroke-width="12.5" stroke-linecap="round"/>
+  </g>
+</svg>

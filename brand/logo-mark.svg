@@ -1,8 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="CV Reporter icon: a document with a targeted bullseye, representing a CV tailored to hit one specific role">
-  <path d="M16 6 L40 6 L50 16 L50 54 Q50 58 46 58 L16 58 Q12 58 12 54 L12 10 Q12 6 16 6 Z" fill="#4F46E5"/>
-  <path d="M40 6 L40 16 L50 16 Z" fill="#3730A3"/>
-  <circle cx="31" cy="34" r="12" fill="#FFFFFF"/>
-  <circle cx="31" cy="34" r="8" fill="#4F46E5"/>
-  <circle cx="31" cy="34" r="4" fill="#FFFFFF"/>
-  <circle cx="31" cy="34" r="1.8" fill="#F59E0B"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Sumisura: an S drawn as a tailor's tape measure">
+  <title>Sumisura</title>
+  <path d="M45 17C45 8.5 19 8.5 19 21C19 31.5 45 33.5 45 44C45 55.5 19 55.5 19 47" fill="none" stroke="#F2B705" stroke-width="12" stroke-linecap="round"/>
+    <path d="M45 17C45 8.5 19 8.5 19 21C19 31.5 45 33.5 45 44C45 55.5 19 55.5 19 47" fill="none" stroke="#1B2A4A" stroke-width="12" stroke-dasharray="2.2 13" stroke-linecap="butt"/>
 </svg>
