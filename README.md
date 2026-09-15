@@ -204,6 +204,19 @@ Every record is read and checked before anything is written, so an unparseable r
 
 **Lost-update protection (issue #89).** The web app and the `tailor-cv` skill both write the same files, so every read of an editable record (Entry, Cover Letter Snippet, Profile, Application, Job Listing) carries an opaque `version` field — a hash of the record file's bytes, computed on read and never persisted, and unrelated to the persisted `schemaVersion`. A Job Listing and its Application are two files with two tokens: `/api/job-listings` rows, the `/api/job-listings/{id}` pair and `/api/applications` items carry both. Send the token back as an `If-Match` header on the Entry/Snippet/Profile `PUT`s, the Entry/Snippet `DELETE`s, the three Application `PATCH`es (Status, Method, Contact), the three Note routes (add, edit, delete) and archive/unarchive (the Job Listing's token); the Job Listing `DELETE` takes the Job Listing's token as `If-Match` and its Application's as `Application-If-Match`. If the file changed since that read, the write is refused with `409 Conflict` and nothing is written (a record that is gone is still `404`). The check runs inside the store right before its atomic write. The headers are optional: a request without them writes unconditionally, so the skill and other non-FE callers are unaffected. Every write that honours them answers with fresh tokens, as do the routes that stay unconditional: recording a Generation and the server-computed Job Listing routes (save, resolve, check-freshness).
 
+## Releases
+
+Tagged releases carry one version for the whole product — backend, frontend,
+extension and plugin — because they are only guaranteed to work together at the
+same commit. See [Releases](https://github.com/gio-del/sumisura/releases) for
+the changelog and the extension zip, and
+[`CHANGELOG.md`](CHANGELOG.md) for the same history in the repo.
+
+Before 1.0, a breaking change bumps the minor version, and "breaking" means a
+self-hoster has to act — a renamed environment variable or header, a record
+migration, a removed route, a plugin reinstall. Those are called out in the
+release notes.
+
 ## Licence
 
 Sumisura is licensed under the [GNU AGPL-3.0](LICENSE).

@@ -1,0 +1,32 @@
+# Releases are deliberate: this workflow keeps a Release PR open with the
+# accumulated changelog and version bump, and nothing ships until a human
+# merges it. Merging it tags vX.Y.Z, publishes the GitHub Release, and triggers
+# release-assets.yml.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # A PR opened with the default GITHUB_TOKEN does not trigger CI, which
+      # would leave the Release PR unchecked. A GitHub App token does, so the
+      # Release PR runs the same checks as any other PR.
+      - name: Mint a GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
