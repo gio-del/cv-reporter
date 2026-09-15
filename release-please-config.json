@@ -9,26 +9,82 @@
   "prerelease": false,
   "separate-pull-requests": false,
   "changelog-sections": [
-    { "type": "feat", "section": "Features" },
-    { "type": "fix", "section": "Bug fixes" },
-    { "type": "perf", "section": "Performance" },
-    { "type": "refactor", "section": "Internal", "hidden": true },
-    { "type": "docs", "section": "Documentation", "hidden": true },
-    { "type": "test", "section": "Tests", "hidden": true },
-    { "type": "build", "section": "Build", "hidden": true },
-    { "type": "ci", "section": "CI", "hidden": true },
-    { "type": "chore", "section": "Chores", "hidden": true }
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance"
+    },
+    {
+      "type": "refactor",
+      "section": "Internal",
+      "hidden": true
+    },
+    {
+      "type": "docs",
+      "section": "Documentation",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Tests",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "Build",
+      "hidden": true
+    },
+    {
+      "type": "ci",
+      "section": "CI",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "Chores",
+      "hidden": true
+    }
   ],
   "packages": {
     ".": {
       "package-name": "sumisura",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "initial-version": "0.1.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        { "type": "json", "path": "extension/manifest.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "extension/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "frontend/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "plugins/sumisura/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": ".claude-plugin/marketplace.json", "jsonpath": "$.plugins[0].version" }
+        {
+          "type": "json",
+          "path": "extension/manifest.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "extension/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "frontend/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "plugins/sumisura/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".claude-plugin/marketplace.json",
+          "jsonpath": "$.plugins[0].version"
+        }
       ]
     }
   }
