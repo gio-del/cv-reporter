@@ -35,7 +35,13 @@ git checkout v0.1.0
 ```sh
 cp .env.example .env
 # then set ANTHROPIC_API_KEY=sk-ant-...
+
+cp data/profile.example.yaml data/profile.yaml
 ```
+
+`data/profile.yaml` holds your name, contact details and education. It is
+**gitignored on purpose** — it is the one file that identifies you, so it never
+goes near a commit ([ADR-0037](https://github.com/gio-del/sumisura/blob/main/docs/adr/0037-profile-is-local-only.md)).
 
 Without a key the app still starts and you can browse and edit Master Data —
 only the calls to Claude fail.
@@ -58,7 +64,7 @@ Both are bound to localhost with no authentication, on purpose. See
 something to show on first run. Replace it with your own career history:
 
 - `data/profile.yaml` — contact details, education, publications, awards,
-  languages
+  languages (untracked; you copied it from the example above)
 - `data/experience/*.md` — one file per job or client engagement
 - `data/projects/*.md` — one file per project
 - `data/cover-letter-snippets/*.md` — optional reusable cover-letter paragraphs
