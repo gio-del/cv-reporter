@@ -7,6 +7,9 @@ name: Release
 on:
   push:
     branches: [main]
+  # Lets a failed or skipped run be retried without an empty commit — the
+  # GitHub API occasionally fails a release-please run transiently.
+  workflow_dispatch:
 
 # Used only by the fallback path below; with the App token these come from the
 # App's own installation permissions.
