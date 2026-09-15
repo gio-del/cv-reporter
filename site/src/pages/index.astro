@@ -1,0 +1,187 @@
+---
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/instrument-serif/400.css';
+import '../styles/landing.css';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const repo = 'https://github.com/gio-del/sumisura';
+const discussion = `${repo}/discussions`;
+const title = 'Sumisura — resumes tailored to every job, never made up';
+const description =
+  'Self-hosted AI resume tailoring. Your career history stays in files you own; every rewritten bullet is checked against what you actually did, and nothing renders without your approval.';
+const url = (path) => new URL(`${base}/${path}`.replace(/\/+/g, '/'), Astro.site).href;
+const ogImage = url('social-preview.png');
+
+const steps = [
+  {
+    n: '01',
+    title: 'Keep your history once',
+    body: 'Every job, client engagement and project lives as a Markdown file with frontmatter — your Master Data. Write it once; it is the only thing you maintain.',
+  },
+  {
+    n: '02',
+    title: 'Point it at a job',
+    body: 'Paste a job description or URL, pull it from a Greenhouse/Lever/Ashby board, or capture the LinkedIn or Indeed posting you are reading with the browser extension.',
+  },
+  {
+    n: '03',
+    title: 'Selection, then Rewrite',
+    body: 'Claude picks the Entries that matter for this job and rewrites their bullets towards its language — never inventing a new fact, tool or number.',
+  },
+  {
+    n: '04',
+    title: 'You approve, then it renders',
+    body: 'Text Review and Visual Review are real checkpoints. A one-page PDF and a matching cover letter come out of a Typst template you control.',
+  },
+];
+---
+
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="canonical" href={url('')} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href={`${base}/`}>
+        <img src={`${base}/logo-lockup-dark.svg`} alt="Sumisura" height="28" />
+      </a>
+      <nav>
+        <a href={`${base}/quickstart`}>Docs</a>
+        <a href={repo}>GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">su misura &mdash; Italian for &ldquo;made to measure&rdquo;</p>
+        <h1>Resumes tailored to every job,<br /><em>never made up.</em></h1>
+        <p class="lede">
+          Sumisura turns your complete career history into a one-page CV and a cover letter
+          written for one specific job &mdash; selected from what you actually did, rewritten
+          under a groundedness check, and rendered only after you approve it.
+        </p>
+        <div class="cta">
+          <a class="btn btn-primary" href={`${base}/quickstart`}>Get started</a>
+          <a class="btn btn-ghost" href={repo}>Star on GitHub</a>
+        </div>
+        <p class="fineprint">Self-hosted &middot; your files, your API key &middot; AGPL-3.0</p>
+      </section>
+
+      <section class="band problem">
+        <h2>AI resume tools have one job, and they cheat at it</h2>
+        <p>
+          Ask a generic builder to tailor your CV to a posting and it will happily give you
+          Kubernetes experience you don't have, invent a percentage to make a bullet sound
+          sharper, or quietly promote you a level. You find out in the interview.
+        </p>
+        <p>
+          Sumisura is built the other way around. Rewriting is allowed to change
+          <em>emphasis and wording</em>. It is not allowed to add a fact. Every rewritten
+          bullet is checked against the source bullet it came from, and the check runs before
+          you are ever asked to approve anything.
+        </p>
+      </section>
+
+      <section class="band">
+        <h2>How a tailored CV gets made</h2>
+        <ol class="steps">
+          {steps.map((s) => (
+            <li>
+              <span class="step-n">{s.n}</span>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section class="band grounded">
+        <h2>The groundedness check, in one example</h2>
+        <div class="compare">
+          <figure>
+            <figcaption>Your Master Data says</figcaption>
+            <blockquote>
+              Built the ingestion service that feeds the recommendation models, moving it from
+              nightly batches to streaming.
+            </blockquote>
+          </figure>
+          <figure class="ok">
+            <figcaption>A grounded rewrite &mdash; accepted</figcaption>
+            <blockquote>
+              Rebuilt a batch ingestion pipeline as a streaming service feeding production
+              recommendation models.
+            </blockquote>
+            <p class="note">Same facts, the job's vocabulary.</p>
+          </figure>
+          <figure class="bad">
+            <figcaption>What other tools produce &mdash; flagged</figcaption>
+            <blockquote>
+              Cut recommendation latency <mark>by 40%</mark> for <mark>12M users</mark> using
+              <mark>Kafka and Flink</mark>.
+            </blockquote>
+            <p class="note">Numbers and tools that appear nowhere in your history.</p>
+          </figure>
+        </div>
+      </section>
+
+      <section class="band">
+        <h2>It also keeps track of where you applied</h2>
+        <p>
+          Every job you save becomes a Job Listing with an Application attached: status,
+          timestamped notes, the contact, the salary range where it can be resolved, and every
+          Generation you produced for it. A browser extension captures the LinkedIn or Indeed
+          posting you are looking at; ATS boards (Greenhouse, Lever, Ashby) can be pulled
+          directly.
+        </p>
+      </section>
+
+      <section class="band private">
+        <h2>Self-hosted, and private by construction</h2>
+        <ul class="ticks">
+          <li>Runs on your machine via <code>docker compose</code>, bound to localhost.</li>
+          <li>No accounts, no sign-in, no telemetry, no phone-home.</li>
+          <li>Your Master Data is plain Markdown and YAML in your own directory.</li>
+          <li>It calls the Claude API with <strong>your</strong> key; nothing goes anywhere else.</li>
+          <li>Your output is yours — the AGPL puts no claim on what you generate.</li>
+        </ul>
+      </section>
+
+      <section class="band hosted">
+        <h2>Would you use a hosted version?</h2>
+        <p>
+          Self-hosting asks for Docker and an API key. A hosted Sumisura would not. Before
+          building it, it is worth knowing whether anyone wants it — so there is no waitlist
+          and no email box here, just a thread.
+        </p>
+        <a class="btn btn-ghost" href={discussion}>👍 the discussion on GitHub</a>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        <a href={`${base}/quickstart`}>Docs</a> &middot;
+        <a href={repo}>GitHub</a> &middot;
+        <a href={`${repo}/blob/main/LICENSE`}>AGPL-3.0</a> &middot;
+        <a href={`${repo}/blob/main/TRADEMARKS.md`}>Trademarks</a>
+      </p>
+      <p class="fineprint">
+        Sumisura is a personal-scale, single-tenant tool. The name and logo are trademarks;
+        forks are welcome under their own name.
+      </p>
+    </footer>
+  </body>
+</html>

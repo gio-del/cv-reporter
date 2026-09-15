@@ -48,4 +48,6 @@ Adding a new job or project means adding a new Markdown file under `data/experie
 
 ## Keeping docs in sync
 
-Whenever a change alters something `README.md`, `CONTEXT.md`, or `docs/adr/` documents (a new/changed API route, a new top-level directory, a new running-it step, a superseded decision), update that documentation in the same session/commit as the code change — don't leave it for a later pass.
+Whenever a change alters something `README.md`, `CONTEXT.md`, `docs/adr/`, or the docs site (`site/src/content/docs/`) documents (a new/changed API route, a new top-level directory, a new running-it step, a superseded decision, anything a self-hoster configures or runs), update that documentation in the same session/commit as the code change — don't leave it for a later pass.
+
+The split is by audience: `site/` holds what a **self-hoster** needs (quickstart, Master Data, tailoring, configuration, LAN mode, upgrading, troubleshooting); `CONTRIBUTING.md` holds what a **contributor** needs (dev loop, tests, contract fixtures); `README.md` is the pitch plus a quickstart that links out; `CONTEXT.md` and `docs/adr/` stay the source of truth for vocabulary and decisions, and the site links to them rather than copying them.
