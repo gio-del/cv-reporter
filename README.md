@@ -202,27 +202,27 @@ Every record is read and checked before anything is written, so an unparseable r
 
 **Lost-update protection (issue #89).** The web app and the `tailor-cv` skill both write the same files, so every read of an editable record (Entry, Cover Letter Snippet, Profile, Application, Job Listing) carries an opaque `version` field — a hash of the record file's bytes, computed on read and never persisted, and unrelated to the persisted `schemaVersion`. A Job Listing and its Application are two files with two tokens: `/api/job-listings` rows, the `/api/job-listings/{id}` pair and `/api/applications` items carry both. Send the token back as an `If-Match` header on the Entry/Snippet/Profile `PUT`s, the Entry/Snippet `DELETE`s, the three Application `PATCH`es (Status, Method, Contact), the three Note routes (add, edit, delete) and archive/unarchive (the Job Listing's token); the Job Listing `DELETE` takes the Job Listing's token as `If-Match` and its Application's as `Application-If-Match`. If the file changed since that read, the write is refused with `409 Conflict` and nothing is written (a record that is gone is still `404`). The check runs inside the store right before its atomic write. The headers are optional: a request without them writes unconditionally, so the skill and other non-FE callers are unaffected. Every write that honours them answers with fresh tokens, as do the routes that stay unconditional: recording a Generation and the server-computed Job Listing routes (save, resolve, check-freshness).
 
-Backend tests are Go `testing`-package HTTP integration tests, run with `go test ./...` from `backend/`.
+## Licence
 
-Backend lint: `golangci-lint run ./...` from `backend/`. It reads [`.golangci.yml`](.golangci.yml) at the repo root and is the same command CI runs, so a red lint build is reproducible locally. The enabled set is deliberately small — `gofmt`, `errcheck` (with `check-blank`, so `_ = someCall()` is flagged too), `ineffassign`, `unused`, `govet` — with the rationale for what's left out recorded in the config file itself. A genuinely intentional discard gets a `//nolint:errcheck` with a reason rather than a weaker gate. Install: `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2` (the version CI pins).
+Sumisura is licensed under the [GNU AGPL-3.0](LICENSE).
 
-#### API contract fixtures
+**Your output is yours.** The CVs, cover letters and application records you
+produce with it are your own work, not derivative works of this software: the
+AGPL places no obligation on them, and neither the maintainer nor this project
+claims any right over your Master Data or anything rendered from it.
 
-`frontend/src/api/types.ts` is hand-written, so a contract test keeps it honest (issue #99, ADR-0035). `backend/internal/api/contract_test.go` drives every JSON-returning route through its real handler and compares the response, normalized (sorted keys; fixed timestamps, version tokens and other clock-derived values), with a golden file in `frontend/src/api/contract/fixtures/`. `frontend/src/api/contract/contract.ts` then type-asserts each fixture against the type `types.ts` declares for that route, so `npm run build` (`tsc -b`) fails with the route and JSON path of any field that is sent but undeclared, declared required but not sent, of the wrong kind, or whose optionality disagrees with the backend (`.populated` fixtures must send every optional field, `.sparse` ones none).
+The **name and logo** are trademarks and are not covered by the AGPL — see
+[`TRADEMARKS.md`](TRADEMARKS.md). Fork freely; give your fork its own name.
 
-A plain `go test ./...` only verifies, and fails when a response no longer matches its fixture. When a response shape changes on purpose, regenerate the fixtures, review the JSON diff, then update `types.ts` until the frontend build passes:
+Third-party code and fonts keep their own licences, listed in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-```
-cd backend && UPDATE_CONTRACT_FIXTURES=1 go test ./internal/api -run TestContract
-```
+## Contributing
 
-Adding a route means adding its fixture to `contractFixtures` and an assertion to `contract.ts` (or an exemption with a reason, for a route with no JSON body); `TestContractRoutesAllCovered` fails otherwise.
-
-### Frontend dev loop
-
-From `frontend/`: `npm run dev` (served by the `frontend` service above inside Docker), `npm run build`, `npm run lint`, `npm test` (`npm run test:watch` while working).
-
-Frontend tests are Vitest + Testing Library, rendering the real page inside a real router and faking only HTTP with Mock Service Worker — the API client, its query-string building and its error handling all run for real, and an unhandled request fails the test. They need no backend, no `ANTHROPIC_API_KEY` and no `typst`. See [`docs/adr/0019-frontend-tests-fake-only-the-network.md`](docs/adr/0019-frontend-tests-fake-only-the-network.md) for why that seam, and `frontend/src/pages/GenerationPage.test.tsx` for the example to copy when adding more.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev loop, the test and lint
+commands, the API contract fixtures, and how architecture decisions get
+recorded. Bug reports and questions are welcome; by contributing you agree to
+the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Further reading
 
@@ -230,3 +230,5 @@ Frontend tests are Vitest + Testing Library, rendering the real page inside a re
 - [`docs/adr/`](docs/adr/) — architecture decision records
 - [`extension/README.md`](extension/README.md) — how the LinkedIn/Indeed capture extension works and how to load it
 - [`brand/palette.md`](brand/palette.md) — the color palette behind the logo, applied across the frontend's shadcn/ui theme
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev loop, tests, lint, contract fixtures
+- [`SECURITY.md`](SECURITY.md) — how to report a vulnerability
