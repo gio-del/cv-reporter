@@ -1,0 +1,60 @@
+name: Bug report
+description: Something behaves differently from what it documents
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For questions, ideas and "how do I…", use
+        [Discussions](../../discussions) instead — this form is for things that
+        look broken.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release tag you are on, or the commit SHA if you run `main`.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - Web app (docker compose)
+        - Backend API (direct)
+        - tailor-cv skill
+        - Browser extension
+        - Rendering (typst)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Save a Job Listing from …
+        2. Click Generate
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Backend logs, browser console, or the skill's output. Redact anything personal — job descriptions and CV content included.
+      render: shell
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed personal data (my CV content, employer names, contact details) from the text above.
+          required: true
