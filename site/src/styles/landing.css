@@ -1,0 +1,143 @@
+/* Landing page. Palette and rules from /brand/palette.md: navy surface, chalk
+   text, tape yellow as a fill/highlight only — never as body text. */
+:root {
+  --navy: #132038;
+  --navy-card: #1f3054;
+  --navy-line: #2b3f68;
+  --chalk: #f7f4ec;
+  --chalk-dim: #c3cbd9;
+  --yellow: #f2b705;
+  --serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--navy);
+  color: var(--chalk);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--chalk); }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem clamp(1rem, 5vw, 3rem);
+  border-bottom: 1px solid var(--navy-line);
+}
+.topbar nav { display: flex; gap: 1.5rem; }
+.topbar nav a { text-decoration: none; color: var(--chalk-dim); }
+.topbar nav a:hover { color: var(--chalk); }
+.wordmark img { display: block; }
+
+main { max-width: 68rem; margin: 0 auto; padding: 0 clamp(1rem, 5vw, 3rem); }
+
+.hero { padding: clamp(3.5rem, 9vw, 7rem) 0 clamp(2.5rem, 6vw, 4rem); max-width: 46rem; }
+.eyebrow {
+  margin: 0 0 1rem;
+  color: var(--yellow);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.6rem, 7vw, 4.4rem);
+  line-height: 1.08;
+  margin: 0 0 1.25rem;
+}
+h1 em { font-style: normal; color: var(--yellow); }
+.lede { font-size: 1.2rem; color: var(--chalk-dim); margin: 0 0 2rem; }
+
+.cta { display: flex; flex-wrap: wrap; gap: 0.85rem; }
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.btn-primary { background: var(--yellow); color: #132038; }
+.btn-primary:hover { background: #ffc61f; }
+.btn-ghost { border-color: var(--navy-line); color: var(--chalk); }
+.btn-ghost:hover { border-color: var(--chalk-dim); }
+.fineprint { color: #8f9db5; font-size: 0.9rem; }
+.hero .fineprint { margin-top: 1.25rem; }
+
+.band { padding: clamp(2.5rem, 6vw, 4rem) 0; border-top: 1px solid var(--navy-line); }
+.band h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  margin: 0 0 1rem;
+}
+.band p { max-width: 46rem; color: var(--chalk-dim); }
+.band strong { color: var(--chalk); }
+.band em { color: var(--chalk); font-style: italic; }
+
+.steps {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+.steps li {
+  background: var(--navy-card);
+  border: 1px solid var(--navy-line);
+  border-radius: 0.9rem;
+  padding: 1.4rem;
+}
+.step-n { color: var(--yellow); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.08em; }
+.steps h3 { margin: 0.4rem 0 0.5rem; font-size: 1.05rem; }
+.steps p { margin: 0; font-size: 0.97rem; }
+
+.compare {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  margin-top: 2rem;
+}
+.compare figure {
+  margin: 0;
+  background: var(--navy-card);
+  border: 1px solid var(--navy-line);
+  border-radius: 0.9rem;
+  padding: 1.3rem;
+}
+.compare figcaption { font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; color: #8f9db5; }
+.compare blockquote { margin: 0.75rem 0 0; font-size: 0.99rem; }
+.compare .note { font-size: 0.88rem; margin: 0.75rem 0 0; }
+.compare .ok { border-color: #3f7d5c; }
+.compare .bad { border-color: #8c4a4a; }
+.compare mark { background: rgba(242, 183, 5, 0.22); color: var(--chalk); padding: 0 0.15rem; border-radius: 0.2rem; }
+
+.ticks { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: 0.6rem; max-width: 46rem; }
+.ticks li { padding-left: 1.75rem; position: relative; color: var(--chalk-dim); }
+.ticks li::before { content: '✓'; position: absolute; left: 0; color: var(--yellow); font-weight: 700; }
+.ticks code { background: rgba(255, 255, 255, 0.08); padding: 0.1rem 0.35rem; border-radius: 0.3rem; }
+
+.hosted .btn { margin-top: 1rem; }
+
+footer {
+  border-top: 1px solid var(--navy-line);
+  margin-top: 2rem;
+  padding: 2rem clamp(1rem, 5vw, 3rem) 3rem;
+  text-align: center;
+}
+footer p { margin: 0.4rem 0; }
+footer a { color: var(--chalk-dim); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn { transition: background-color 120ms ease, border-color 120ms ease; }
+}

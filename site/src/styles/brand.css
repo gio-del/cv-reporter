@@ -1,0 +1,55 @@
+/* Brand tokens, mirrored from /brand/palette.md. Yellow is a fill and a
+   highlight, never text on a light surface (1.65:1 against chalk). */
+:root {
+  --sm-navy: #1b2a4a;
+  --sm-navy-deep: #132038;
+  --sm-navy-card: #1f3054;
+  --sm-yellow: #f2b705;
+  --sm-chalk: #f7f4ec;
+  --sm-chalk-card: #fffefa;
+  --sm-muted-light: #4a5a72;
+  --sm-muted-dark: #c3cbd9;
+  --sm-border-light: #dcd6c8;
+  --sm-border-dark: #2b3f68;
+
+  --sl-font: 'Inter var', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --sl-font-system: var(--sl-font);
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #24365c;
+  --sl-color-accent: var(--sm-yellow);
+  --sl-color-accent-high: #ffd980;
+  --sl-color-white: var(--sm-chalk);
+  --sl-color-gray-1: #e6e2d6;
+  --sl-color-gray-2: var(--sm-muted-dark);
+  --sl-color-gray-3: #8f9db5;
+  --sl-color-gray-4: #4c5e85;
+  --sl-color-gray-5: var(--sm-border-dark);
+  --sl-color-gray-6: var(--sm-navy-card);
+  --sl-color-black: var(--sm-navy-deep);
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #f6ecc7;
+  --sl-color-accent: var(--sm-navy);
+  --sl-color-accent-high: var(--sm-navy-deep);
+  --sl-color-white: var(--sm-navy-deep);
+  --sl-color-gray-1: var(--sm-navy);
+  --sl-color-gray-2: var(--sm-muted-light);
+  --sl-color-gray-3: #6b7a92;
+  --sl-color-gray-4: #9aa6ba;
+  --sl-color-gray-5: var(--sm-border-light);
+  --sl-color-gray-6: #efeadc;
+  --sl-color-gray-7: #f3efe3;
+  --sl-color-black: var(--sm-chalk);
+}
+
+/* Display face for headings; body text stays on Inter. */
+.content-panel h1,
+.content-panel h2,
+.site-title {
+  font-family: 'Instrument Serif', Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
