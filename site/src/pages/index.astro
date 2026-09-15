@@ -1,4 +1,10 @@
 ---
+import { Image } from 'astro:assets';
+// Symlinked from /docs/screenshots so the README and the site can never show
+// different versions of the same view.
+import shotJobs from '../assets/screenshots/job-listings.png';
+import shotApps from '../assets/screenshots/applications.png';
+import shotDetail from '../assets/screenshots/job-detail.png';
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/instrument-serif/400.css';
@@ -89,7 +95,7 @@ const steps = [
           sharper, or quietly promote you a level. You find out in the interview.
         </p>
         <p>
-          Sumisura is built the other way around. Rewriting is allowed to change
+          Sumisura is built the other way around. Rewriting is allowed to change{' '}
           <em>emphasis and wording</em>. It is not allowed to add a fact. Every rewritten
           bullet is checked against the source bullet it came from, and the check runs before
           you are ever asked to approve anything.
@@ -147,6 +153,20 @@ const steps = [
           posting you are looking at; ATS boards (Greenhouse, Lever, Ashby) can be pulled
           directly.
         </p>
+        <div class="shots">
+          <figure>
+            <Image src={shotJobs} alt="The Job Listings view: four saved jobs, each with its salary range, freshness state and a Generate CV action" loading="lazy" />
+            <figcaption>Saved jobs, with the salary range pulled out of the posting.</figcaption>
+          </figure>
+          <figure>
+            <Image src={shotApps} alt="The Applications view, grouped by status from Saved through Interviewing" loading="lazy" />
+            <figcaption>Applications grouped by status, stale ones first.</figcaption>
+          </figure>
+          <figure>
+            <Image src={shotDetail} alt="A single job listing with its notes, generations and the full job description" loading="lazy" />
+            <figcaption>One job: how to apply, your notes, every CV you generated for it.</figcaption>
+          </figure>
+        </div>
       </section>
 
       <section class="band private">

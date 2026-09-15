@@ -21,10 +21,10 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/job-listings.png" alt="Job Listings tracking view" width="90%">
+  <img src="docs/screenshots/job-listings.png" alt="The Job Listings view: saved jobs with their salary range, status and a Generate CV action" width="90%">
 </p>
 <p align="center">
-  <img src="docs/screenshots/generate.png" alt="Generation flow" width="90%">
+  <img src="docs/screenshots/applications.png" alt="The Applications view, grouped by status from Saved through Interviewing" width="90%">
 </p>
 
 *Su misura* is Italian for "made to measure". Sumisura is not a generic resume builder and not a template gallery: you keep your whole career history as Master Data in this repo, and each run produces a *Tailored CV* for one *Job Description* — selected from real Entries, rewritten under a groundedness check, and approved by you before anything is rendered. The AI never invents experience you don't have.
