@@ -7,6 +7,15 @@ name: Release assets
 on:
   release:
     types: [published]
+  # A release created with GITHUB_TOKEN does not trigger other workflows, so
+  # until the release App exists the `release: published` event never fires and
+  # the assets have to be attached by hand: run this with the tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to attach assets to (e.g. v0.1.0)
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -16,9 +25,13 @@ jobs:
     name: Attach the browser extension zip
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve the tag
+        id: tag
+        run: echo "name=${{ inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ steps.tag.outputs.name }}
 
       # Ship what the browser loads and nothing else: no node_modules, no test
       # tooling, no fixtures. The version inside manifest.json was stamped by
@@ -26,7 +39,7 @@ jobs:
       - name: Build the zip
         run: |
           set -euo pipefail
-          version="${{ github.event.release.tag_name }}"
+          version="${{ steps.tag.outputs.name }}"
           staging="$(mktemp -d)/sumisura-extension"
           mkdir -p "$staging"
           rsync -a --exclude node_modules \
@@ -45,4 +58,4 @@ jobs:
       - name: Attach it to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "sumisura-extension-${{ github.event.release.tag_name }}.zip" --clobber
+        run: gh release upload "${{ steps.tag.outputs.name }}" "sumisura-extension-${{ steps.tag.outputs.name }}.zip" --clobber
