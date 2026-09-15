@@ -2,7 +2,7 @@
 # required font (ADR-0012). Read by:
 #   - backend/Dockerfile, at image build time, to install this exact typst
 #     release and fail the build if it can't.
-#   - plugins/cv-reporter-skills/skills/tailor-cv/scripts/preflight-typst.sh,
+#   - plugins/sumisura/skills/tailor-cv/scripts/preflight-typst.sh,
 #     at skill Render time, to warn (non-blocking) if the host's typst/fonts
 #     don't match this file.
 #   - .github/workflows/ci.yml, to install this exact release before the

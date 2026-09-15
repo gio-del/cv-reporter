@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 // ErrInvalidSelection marks a Client response that Generate rejects because

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/freshness"
+	"github.com/gio-del/sumisura/backend/internal/freshness"
 )
 
 type fakeDoer struct {

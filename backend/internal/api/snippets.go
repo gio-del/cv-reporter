@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // snippetWithUsage enriches a Snippet with when it was last used, per issue

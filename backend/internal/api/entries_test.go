@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 func writeFile(t *testing.T, path, content string) {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
 )
 
 // HTTPDoer is the minimal http.Client surface the Company Logo download

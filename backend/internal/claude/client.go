@@ -14,8 +14,8 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // Client wraps the Anthropic SDK client with the prompts and tool schemas
@@ -47,7 +47,7 @@ func New() *Client {
 
 // NewWithOptions builds a Client with explicit SDK request options (tests
 // pointing at a fake server, etc). Like New, it takes each call site's
-// model from defaultModels and the CV_REPORTER_MODEL_* environment (see
+// model from defaultModels and the SUMISURA_MODEL_* environment (see
 // resolveModels).
 func NewWithOptions(opts ...option.RequestOption) *Client {
 	return &Client{api: anthropic.NewClient(opts...), models: resolveModels()}

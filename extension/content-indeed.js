@@ -12,8 +12,8 @@
 // extraction function takes an explicit Document so it can be exercised in
 // tests against a static HTML fixture instead.
 
-const CVReporterCommon =
-  typeof module !== "undefined" && module.exports ? require("./capture-common.js") : window.CVReporterCommon;
+const SumisuraCommon =
+  typeof module !== "undefined" && module.exports ? require("./capture-common.js") : window.SumisuraCommon;
 
 const DESCRIPTION_SELECTOR = "#jobDescriptionText";
 
@@ -21,7 +21,7 @@ function titleFromPage(doc) {
   // The job-view header's <h1> carries this data-testid most consistently;
   // document.title ("<Title> - <Company> - <City> | Indeed.com") is the
   // fallback when that markup isn't present.
-  const heading = CVReporterCommon.firstNonEmptyText(doc, [
+  const heading = SumisuraCommon.firstNonEmptyText(doc, [
     '[data-testid="jobsearch-JobInfoHeader-title"]',
     "h1.jobsearch-JobInfoHeader-title",
     "h1",
@@ -32,7 +32,7 @@ function titleFromPage(doc) {
 }
 
 function companyName(doc) {
-  return CVReporterCommon.firstNonEmptyText(doc, [
+  return SumisuraCommon.firstNonEmptyText(doc, [
     '[data-testid="inlineHeader-companyName"]',
     '[data-company-name="true"]',
     ".jobsearch-CompanyInfoContainer a",
@@ -40,7 +40,7 @@ function companyName(doc) {
 }
 
 function locationText(doc) {
-  return CVReporterCommon.firstNonEmptyText(doc, [
+  return SumisuraCommon.firstNonEmptyText(doc, [
     '[data-testid="inlineHeader-companyLocation"]',
     '[data-testid="job-location"]',
   ]);
@@ -68,7 +68,7 @@ function logoUrl(doc) {
 }
 
 function description(doc) {
-  return CVReporterCommon.descriptionMarkdown(doc, DESCRIPTION_SELECTOR, ["button"]);
+  return SumisuraCommon.descriptionMarkdown(doc, DESCRIPTION_SELECTOR, ["button"]);
 }
 
 // salaryText looks for Indeed's own salary line first (e.g. "$120,000 -
@@ -79,7 +79,7 @@ function description(doc) {
 // unaffected either way.
 function salaryText(doc) {
   try {
-    const dedicated = CVReporterCommon.firstNonEmptyText(doc, [
+    const dedicated = SumisuraCommon.firstNonEmptyText(doc, [
       "#salaryInfoAndJobType",
       '[data-testid="attribute_snippet_testid"]',
     ]);
@@ -94,7 +94,7 @@ function salaryText(doc) {
       if (salaryPatternRe.test(text)) return text;
     }
   } catch (err) {
-    console.error("[CVReporter] salaryText threw", err);
+    console.error("[Sumisura] salaryText threw", err);
   }
   return "";
 }
@@ -115,12 +115,12 @@ function captureJobPosting(doc) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { captureJobPosting, titleFromPage, companyName, locationText, captureUrl, logoUrl, description, salaryText };
 } else {
-  console.log("[CVReporter] content script loaded (indeed)", window.location.href);
+  console.log("[Sumisura] content script loaded (indeed)", window.location.href);
   // validateCapture (extension/validate-capture.js, loaded as a content
   // script ahead of this one — see manifest.json) applies issue #58's
   // per-field sanity checks instead of capture-common.js's bare emptiness
   // fallback, so a plausible-but-wrong Indeed capture (a stale nav element
   // read as the company, a truncated Job Description) is refused with a
   // specific reason rather than silently saved.
-  CVReporterCommon.initCaptureUI(() => captureJobPosting(document), validateCapture);
+  SumisuraCommon.initCaptureUI(() => captureJobPosting(document), validateCapture);
 }

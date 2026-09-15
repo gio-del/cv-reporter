@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or idea
-    url: https://github.com/gio-del/cv-reporter/discussions
+    url: https://github.com/gio-del/sumisura/discussions
     about: Ask how something works, or suggest a feature, in Discussions.
   - name: Security vulnerability
-    url: https://github.com/gio-del/cv-reporter/security/advisories/new
+    url: https://github.com/gio-del/sumisura/security/advisories/new
     about: Report privately via a security advisory — please do not open a public issue.

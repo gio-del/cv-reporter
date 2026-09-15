@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 

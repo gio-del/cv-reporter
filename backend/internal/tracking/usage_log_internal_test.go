@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 type drainingUsage struct{ calls []generation.CallUsage }

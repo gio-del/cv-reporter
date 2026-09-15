@@ -4,8 +4,8 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // Resolve re-attempts RAL Range resolution and/or Application Method

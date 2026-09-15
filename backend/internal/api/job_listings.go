@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // defaultRALCurrency mirrors generation.ParseStatedRAL's own default: RAL

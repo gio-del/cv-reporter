@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // listAtsListingsHandler fetches boardSlug's open roles from provider's

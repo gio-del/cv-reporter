@@ -3,8 +3,8 @@ package tracking
 import (
 	"path/filepath"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 )
 
 // SetArchived archives (archived true) or unarchives (archived false) the

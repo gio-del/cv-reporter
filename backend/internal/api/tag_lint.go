@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 // tagLintOccurrence is the wire shape of one Tag spelling used by one

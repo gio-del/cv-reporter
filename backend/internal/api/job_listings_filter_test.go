@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 func saveListing(t *testing.T, serverURL, company, jobDescription string) string {

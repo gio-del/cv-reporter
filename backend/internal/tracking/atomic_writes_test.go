@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 const sampleListingFile = "---\ntitle: Backend Engineer\ncompany: Acme Corp\nurl: https://boards.example.com/acme/jobs/1\nsource: manual\nsavedAt: \"2026-01-02T03:04:05Z\"\nral:\n    source: unresolved\n---\n\nGo backend engineer.\n"

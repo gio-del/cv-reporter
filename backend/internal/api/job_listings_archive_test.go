@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // postArchiveAction POSTs to /api/job-listings/{id}/{action} (archive or

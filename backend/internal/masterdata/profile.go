@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 	"gopkg.in/yaml.v3"
 )
 

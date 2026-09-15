@@ -3,7 +3,7 @@ package tracking
 import (
 	"context"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // resolveRALBestEffort attempts RAL Range resolution, falling back to

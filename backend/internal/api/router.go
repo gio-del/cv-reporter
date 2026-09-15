@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
-	"github.com/gio-del/cv-reporter/backend/internal/claude"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/claude"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // RouterConfig holds everything NewRouter needs to build the app's API
@@ -59,7 +59,7 @@ type RouterConfig struct {
 
 	// LANAuthToken opts the handler into LAN-reachable mode's auth gate
 	// (issue #57, see lan_auth.go): once non-empty, every /api/* route
-	// requires it via the X-CV-Reporter-Token header. Empty — the default
+	// requires it via the X-Sumisura-Token header. Empty — the default
 	// — leaves every route unwrapped with no check wired in at all,
 	// preserving ADR-0004's localhost-only, no-auth default exactly.
 	LANAuthToken string

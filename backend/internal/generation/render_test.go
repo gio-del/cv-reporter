@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 // requireBinary skips t unless name is on PATH — for the smoke test below,

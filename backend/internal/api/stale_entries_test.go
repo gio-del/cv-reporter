@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // gitCommitFile writes content to path (relative to root) and commits it,

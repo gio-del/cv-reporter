@@ -1,13 +1,13 @@
 {
-  "name": "cv-reporter-local",
+  "name": "sumisura-local",
   "owner": {
     "name": "Giovanni De Lucia"
   },
-  "description": "Skills specific to the cv-reporter project.",
+  "description": "Skills specific to the sumisura project.",
   "plugins": [
     {
-      "name": "cv-reporter-skills",
-      "source": "./plugins/cv-reporter-skills",
+      "name": "sumisura",
+      "source": "./plugins/sumisura",
       "description": "Skills for generating Tailored CVs from this repo's Master Data",
       "version": "1.0.0"
     }

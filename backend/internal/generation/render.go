@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 // ErrInvalidRenderRequest marks a Render request that can't be compiled:

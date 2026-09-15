@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 // This file holds the exported facades over the Generation pipeline's

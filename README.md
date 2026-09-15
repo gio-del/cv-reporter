@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="brand/logo-lockup.svg" alt="CV Reporter" width="320">
+  <img src="brand/logo-lockup.svg" alt="Sumisura" width="320">
 </p>
 
 <p align="center">
-  A personal tool that turns one person's complete career history into a tailored, one-page CV — generated on demand for a specific job application.
+  Resumes tailored to every job, never made up. Sumisura turns your complete career history into a one-page CV and a cover letter, written for one specific job and checked against what you actually did.
 </p>
 
 <p align="center">
@@ -20,13 +20,15 @@
   <img src="docs/screenshots/generate.png" alt="Generation flow" width="90%">
 </p>
 
-It is not a generic resume builder — it's built around one person's career history, and produces a *Tailored CV* per *Job Description*. This stays a personal tool, not a product pitched at other users.
+*Su misura* is Italian for "made to measure". Sumisura is not a generic resume builder and not a template gallery: you keep your whole career history as Master Data in this repo, and each run produces a *Tailored CV* for one *Job Description* — selected from real Entries, rewritten under a groundedness check, and approved by you before anything is rendered. The AI never invents experience you don't have.
+
+It is **self-hosted**: it runs on your machine, your data stays in files you own, and it calls the Claude API with your own key. Bring your own career history — the `data/` directory ships with stub content (Jane Doe) for exactly that reason.
 
 See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagement, Selection, Rewrite, Tailored CV, Job Listing, Application, ...) and `docs/adr/` for why the architecture looks like this.
 
 ## Two parts
 
-**1. The tailoring pipeline** — a Claude Code skill (`plugins/cv-reporter-skills/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite (plus a Cover Letter draft, when a job is given) → Text Review (approval required) → Render → Visual Review (approval required), running the same automated quality checks the web app runs along the way (see below). A run with a job produces both a Tailored CV and a Cover Letter, drawn from your Cover Letter Snippets when you have any; Default Mode produces the CV only. Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
+**1. The tailoring pipeline** — a Claude Code skill (`plugins/sumisura/skills/tailor-cv/`), not a build script. Run it with a job description (pasted text or URL), a reference to an already-tracked Application, or nothing (Default Mode). It walks: Selection → Rewrite (plus a Cover Letter draft, when a job is given) → Text Review (approval required) → Render → Visual Review (approval required), running the same automated quality checks the web app runs along the way (see below). A run with a job produces both a Tailored CV and a Cover Letter, drawn from your Cover Letter Snippets when you have any; Default Mode produces the CV only. Rendering is done with [Typst](https://typst.app) (`typst` must be on `PATH`); there's no Node/JS involved in this part.
 
 **2. The web app** — a standalone local app (Go backend + React/TypeScript/Vite frontend, run via `docker-compose`, localhost-only, no auth) for browsing and editing Master Data, and for tracking Job Listings and Applications. See `docs/adr/0004-standalone-web-app.md` and `docs/adr/0009-go-backend-react-frontend.md` for why.
 
@@ -39,11 +41,11 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 - `data/cover-letter-snippets/*.md` — optional Master Data. One file per Cover Letter Snippet: YAML frontmatter (`kind`, optional `tags`) + a Markdown paragraph body.
 - `template/cv.typ`, `template/cover-letter.typ` — pure presentation. Each reads one assembled JSON file and renders it; they contain no selection/relevance/drafting logic.
 - `output/` — gitignored. Rendered PDFs and per-Generation assembled JSON are derived artifacts, not Master Data. Each Generation gets its own `output/<label>-<UTC yyyymmdd-hhmmss>/` directory (with a `-2`, `-3`, … suffix if that name is already taken), so a later Generation never overwrites an earlier one's files; both the web app and the skill follow this scheme. Clearing `output/` is safe — Application/Generation records survive, and the app shows a "no longer on disk" note for their files. The skill also writes its Selection + Rewrite result into that directory as `selection.json`, so a groundedness verdict can be re-derived later.
-- `.claude-plugin/marketplace.json` + `plugins/cv-reporter-skills/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/cv-reporter-skills/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
+- `.claude-plugin/marketplace.json` + `plugins/sumisura/` — a repo-local Claude Code plugin marketplace holding this repo's own skill(s), currently just `tailor-cv` (`plugins/sumisura/skills/tailor-cv/`), the skill that drives the tailoring pipeline (see `docs/adr/0015-tailor-cv-distributed-as-repo-local-plugin.md` for why).
 - `backend/` — Go HTTP API serving/editing the Master Data files under `data/`, and tracking Job Listings/Applications under `data/jobs/` and `data/applications/` (see `backend/internal/api`). `backend/cmd/cvcheck` is a small offline CLI over the same Generation quality checks, which the `tailor-cv` skill shells out to (ADR-0028).
 - `frontend/` — React + TypeScript + Vite app consuming that API.
 - `extension/` — browser extension that captures the LinkedIn or Indeed job posting you're viewing into the app as a Job Listing (see [`extension/README.md`](extension/README.md)).
-- `brand/` — logo (full lockup + icon-only mark) and color palette; the shared identity the web app's UI is meant to match.
+- `brand/` — the tape-measure logo (lockup, mark, app tile, favicon, extension icons, social preview), the palette with its measured contrast ratios, and the type pairing; the shared identity the web app's UI matches.
 - `docs/adr/` — architecture decision records.
 
 ## Running the tailoring pipeline
@@ -51,27 +53,27 @@ Job Listings can be added to the web app three ways: manual paste (URL/text), pu
 `tailor-cv` is served by this repo's own plugin marketplace (`.claude-plugin/marketplace.json`), not `.claude/skills/`. On a fresh clone, enable it once with:
 
 ```
-claude plugin marketplace add .
-claude plugin install cv-reporter-skills@cv-reporter-local
+claude plugin marketplace add .            # or: claude plugin marketplace add gio-del/sumisura
+claude plugin install sumisura@sumisura-local
 ```
 
-(or set `extraKnownMarketplaces`/`enabledPlugins` in `.claude/settings.json` to auto-enable it for every trusted checkout — see ADR-0015). Once installed, invoke it in Claude Code as `/cv-reporter-skills:tailor-cv`, with a job description, a reference to an already-tracked Application, or nothing (Default Mode). To render manually once a tailored data file exists:
+(or set `extraKnownMarketplaces`/`enabledPlugins` in `.claude/settings.json` to auto-enable it for every trusted checkout — see ADR-0015). Once installed, invoke it in Claude Code as `/sumisura:tailor-cv`, with a job description, a reference to an already-tracked Application, or nothing (Default Mode). To render manually once a tailored data file exists:
 
 ```
 typst compile --root . template/cv.typ output/<slug>/cv.pdf --input data=output/<slug>/data.json
 typst compile --root . template/cover-letter.typ output/<slug>/cover-letter.pdf --input data=output/<slug>/cover-letter-data.json
 ```
 
-The skill runs the web app's automated quality checks through the app's own Go code, via `plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh` (a wrapper that builds and runs `backend/cmd/cvcheck`; needs Go on `PATH`, no running backend — ADR-0028). Before Text Review it writes the Selection + Rewrite result to `output/<slug>/selection.json` and checks every rewritten bullet's groundedness against its source bullet:
+The skill runs the web app's automated quality checks through the app's own Go code, via `plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh` (a wrapper that builds and runs `backend/cmd/cvcheck`; needs Go on `PATH`, no running backend — ADR-0028). Before Text Review it writes the Selection + Rewrite result to `output/<slug>/selection.json` and checks every rewritten bullet's groundedness against its source bullet:
 
 ```
-./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json [--json]
+./plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh groundedness --selection output/<slug>/selection.json [--json]
 ```
 
 and, before Visual Review, checks the rendered PDF's page count, ATS-parsability (its text layer via `pdftotext`, which must be on `PATH` for that part — otherwise it reports itself unavailable) and the assembled data's `lang`:
 
 ```
-./plugins/cv-reporter-skills/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json [--json]
+./plugins/sumisura/skills/tailor-cv/scripts/quality-check.sh pdf --pdf output/<slug>/cv.pdf --data output/<slug>/data.json [--json]
 ```
 
 Checks are advisory — exit `0` clean, `1` flagged, `2` couldn't run — and never stop the pipeline.
@@ -106,10 +108,10 @@ Each kind of Claude API request the backend makes runs on a model chosen for tha
 
 To override a model, set a variable in `.env` (listed in `.env.example`, forwarded by `docker-compose.yml`) and restart the backend:
 
-- `CV_REPORTER_MODEL_<CALL_SITE>` overrides one call site, e.g. `CV_REPORTER_MODEL_SELECTION_REWRITE=claude-opus-5` to try Opus 5 on Rewrite alone and compare at Text Review.
-- `CV_REPORTER_MODEL_DEFAULT` overrides every call site at once.
+- `SUMISURA_MODEL_<CALL_SITE>` overrides one call site, e.g. `SUMISURA_MODEL_SELECTION_REWRITE=claude-opus-5` to try Opus 5 on Rewrite alone and compare at Text Review.
+- `SUMISURA_MODEL_DEFAULT` overrides every call site at once.
 
-A per-call-site variable wins over `CV_REPORTER_MODEL_DEFAULT`, which wins over the built-in default; an unset or empty variable means "use the default". Values go to the API unchanged — an unknown model id doesn't stop the backend starting, the affected calls fail with the API's own error.
+A per-call-site variable wins over `SUMISURA_MODEL_DEFAULT`, which wins over the built-in default; an unset or empty variable means "use the default". Values go to the API unchanged — an unknown model id doesn't stop the backend starting, the affected calls fail with the API's own error.
 
 The per-call usage breakdown keeps its existing call-type labels (`ral_estimation` and `contact_suggestion` each cover both of their calls); each recorded call's `model` shows what actually ran. The Selection preview's call is recorded too, as `selection_preview`, in the standalone usage log (it is never persisted against an Application). Cost estimates come from the hand-maintained price table in `backend/internal/claude/pricing.go` — a model missing from it estimates at $0 and logs a warning.
 
@@ -127,7 +129,7 @@ By default the web app is localhost-only with no auth, per ADR-0004. To check or
 docker compose --profile lan up
 ```
 
-This binds both services to `0.0.0.0` instead of `127.0.0.1`, and requires every `/api/*` request to carry `LAN_AUTH_TOKEN`'s value in an `X-CV-Reporter-Token` header — the backend rejects requests without it with `401`. Leaving `LAN_AUTH_TOKEN` unset (the default) skips this check entirely, so plain `docker compose up` behaves exactly as before.
+This binds both services to `0.0.0.0` instead of `127.0.0.1`, and requires every `/api/*` request to carry `LAN_AUTH_TOKEN`'s value in an `X-Sumisura-Token` header — the backend rejects requests without it with `401`. Leaving `LAN_AUTH_TOKEN` unset (the default) skips this check entirely, so plain `docker compose up` behaves exactly as before.
 
 This is a single static shared secret, not a login/session system — proportional to a personal, single-user tool, not a multi-user auth model. There is no TLS/HTTPS termination: the token travels in plaintext over your LAN, so only enable this on a network you trust. There's also no frontend UI yet for entering/storing the token per device — until that lands, attach the header manually from whatever client you use to reach the app over the LAN.
 

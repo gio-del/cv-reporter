@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
 )
 
 const sampleEntry = "---\nemployer: Acme\nrole: Engineer\nstart: \"2020\"\n---\n\n- shipped a thing\n"

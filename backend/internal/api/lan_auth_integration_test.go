@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/api"
 )
 
 // TestLANAuth_TokenConfigured_RejectsRequestWithoutToken confirms the
@@ -44,5 +44,43 @@ func TestLANAuth_NoTokenConfigured_RequestSucceedsUnauthenticated(t *testing.T) 
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+// TestLANAuth_AcceptsRenamedHeaderOnly pins the clean break made when the
+// project was renamed to Sumisura: the LAN token travels in X-Sumisura-Token,
+// and the pre-rename X-CV-Reporter-Token is not accepted as a fallback. The
+// rename happened before the first release, so there is no installed client to
+// keep working — this test exists so nobody "helpfully" re-adds the old name.
+func TestLANAuth_AcceptsRenamedHeaderOnly(t *testing.T) {
+	dataDir := seedDataDir(t)
+	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, LANAuthToken: "s3cret"}))
+	defer server.Close()
+
+	for _, tc := range []struct {
+		name   string
+		header string
+		want   int
+	}{
+		{name: "current header", header: "X-Sumisura-Token", want: http.StatusOK},
+		{name: "pre-rename header", header: "X-CV-Reporter-Token", want: http.StatusUnauthorized},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, server.URL+"/api/healthz", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set(tc.header, "s3cret")
+
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tc.want {
+				t.Fatalf("%s: expected %d, got %d", tc.header, tc.want, resp.StatusCode)
+			}
+		})
 	}
 }

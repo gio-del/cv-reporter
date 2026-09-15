@@ -1,6 +1,6 @@
-# CV Reporter
+# Sumisura
 
-A personal tool that turns one person's complete career history into a tailored, one-page CV (PDF), generated on demand for a specific job application.
+A self-hosted tool that turns one person's complete career history into a tailored, one-page CV (PDF) and cover letter, generated on demand for a specific job application. One person's history per installation — the tool is single-tenant by design; "the user" below always means the owner of that installation.
 
 ## Language
 

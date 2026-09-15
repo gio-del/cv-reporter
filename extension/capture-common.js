@@ -51,14 +51,14 @@
       });
       html = clone.innerHTML;
     } catch (err) {
-      console.error("[CVReporter] description clean-up threw, using unmodified description", err);
+      console.error("[Sumisura] description clean-up threw, using unmodified description", err);
     }
     return htmlToMarkdown(html);
   }
 
   function showStatus(statusEl, ok, message) {
     statusEl.textContent = message;
-    statusEl.className = "cv-reporter-capture-status " + (ok ? "cv-reporter-capture-status--ok" : "cv-reporter-capture-status--error");
+    statusEl.className = "sumisura-capture-status " + (ok ? "sumisura-capture-status--ok" : "sumisura-capture-status--error");
     statusEl.hidden = false;
     root.clearTimeout(showStatus._timer);
     showStatus._timer = root.setTimeout(() => {
@@ -67,16 +67,16 @@
   }
 
   function onCaptureClick(captureJobPosting, button, statusEl, validate) {
-    console.log("[CVReporter] button clicked");
+    console.log("[Sumisura] button clicked");
     let payload;
     try {
       payload = captureJobPosting();
     } catch (err) {
-      console.error("[CVReporter] captureJobPosting threw", err);
+      console.error("[Sumisura] captureJobPosting threw", err);
       showStatus(statusEl, false, "Capture failed: " + err.message);
       return;
     }
-    console.log("[CVReporter] captured payload", payload);
+    console.log("[Sumisura] captured payload", payload);
 
     // validate (extension/validate-capture.js, when loaded ahead of a given
     // board's content script — see manifest.json) replaces the bare
@@ -98,18 +98,18 @@
     button.disabled = true;
     button.textContent = "Saving…";
 
-    console.log("[CVReporter] sending message to background");
-    chrome.runtime.sendMessage({ type: "CV_REPORTER_CAPTURE", payload }, (response) => {
-      console.log("[CVReporter] got response", response, "lastError:", chrome.runtime.lastError);
+    console.log("[Sumisura] sending message to background");
+    chrome.runtime.sendMessage({ type: "SUMISURA_CAPTURE", payload }, (response) => {
+      console.log("[Sumisura] got response", response, "lastError:", chrome.runtime.lastError);
       button.disabled = false;
-      button.textContent = "Save to CV Reporter";
+      button.textContent = "Save to Sumisura";
 
       if (chrome.runtime.lastError) {
         showStatus(statusEl, false, chrome.runtime.lastError.message);
         return;
       }
       if (response && response.ok) {
-        showStatus(statusEl, true, "Saved to CV Reporter.");
+        showStatus(statusEl, true, "Saved to Sumisura.");
       } else {
         showStatus(statusEl, false, (response && response.error) || "Failed to save.");
       }
@@ -117,17 +117,17 @@
   }
 
   function ensureUI(doc, captureJobPosting, validate) {
-    if (doc.getElementById("cv-reporter-capture-btn")) return;
+    if (doc.getElementById("sumisura-capture-btn")) return;
 
     const button = doc.createElement("button");
-    button.id = "cv-reporter-capture-btn";
+    button.id = "sumisura-capture-btn";
     button.type = "button";
-    button.className = "cv-reporter-capture-btn";
-    button.textContent = "Save to CV Reporter";
+    button.className = "sumisura-capture-btn";
+    button.textContent = "Save to Sumisura";
 
     const statusEl = doc.createElement("div");
-    statusEl.id = "cv-reporter-capture-status";
-    statusEl.className = "cv-reporter-capture-status";
+    statusEl.id = "sumisura-capture-status";
+    statusEl.className = "sumisura-capture-status";
     statusEl.hidden = true;
 
     button.addEventListener("click", () => onCaptureClick(captureJobPosting, button, statusEl, validate));
@@ -137,7 +137,7 @@
   }
 
   function initCaptureUI(captureJobPosting, validate) {
-    console.log("[CVReporter] content script loaded", root.location.href);
+    console.log("[Sumisura] content script loaded", root.location.href);
     ensureUI(document, captureJobPosting, validate);
     // Job boards are typically single-page apps; guard against our injected
     // elements being removed by their own re-renders on client-side
@@ -145,7 +145,7 @@
     new MutationObserver(() => ensureUI(document, captureJobPosting, validate)).observe(document.body, { childList: true, subtree: false });
   }
 
-  const CVReporterCommon = {
+  const SumisuraCommon = {
     firstNonEmptyText,
     longestElement,
     descriptionMarkdown,
@@ -155,8 +155,8 @@
     initCaptureUI,
   };
 
-  root.CVReporterCommon = CVReporterCommon;
+  root.SumisuraCommon = SumisuraCommon;
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = CVReporterCommon;
+    module.exports = SumisuraCommon;
   }
 })(typeof window !== "undefined" ? window : globalThis);

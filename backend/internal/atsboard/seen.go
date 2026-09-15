@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atomicfile"
+	"github.com/gio-del/sumisura/backend/internal/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 

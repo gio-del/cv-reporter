@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // fakeAnthropicServer returns an httptest.Server that answers every

@@ -7,7 +7,7 @@ package tracking
 import (
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // SourceManual is the only Source this PRD can produce — ATS feeds and the

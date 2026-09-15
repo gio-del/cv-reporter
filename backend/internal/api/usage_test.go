@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 func TestGetUsage_SumsGenerationAndStandaloneUsage(t *testing.T) {

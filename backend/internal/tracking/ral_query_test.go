@@ -3,7 +3,7 @@ package tracking
 import (
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 func intp(v int) *int { return &v }

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 var groupsNow = time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)

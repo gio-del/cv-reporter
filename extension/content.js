@@ -9,8 +9,8 @@
 // document.location is window.location, so reading location off the passed
 // document is the same value the ambient-global version read.
 
-const CVReporterCommon =
-  typeof module !== "undefined" && module.exports ? require("./capture-common.js") : window.CVReporterCommon;
+const SumisuraCommon =
+  typeof module !== "undefined" && module.exports ? require("./capture-common.js") : window.SumisuraCommon;
 
 // LinkedIn's job-view page ships an atomic/hashed CSS build (class names
 // like "b2cfd878") with no stable semantic classes, no <h1>, and no
@@ -38,7 +38,7 @@ function titleFromDocumentTitle(doc) {
 }
 
 function companyName(doc) {
-  return CVReporterCommon.firstNonEmptyText(doc, ['a[href*="/company/"]']);
+  return SumisuraCommon.firstNonEmptyText(doc, ['a[href*="/company/"]']);
 }
 
 function captureUrl(doc) {
@@ -67,7 +67,7 @@ function companyLogoUrl(doc) {
 }
 
 function description(doc) {
-  return CVReporterCommon.descriptionMarkdown(doc, DESCRIPTION_SELECTOR, ["button"]);
+  return SumisuraCommon.descriptionMarkdown(doc, DESCRIPTION_SELECTOR, ["button"]);
 }
 
 // salaryBadgeText looks for LinkedIn's own salary-insight pill near the
@@ -80,7 +80,7 @@ function description(doc) {
 // signal — description-text RAL resolution is unaffected either way.
 function salaryBadgeText(doc) {
   try {
-    const descriptionEl = CVReporterCommon.longestElement(doc, DESCRIPTION_SELECTOR);
+    const descriptionEl = SumisuraCommon.longestElement(doc, DESCRIPTION_SELECTOR);
     const salaryPatternRe = /[€$£]\s*\d[\d.,]*\s*k?|\d[\d.,]*\s*k\b[^\d]{0,10}\/\s*yr/i;
     for (const el of doc.querySelectorAll("body *")) {
       if (descriptionEl && descriptionEl.contains(el)) continue;
@@ -89,7 +89,7 @@ function salaryBadgeText(doc) {
       if (salaryPatternRe.test(text)) return text;
     }
   } catch (err) {
-    console.error("[CVReporter] salaryBadgeText threw", err);
+    console.error("[Sumisura] salaryBadgeText threw", err);
   }
   return "";
 }
@@ -124,5 +124,5 @@ if (typeof module !== "undefined" && module.exports) {
   // bare-emptiness check with per-field sanity checks (see PRD for issue
   // #58), so a plausible-but-wrong capture (stale nav element, truncated
   // description) is caught instead of silently saved.
-  CVReporterCommon.initCaptureUI(() => captureJobPosting(document), validateCapture);
+  SumisuraCommon.initCaptureUI(() => captureJobPosting(document), validateCapture);
 }

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
 )
 
 func TestFetch_UnknownProvider_ReturnsErrUnknownProvider(t *testing.T) {

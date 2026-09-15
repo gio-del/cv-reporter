@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 )
 
 func getProfileHandler(dataDir string) http.HandlerFunc {

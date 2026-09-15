@@ -9,7 +9,7 @@ import (
 // /api/* request once a shared-secret token is configured (see the
 // LAN-reachable mode PRD, issue #57). Unused in default (localhost-only)
 // mode.
-const lanAuthHeader = "X-CV-Reporter-Token"
+const lanAuthHeader = "X-Sumisura-Token"
 
 // checkLANToken is the pure token-check at LAN mode's auth gate: given the
 // configured shared secret and the token an incoming request presented, it
@@ -27,7 +27,7 @@ func checkLANToken(configuredToken, presentedToken string) bool {
 }
 
 // requireLANToken wraps next with LAN mode's auth gate: a request whose
-// X-CV-Reporter-Token header doesn't match lanAuthToken gets 401 instead of
+// X-Sumisura-Token header doesn't match lanAuthToken gets 401 instead of
 // reaching next. Callers only wrap with this when lanAuthToken is
 // non-empty (see RouterConfig.LANAuthToken) — default mode never wraps a
 // handler with it at all.

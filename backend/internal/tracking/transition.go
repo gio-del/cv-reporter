@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/recordversion"
+	"github.com/gio-del/sumisura/backend/internal/recordversion"
 )
 
 // ErrInvalidTransition marks a requested Status change that CanTransition

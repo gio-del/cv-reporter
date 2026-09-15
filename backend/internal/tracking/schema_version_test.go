@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 func TestRead_NewerSchemaVersionFailsLoudly(t *testing.T) {

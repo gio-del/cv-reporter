@@ -1,4 +1,4 @@
-.cv-reporter-capture-btn {
+.sumisura-capture-btn {
   position: fixed;
   right: 24px;
   bottom: 24px;
@@ -13,12 +13,12 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.cv-reporter-capture-btn:disabled {
+.sumisura-capture-btn:disabled {
   opacity: 0.7;
   cursor: default;
 }
 
-.cv-reporter-capture-status {
+.sumisura-capture-status {
   position: fixed;
   right: 24px;
   bottom: 72px;
@@ -30,13 +30,13 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.cv-reporter-capture-status--ok {
+.sumisura-capture-status--ok {
   background: #e6f4ea;
   color: #1e7e34;
   border: 1px solid #1e7e34;
 }
 
-.cv-reporter-capture-status--error {
+.sumisura-capture-status--error {
   background: #fdecea;
   color: #a61b1b;
   border: 1px solid #a61b1b;

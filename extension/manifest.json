@@ -1,32 +1,67 @@
 {
   "manifest_version": 3,
-  "name": "CV Reporter — Job Capture",
+  "name": "Sumisura — Job Capture",
   "version": "0.2.0",
-  "description": "Capture the LinkedIn or Indeed job posting you're viewing into your local CV Reporter app as a Job Listing.",
+  "description": "Capture the LinkedIn or Indeed job posting you're viewing into your local Sumisura app as a Job Listing.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Capture this job into Sumisura",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
   "host_permissions": [
     "http://localhost:8080/*",
     "http://127.0.0.1:8080/*"
   ],
   "background": {
     "service_worker": "background.js",
-    "scripts": ["background.js"]
+    "scripts": [
+      "background.js"
+    ]
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "linkedin-capture@cv-reporter.local"
+      "id": "job-capture@sumisura.local"
     }
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/jobs/*"],
-      "js": ["turndown.js", "capture-common.js", "validate-capture.js", "content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://www.linkedin.com/jobs/*"
+      ],
+      "js": [
+        "turndown.js",
+        "capture-common.js",
+        "validate-capture.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://*.indeed.com/viewjob*"],
-      "js": ["turndown.js", "capture-common.js", "validate-capture.js", "content-indeed.js"],
-      "css": ["content.css"],
+      "matches": [
+        "https://*.indeed.com/viewjob*"
+      ],
+      "js": [
+        "turndown.js",
+        "capture-common.js",
+        "validate-capture.js",
+        "content-indeed.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     }
   ]

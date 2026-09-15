@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
 )
 
 // makeReadOnly makes dir unwritable, which is what a write that cannot

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // blockingGenerationClient stands in for a Claude call that never returns:

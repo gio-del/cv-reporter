@@ -15,7 +15,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // capturedRequest is the part of a Messages API request body the
@@ -177,7 +177,7 @@ func TestPricingTable_CoversEveryReachableModel(t *testing.T) {
 }
 
 // clearModelEnv blanks every model override variable for t's duration, so
-// a CV_REPORTER_MODEL_* exported in the developer's shell can't leak into
+// a SUMISURA_MODEL_* exported in the developer's shell can't leak into
 // a test (an empty value means unset).
 func clearModelEnv(t *testing.T) {
 	t.Helper()
@@ -199,17 +199,17 @@ func invocation(t *testing.T, method string) callSiteInvocation {
 }
 
 func TestModelEnvVar_Names(t *testing.T) {
-	if got, want := modelEnvVar(callSiteSelectionRewrite), "CV_REPORTER_MODEL_SELECTION_REWRITE"; got != want {
+	if got, want := modelEnvVar(callSiteSelectionRewrite), "SUMISURA_MODEL_SELECTION_REWRITE"; got != want {
 		t.Errorf("modelEnvVar(selection_rewrite) = %q, want %q", got, want)
 	}
-	if got, want := defaultModelEnvVar, "CV_REPORTER_MODEL_DEFAULT"; got != want {
+	if got, want := defaultModelEnvVar, "SUMISURA_MODEL_DEFAULT"; got != want {
 		t.Errorf("defaultModelEnvVar = %q, want %q", got, want)
 	}
 }
 
 func TestPerCallSiteOverride_ChangesOnlyThatCallSite(t *testing.T) {
 	clearModelEnv(t)
-	t.Setenv("CV_REPORTER_MODEL_RAL_EXTRACTION", "claude-opus-5")
+	t.Setenv("SUMISURA_MODEL_RAL_EXTRACTION", "claude-opus-5")
 
 	if got, want := sentModels(t, invocation(t, "EstimateRAL")), []string{"claude-sonnet-5", "claude-opus-5"}; !slices.Equal(got, want) {
 		t.Errorf("EstimateRAL sent %v, want %v", got, want)
@@ -223,7 +223,7 @@ func TestPerCallSiteOverride_ChangesOnlyThatCallSite(t *testing.T) {
 // site that bypasses the registry and hardcodes a model.
 func TestBlanketOverride_MovesEveryCallSite(t *testing.T) {
 	clearModelEnv(t)
-	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "claude-opus-5")
+	t.Setenv("SUMISURA_MODEL_DEFAULT", "claude-opus-5")
 
 	for _, inv := range callSiteInvocations {
 		t.Run(inv.method, func(t *testing.T) {
@@ -238,8 +238,8 @@ func TestBlanketOverride_MovesEveryCallSite(t *testing.T) {
 
 func TestPerCallSiteOverride_WinsOverBlanketOverride(t *testing.T) {
 	clearModelEnv(t)
-	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "claude-haiku-4-5")
-	t.Setenv("CV_REPORTER_MODEL_SELECTION_REWRITE", "claude-opus-5")
+	t.Setenv("SUMISURA_MODEL_DEFAULT", "claude-haiku-4-5")
+	t.Setenv("SUMISURA_MODEL_SELECTION_REWRITE", "claude-opus-5")
 
 	if got, want := sentModels(t, invocation(t, "SelectAndRewrite")), []string{"claude-opus-5"}; !slices.Equal(got, want) {
 		t.Errorf("SelectAndRewrite sent %v, want %v", got, want)
@@ -251,8 +251,8 @@ func TestPerCallSiteOverride_WinsOverBlanketOverride(t *testing.T) {
 
 func TestEmptyOverride_FallsBackToBuiltInDefault(t *testing.T) {
 	clearModelEnv(t)
-	t.Setenv("CV_REPORTER_MODEL_DEFAULT", "   ")
-	t.Setenv("CV_REPORTER_MODEL_APPLICATION_METHOD_INFERENCE", "")
+	t.Setenv("SUMISURA_MODEL_DEFAULT", "   ")
+	t.Setenv("SUMISURA_MODEL_APPLICATION_METHOD_INFERENCE", "")
 
 	if got, want := sentModels(t, invocation(t, "InferApplicationMethod")), []string{"claude-haiku-4-5"}; !slices.Equal(got, want) {
 		t.Errorf("InferApplicationMethod sent %v, want %v", got, want)
@@ -261,7 +261,7 @@ func TestEmptyOverride_FallsBackToBuiltInDefault(t *testing.T) {
 
 func TestUnpricedOverride_ConstructsClientAndWarns(t *testing.T) {
 	clearModelEnv(t)
-	t.Setenv("CV_REPORTER_MODEL_COVER_LETTER", "claude-unpriced-override-test")
+	t.Setenv("SUMISURA_MODEL_COVER_LETTER", "claude-unpriced-override-test")
 	var buf bytes.Buffer
 	prevOut := log.Writer()
 	log.SetOutput(&buf)

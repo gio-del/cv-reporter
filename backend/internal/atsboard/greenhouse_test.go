@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/atsboard"
+	"github.com/gio-del/sumisura/backend/internal/atsboard"
 )
 
 type fakeDoer struct {

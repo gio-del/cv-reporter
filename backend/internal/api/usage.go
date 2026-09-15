@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // usageResponse is GET /api/usage's body: the usage totals, unchanged and

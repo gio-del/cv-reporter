@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // SortOrder is the direction a RAL Range sort runs in — see

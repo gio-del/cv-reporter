@@ -3,8 +3,8 @@ package api
 import (
 	"time"
 
-	"github.com/gio-del/cv-reporter/backend/internal/masterdata"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/masterdata"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 // attachStaleEntries populates StaleEntries on each of application's

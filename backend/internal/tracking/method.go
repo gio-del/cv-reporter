@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/generation"
 )
 
 // Client is the seam tracking needs an LLM for: generation.Client's RAL

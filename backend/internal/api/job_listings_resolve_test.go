@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gio-del/cv-reporter/backend/internal/api"
-	"github.com/gio-del/cv-reporter/backend/internal/generation"
-	"github.com/gio-del/cv-reporter/backend/internal/tracking"
+	"github.com/gio-del/sumisura/backend/internal/api"
+	"github.com/gio-del/sumisura/backend/internal/generation"
+	"github.com/gio-del/sumisura/backend/internal/tracking"
 )
 
 func TestResolveJobListing_RALUnresolved_RetrySucceeds_UpdatesRALLeavesMethodUntouched(t *testing.T) {
