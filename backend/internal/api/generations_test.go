@@ -76,7 +76,7 @@ func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing
 			return generation.SelectionResult{
 				Entries: []generation.SelectedEntry{
 					{
-						EntryID: "experience/quantyca-amplifon",
+						EntryID: "experience/example-client-a",
 						Reason:  "Directly relevant AI platform experience.",
 						Bullets: []generation.SelectedBullet{
 							{
@@ -117,8 +117,8 @@ func TestCreateGeneration_WithJobDescription_ReturnsTailoredSelection(t *testing
 		t.Fatalf("expected 1 selected entry, got %v", selection["entries"])
 	}
 	entry := entries[0].(map[string]any)
-	if entry["entryId"] != "experience/quantyca-amplifon" {
-		t.Errorf("expected entryId experience/quantyca-amplifon, got %v", entry["entryId"])
+	if entry["entryId"] != "experience/example-client-a" {
+		t.Errorf("expected entryId experience/example-client-a, got %v", entry["entryId"])
 	}
 }
 
@@ -129,7 +129,7 @@ func TestCreateGeneration_RewriteAddsUngroundedSentence_FlagsItInGroundedness(t 
 			return generation.SelectionResult{
 				Entries: []generation.SelectedEntry{
 					{
-						EntryID: "experience/quantyca-amplifon",
+						EntryID: "experience/example-client-a",
 						Reason:  "Directly relevant AI platform experience.",
 						Bullets: []generation.SelectedBullet{
 							{
@@ -166,7 +166,7 @@ func TestCreateGeneration_RewriteAddsUngroundedSentence_FlagsItInGroundedness(t 
 		t.Fatalf("expected exactly 1 flagged bullet, got %v", groundedness["bullets"])
 	}
 	bullet := bullets[0].(map[string]any)
-	if bullet["entryId"] != "experience/quantyca-amplifon" {
+	if bullet["entryId"] != "experience/example-client-a" {
 		t.Errorf("expected the flagged bullet's entryId to round-trip, got %v", bullet["entryId"])
 	}
 	flags, ok := bullet["flags"].([]any)
@@ -266,7 +266,7 @@ func TestCreateGeneration_ClientAltersSourceBulletText_Returns502(t *testing.T) 
 			return generation.SelectionResult{
 				Entries: []generation.SelectedEntry{
 					{
-						EntryID: "experience/quantyca-amplifon",
+						EntryID: "experience/example-client-a",
 						Bullets: []generation.SelectedBullet{
 							{SourceIndex: 0, Source: "This is not the real source bullet.", Rewritten: "Whatever"},
 						},
@@ -673,7 +673,7 @@ func TestPreviewGeneration_WithJobDescription_CallsSelectOnlyNotSelectAndRewrite
 			return generation.SelectionResult{
 				Entries: []generation.SelectedEntry{
 					{
-						EntryID: "experience/quantyca-amplifon",
+						EntryID: "experience/example-client-a",
 						Reason:  "Directly relevant AI platform experience.",
 						Bullets: []generation.SelectedBullet{
 							{SourceIndex: 0, Source: "Designed and built an AI Platform.", Rewritten: "Designed and built an AI Platform."},

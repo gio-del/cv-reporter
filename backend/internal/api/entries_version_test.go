@@ -17,14 +17,14 @@ import (
 // except to produce a deliberately wrong value (issue #89's Testing
 // Decisions).
 
-const entryID = "experience/quantyca-amplifon"
+const entryID = "experience/example-client-a"
 
 func entryPayload(role string) map[string]any {
 	return map[string]any{
-		"employer": "Quantyca S.p.A.",
+		"employer": "Example Consulting S.p.A.",
 		"role":     role,
-		"client":   "Amplifon",
-		"location": "Monza",
+		"client":   "Example Client A",
+		"location": "Example City",
 		"start":    "2024-10",
 		"end":      nil,
 		"flagship": true,
@@ -165,7 +165,7 @@ func TestUpdateEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	if !bytes.Contains([]byte(readFile(t, filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))), []byte("Staff Engineer")) {
+	if !bytes.Contains([]byte(readFile(t, filepath.Join(dataDir, "experience", "example-client-a.md"))), []byte("Staff Engineer")) {
 		t.Error("expected the write to reach the file")
 	}
 }
@@ -176,14 +176,14 @@ func TestUpdateEntry_WithStaleVersion_Returns409AndLeavesFileUntouched(t *testin
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
-	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
+	path := filepath.Join(dataDir, "experience", "example-client-a.md")
 	version := getVersion(t, url)
 
 	outOfBand := `---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
@@ -213,10 +213,10 @@ func TestUpdateEntry_WithNoVersion_IsUnconditional(t *testing.T) {
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
-	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
+	path := filepath.Join(dataDir, "experience", "example-client-a.md")
 
 	writeOutOfBand(t, path, `---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 start: "2024-10"
 ---
 
@@ -270,7 +270,7 @@ func TestUpdateEntry_RecordDeletedOutOfBand_Returns404NotConflict(t *testing.T) 
 	url := server.URL + "/api/master-data/entries/" + entryID
 	version := getVersion(t, url)
 
-	if err := os.Remove(filepath.Join(dataDir, "experience", "quantyca-amplifon.md")); err != nil {
+	if err := os.Remove(filepath.Join(dataDir, "experience", "example-client-a.md")); err != nil {
 		t.Fatal(err)
 	}
 

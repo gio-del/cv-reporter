@@ -291,7 +291,7 @@ func contractFixtures() []contractFixture {
 			return call(t, http.MethodPost, server.URL+"/api/generations/render", map[string]any{
 				"slug": "globex",
 				"selection": map[string]any{"entries": []map[string]any{{
-					"entryId": "experience/quantyca-amplifon", "reason": "Relevant.",
+					"entryId": "experience/example-client-a", "reason": "Relevant.",
 					"bullets": []map[string]any{{"sourceIndex": 0, "source": "Designed and built an AI Platform.", "rewritten": "Designed and built an AI Platform."}},
 				}}},
 				"coverLetter": map[string]any{"body": "Dear Hiring Manager,\n\nI'm excited to apply.\n\nBest,\nCandidate"},
@@ -676,9 +676,9 @@ func newPopulatedScenario(t *testing.T) populatedScenario {
 
 	// Edit a source Entry after the Generation was recorded, so it reads as
 	// stale.
-	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"),
-		"---\nemployer: Quantyca S.p.A.\nrole: Data Engineer\nclient: Amplifon\nlocation: Monza\nstart: \"2024-10\"\nend: null\nflagship: true\ntags:\n  - React\n---\n\n- Designed and built an AI Platform.\n",
-		"edit amplifon", time.Now().UTC().Add(48*time.Hour))
+	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "example-client-a.md"),
+		"---\nemployer: Example Consulting S.p.A.\nrole: Data Engineer\nclient: Example Client A\nlocation: Example City\nstart: \"2024-10\"\nend: null\nflagship: true\ntags:\n  - React\n---\n\n- Designed and built an AI Platform.\n",
+		"edit exampleClientA", time.Now().UTC().Add(48*time.Hour))
 
 	initech := call(t, http.MethodPost, server.URL+"/api/job-listings", map[string]any{
 		"company": "Initech", "jobDescription": "Backend role.\nSalary: €45,000 - €55,000",
@@ -693,7 +693,7 @@ func populatedGenerationRecord() map[string]any {
 	return map[string]any{
 		"slug": "globex", "cvPath": "output/globex/cv.pdf", "coverLetterPath": "output/globex/cover-letter.pdf",
 		"sourceSnippetIds": []string{"opening-ai-platforms"},
-		"entryIds":         []string{"experience/quantyca-amplifon", "projects/emall"},
+		"entryIds":         []string{"experience/example-client-a", "projects/emall"},
 		"language":         "it",
 		"usage": map[string]any{
 			"inputTokens": 1200, "outputTokens": 340, "cacheReadTokens": 50, "cacheWriteTokens": 60, "webSearchUses": 1,
@@ -704,7 +704,7 @@ func populatedGenerationRecord() map[string]any {
 			}},
 		},
 		"groundedness": map[string]any{
-			"bullets":     []map[string]any{{"entryId": "experience/quantyca-amplifon", "sourceIndex": 0, "flags": []map[string]any{{"sentence": "Served 4 million users.", "reason": "numeric-mismatch"}}}},
+			"bullets":     []map[string]any{{"entryId": "experience/example-client-a", "sourceIndex": 0, "flags": []map[string]any{{"sentence": "Served 4 million users.", "reason": "numeric-mismatch"}}}},
 			"coverLetter": []map[string]any{{"sentence": "I led a team of 40.", "reason": "no-source-match"}},
 		},
 	}
@@ -734,7 +734,7 @@ func newGenerationServer(t *testing.T) *httptest.Server {
 	selection := generation.SelectionResult{
 		Language: "it",
 		Entries: []generation.SelectedEntry{{
-			EntryID: "experience/quantyca-amplifon",
+			EntryID: "experience/example-client-a",
 			Reason:  "Relevant AI platform work.",
 			Bullets: []generation.SelectedBullet{{
 				SourceIndex: 0,
@@ -750,7 +750,7 @@ func newGenerationServer(t *testing.T) *httptest.Server {
 			},
 			selectOnly: func(ctx context.Context, req generation.SelectionRequest) (generation.SelectionResult, error) {
 				return generation.SelectionResult{Entries: []generation.SelectedEntry{{
-					EntryID: "experience/quantyca-amplifon", Reason: "Relevant.",
+					EntryID: "experience/example-client-a", Reason: "Relevant.",
 					Bullets: []generation.SelectedBullet{{SourceIndex: 0, Source: "Designed and built an AI Platform.", Rewritten: "Designed and built an AI Platform."}},
 				}}}, nil
 			},

@@ -3,16 +3,16 @@
     "bullets": [
       "Designed and built an AI Platform."
     ],
-    "client": "Amplifon",
-    "employer": "Quantyca S.p.A.",
+    "client": "Example Client A",
+    "employer": "Example Consulting S.p.A.",
     "end": null,
     "flagship": true,
-    "id": "experience/quantyca-amplifon",
+    "id": "experience/example-client-a",
     "lastModified": {
       "at": "2026-01-02T03:04:05Z",
-      "subject": "edit amplifon"
+      "subject": "edit exampleClientA"
     },
-    "location": "Monza",
+    "location": "Example City",
     "role": "Data Engineer",
     "start": "2024-10",
     "tags": [

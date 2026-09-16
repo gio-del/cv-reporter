@@ -61,7 +61,7 @@ func ListEntries(dataDir string) ([]Entry, error) {
 }
 
 // GetEntry reads a single Entry by its id ("<dir>/<slug>", e.g.
-// "experience/quantyca-amplifon").
+// "experience/example-client-a").
 func GetEntry(dataDir, id string) (Entry, error) {
 	dir, slug, ok := splitID(id)
 	if !ok {

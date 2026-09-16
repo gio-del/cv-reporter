@@ -47,7 +47,7 @@ func TestListJobListings_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *
 	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
 		"slug":     "acme-corp",
 		"cvPath":   "output/acme-corp/cv.pdf",
-		"entryIds": []string{"experience/quantyca-amplifon", "projects/emall"},
+		"entryIds": []string{"experience/example-client-a", "projects/emall"},
 	})
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
@@ -57,11 +57,11 @@ func TestListJobListings_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *
 	// Edit only one of the two source Entries, committed well after the
 	// Generation was recorded.
 	future := time.Now().UTC().Add(48 * time.Hour)
-	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"), `---
-employer: Quantyca S.p.A.
+	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "example-client-a.md"), `---
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
@@ -72,7 +72,7 @@ tags:
 
 - Designed and built an AI Platform, now with an added bullet.
 - Built the platform's front end in React.
-`, "edit amplifon entry", future)
+`, "edit exampleClientA entry", future)
 
 	listResp, err := http.Get(server.URL + "/api/job-listings")
 	if err != nil {
@@ -99,7 +99,7 @@ tags:
 	if !ok || len(stale) != 1 {
 		t.Fatalf("expected exactly 1 stale entry, got %v", record["staleEntries"])
 	}
-	if stale[0] != "Quantyca S.p.A. – Data Engineer" {
+	if stale[0] != "Example Consulting S.p.A. – Data Engineer" {
 		t.Errorf("expected stale entry named by employer + role, got %v", stale[0])
 	}
 }
@@ -114,7 +114,7 @@ func TestListJobListings_NoEntriesChangedSinceGeneration_NoStaleEntries(t *testi
 	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
 		"slug":     "acme-corp",
 		"cvPath":   "output/acme-corp/cv.pdf",
-		"entryIds": []string{"experience/quantyca-amplifon"},
+		"entryIds": []string{"experience/example-client-a"},
 	})
 	resp.Body.Close()
 
@@ -150,11 +150,11 @@ func TestListJobListings_GenerationWithNoStoredEntryIDs_NoStaleEntries(t *testin
 	resp.Body.Close()
 
 	future := time.Now().UTC().Add(48 * time.Hour)
-	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"), `---
-employer: Quantyca S.p.A.
+	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "example-client-a.md"), `---
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
@@ -164,7 +164,7 @@ tags:
 ---
 
 - Edited bullet.
-`, "edit amplifon entry", future)
+`, "edit exampleClientA entry", future)
 
 	listResp, err := http.Get(server.URL + "/api/job-listings")
 	if err != nil {
@@ -183,17 +183,17 @@ tags:
 	}
 }
 
-// editAmplifonEntry commits an edit to one of the Master Data Entries the
+// editExampleClientAEntry commits an edit to one of the Master Data Entries the
 // seeded project root ships, dated well after any Generation recorded during
 // a test — the "source Entry changed since the Tailored CV was produced"
 // fixture (issue #52).
-func editAmplifonEntry(t *testing.T, projectRoot string) {
+func editExampleClientAEntry(t *testing.T, projectRoot string) {
 	t.Helper()
-	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "quantyca-amplifon.md"), `---
-employer: Quantyca S.p.A.
+	gitCommitFile(t, projectRoot, filepath.Join("data", "experience", "example-client-a.md"), `---
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
@@ -204,7 +204,7 @@ tags:
 
 - Designed and built an AI Platform, now with an added bullet.
 - Built the platform's front end in React.
-`, "edit amplifon entry", time.Now().UTC().Add(48*time.Hour))
+`, "edit exampleClientA entry", time.Now().UTC().Add(48*time.Hour))
 }
 
 // The stale-Entry notice moves to the Job Listing detail page (issue #94), so
@@ -220,14 +220,14 @@ func TestGetJobListing_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *te
 	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
 		"slug":     "acme-corp",
 		"cvPath":   "output/acme-corp/cv.pdf",
-		"entryIds": []string{"experience/quantyca-amplifon", "projects/emall"},
+		"entryIds": []string{"experience/example-client-a", "projects/emall"},
 	})
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", resp.StatusCode)
 	}
 
-	editAmplifonEntry(t, projectRoot)
+	editExampleClientAEntry(t, projectRoot)
 
 	application := getJobListingDetail(t, server.URL, id)["application"].(map[string]any)
 	record := application["generations"].([]any)[0].(map[string]any)
@@ -236,7 +236,7 @@ func TestGetJobListing_GenerationWithEditedSourceEntry_ReportsStaleEntries(t *te
 	if !ok || len(stale) != 1 {
 		t.Fatalf("expected exactly 1 stale entry, got %v", record["staleEntries"])
 	}
-	if stale[0] != "Quantyca S.p.A. – Data Engineer" {
+	if stale[0] != "Example Consulting S.p.A. – Data Engineer" {
 		t.Errorf("expected stale entry named by employer + role, got %v", stale[0])
 	}
 }
@@ -251,7 +251,7 @@ func TestGetJobListing_NoEntriesChangedSinceGeneration_NoStaleEntries(t *testing
 	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
 		"slug":     "acme-corp",
 		"cvPath":   "output/acme-corp/cv.pdf",
-		"entryIds": []string{"experience/quantyca-amplifon"},
+		"entryIds": []string{"experience/example-client-a"},
 	})
 	resp.Body.Close()
 

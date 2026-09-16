@@ -49,13 +49,13 @@
           "createdAt": "2026-01-02T03:04:05Z",
           "cvPath": "output/globex/cv.pdf",
           "entryIds": [
-            "experience/quantyca-amplifon",
+            "experience/example-client-a",
             "projects/emall"
           ],
           "groundedness": {
             "bullets": [
               {
-                "entryId": "experience/quantyca-amplifon",
+                "entryId": "experience/example-client-a",
                 "flags": [
                   {
                     "reason": "numeric-mismatch",
@@ -79,7 +79,7 @@
             "opening-ai-platforms"
           ],
           "staleEntries": [
-            "Quantyca S.p.A. – Data Engineer"
+            "Example Consulting S.p.A. – Data Engineer"
           ],
           "usage": {
             "cacheReadTokens": 50,

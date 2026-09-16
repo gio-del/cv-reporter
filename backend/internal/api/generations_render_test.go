@@ -62,7 +62,7 @@ func TestRenderGeneration_ApprovedSelection_ProducesOnePagePDF(t *testing.T) {
 		"selection": map[string]any{
 			"entries": []map[string]any{
 				{
-					"entryId": "experience/quantyca-amplifon",
+					"entryId": "experience/example-client-a",
 					"reason":  "Relevant",
 					"bullets": []map[string]any{
 						{"sourceIndex": 0, "source": "Designed and built an AI Platform.", "rewritten": "Designed and built an AI Platform."},

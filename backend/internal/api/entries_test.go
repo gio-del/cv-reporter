@@ -34,11 +34,11 @@ func seedDataDir(t *testing.T) string {
 func seedDataDirAt(t *testing.T, dir string) string {
 	t.Helper()
 
-	writeFile(t, filepath.Join(dir, "experience", "quantyca-amplifon.md"), `---
-employer: Quantyca S.p.A.
+	writeFile(t, filepath.Join(dir, "experience", "example-client-a.md"), `---
+employer: Example Consulting S.p.A.
 role: Data Engineer
-client: Amplifon
-location: Monza
+client: Example Client A
+location: Example City
 start: "2024-10"
 end: null
 flagship: true
@@ -135,22 +135,22 @@ func TestListEntries_ReturnsEntriesSeededOnDisk(t *testing.T) {
 		byID[e["id"].(string)] = e
 	}
 
-	amplifon, ok := byID["experience/quantyca-amplifon"]
+	exampleClientA, ok := byID["experience/example-client-a"]
 	if !ok {
-		t.Fatalf("expected entry with id experience/quantyca-amplifon, got %v", byID)
+		t.Fatalf("expected entry with id experience/example-client-a, got %v", byID)
 	}
-	if amplifon["type"] != "experience" {
-		t.Errorf("expected type experience, got %v", amplifon["type"])
+	if exampleClientA["type"] != "experience" {
+		t.Errorf("expected type experience, got %v", exampleClientA["type"])
 	}
-	if amplifon["employer"] != "Quantyca S.p.A." {
-		t.Errorf("expected employer Quantyca S.p.A., got %v", amplifon["employer"])
+	if exampleClientA["employer"] != "Example Consulting S.p.A." {
+		t.Errorf("expected employer Example Consulting S.p.A., got %v", exampleClientA["employer"])
 	}
-	if amplifon["client"] != "Amplifon" {
-		t.Errorf("expected client Amplifon, got %v", amplifon["client"])
+	if exampleClientA["client"] != "Example Client A" {
+		t.Errorf("expected client Example Client A, got %v", exampleClientA["client"])
 	}
-	tags, ok := amplifon["tags"].([]any)
+	tags, ok := exampleClientA["tags"].([]any)
 	if !ok || len(tags) != 2 || tags[0] != "AI Platform" {
-		t.Errorf("expected tags [AI Platform, React], got %v", amplifon["tags"])
+		t.Errorf("expected tags [AI Platform, React], got %v", exampleClientA["tags"])
 	}
 
 	emall, ok := byID["projects/emall"]
@@ -170,7 +170,7 @@ func TestGetEntry_ReturnsFrontmatterAndBullets(t *testing.T) {
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/quantyca-amplifon")
+	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/example-client-a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,11 +185,11 @@ func TestGetEntry_ReturnsFrontmatterAndBullets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if entry["id"] != "experience/quantyca-amplifon" {
-		t.Errorf("expected id experience/quantyca-amplifon, got %v", entry["id"])
+	if entry["id"] != "experience/example-client-a" {
+		t.Errorf("expected id experience/example-client-a, got %v", entry["id"])
 	}
-	if entry["employer"] != "Quantyca S.p.A." {
-		t.Errorf("expected employer Quantyca S.p.A., got %v", entry["employer"])
+	if entry["employer"] != "Example Consulting S.p.A." {
+		t.Errorf("expected employer Example Consulting S.p.A., got %v", entry["employer"])
 	}
 	if entry["role"] != "Data Engineer" {
 		t.Errorf("expected role Data Engineer, got %v", entry["role"])
@@ -271,13 +271,13 @@ func TestListEntries_IncludesLastModifiedFromGitHistory(t *testing.T) {
 		byID[e["id"].(string)] = e
 	}
 
-	amplifon, ok := byID["experience/quantyca-amplifon"]
+	exampleClientA, ok := byID["experience/example-client-a"]
 	if !ok {
-		t.Fatalf("expected entry with id experience/quantyca-amplifon, got %v", byID)
+		t.Fatalf("expected entry with id experience/example-client-a, got %v", byID)
 	}
-	lastModified, ok := amplifon["lastModified"].(map[string]any)
+	lastModified, ok := exampleClientA["lastModified"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected lastModified object, got %v", amplifon["lastModified"])
+		t.Fatalf("expected lastModified object, got %v", exampleClientA["lastModified"])
 	}
 	if lastModified["subject"] != "seed master data" {
 		t.Errorf("expected subject 'seed master data', got %v", lastModified["subject"])
@@ -292,7 +292,7 @@ func TestGetEntry_IncludesLastModifiedFromGitHistory(t *testing.T) {
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir, ProjectRoot: projectRoot, GenerationClient: &fakeGenerationClient{}}))
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/quantyca-amplifon")
+	resp, err := http.Get(server.URL + "/api/master-data/entries/experience/example-client-a")
 	if err != nil {
 		t.Fatal(err)
 	}

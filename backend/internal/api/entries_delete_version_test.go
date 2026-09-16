@@ -23,7 +23,7 @@ func TestDeleteEntry_WithCurrentVersion_Succeeds(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
-	if _, err := os.Stat(filepath.Join(dataDir, "experience", "quantyca-amplifon.md")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dataDir, "experience", "example-client-a.md")); !os.IsNotExist(err) {
 		t.Fatalf("expected the file to be removed, stat err = %v", err)
 	}
 }
@@ -34,11 +34,11 @@ func TestDeleteEntry_WithStaleVersion_Returns409AndTheFileSurvives(t *testing.T)
 	defer server.Close()
 
 	url := server.URL + "/api/master-data/entries/" + entryID
-	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
+	path := filepath.Join(dataDir, "experience", "example-client-a.md")
 	version := getVersion(t, url)
 
 	outOfBand := `---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 start: "2024-10"
 ---
 
@@ -61,9 +61,9 @@ func TestDeleteEntry_WithNoVersion_IsUnconditional(t *testing.T) {
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
-	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
+	path := filepath.Join(dataDir, "experience", "example-client-a.md")
 	writeOutOfBand(t, path, `---
-employer: Quantyca S.p.A.
+employer: Example Consulting S.p.A.
 start: "2024-10"
 ---
 
