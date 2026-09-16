@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/gio-del/sumisura/compare/v0.1.0...v0.2.0) (2026-09-16)
+
+
+### Features
+
+* keep the user's profile.yaml out of git ([#163](https://github.com/gio-del/sumisura/issues/163)) ([0bc63f0](https://github.com/gio-del/sumisura/commit/0bc63f0e33b8da6dd5c5f932e05abaf4e4cc0dc3))
+
+
+### Bug fixes
+
+* scrub real employer and client names from tests and fixtures ([#171](https://github.com/gio-del/sumisura/issues/171)) ([4ead8b9](https://github.com/gio-del/sumisura/commit/4ead8b90c280f8dafb9d3cd668da6859b3ef296c))
+
 ## 0.1.0 (2026-09-15)
 
 The first public release of **Sumisura** — self-hosted CV tailoring that keeps
