@@ -4,9 +4,13 @@ output/
 skills-lock.json
 .env
 
-# Your own contact details, education, publications (ADR-0037). The repo ships
-# data/profile.example.yaml; copy it to data/profile.yaml and it stays local.
+# Your own Master Data — contact details, education, publications, employers,
+# clients, projects, cover-letter prose (ADR-0037, ADR-0038). The repo ships
+# stubs under data/examples/; setup copies them across and they stay local.
 data/profile.yaml
+data/experience/
+data/projects/
+data/cover-letter-snippets/
 
 # personal tracked data (ADR-0008: flat files, not meant to be version-controlled)
 data/jobs/

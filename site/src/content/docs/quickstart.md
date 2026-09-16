@@ -36,12 +36,14 @@ git checkout v0.1.0
 cp .env.example .env
 # then set ANTHROPIC_API_KEY=sk-ant-...
 
-cp data/profile.example.yaml data/profile.yaml
+cp -r data/examples/. data/
 ```
 
-`data/profile.yaml` holds your name, contact details and education. It is
-**gitignored on purpose** — it is the one file that identifies you, so it never
-goes near a commit ([ADR-0037](https://github.com/gio-del/sumisura/blob/main/docs/adr/0037-profile-is-local-only.md)).
+That copy seeds `data/` with stub Master Data to edit. Everything it writes —
+`profile.yaml`, `experience/`, `projects/`, `cover-letter-snippets/` — is
+**gitignored on purpose**: your name, your employer and your clients never go
+near a commit ([ADR-0038](https://github.com/gio-del/sumisura/blob/main/docs/adr/0038-all-master-data-is-local-only.md)).
+The tracked copies under `data/examples/` stay as examples.
 
 Without a key the app still starts and you can browse and edit Master Data —
 only the calls to Claude fail.
@@ -60,11 +62,12 @@ Both are bound to localhost with no authentication, on purpose. See
 
 ## 4. Replace the stub data with your own
 
-`data/` ships with stub content for a fictional "Jane Doe" so the app has
-something to show on first run. Replace it with your own career history:
+The copy in step 2 filled `data/` with stub content for a fictional "Jane Doe"
+so the app has something to show on first run. Replace it with your own career
+history — every file below is untracked, so edit freely:
 
 - `data/profile.yaml` — contact details, education, publications, awards,
-  languages (untracked; you copied it from the example above)
+  languages
 - `data/experience/*.md` — one file per job or client engagement
 - `data/projects/*.md` — one file per project
 - `data/cover-letter-snippets/*.md` — optional reusable cover-letter paragraphs

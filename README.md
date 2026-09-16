@@ -29,7 +29,7 @@
 
 *Su misura* is Italian for "made to measure". Sumisura is not a generic resume builder and not a template gallery: you keep your whole career history as Master Data in this repo, and each run produces a *Tailored CV* for one *Job Description* — selected from real Entries, rewritten under a groundedness check, and approved by you before anything is rendered. The AI never invents experience you don't have.
 
-It is **self-hosted**: it runs on your machine, your data stays in files you own, and it calls the Claude API with your own key. Bring your own career history — the `data/` directory ships with stub content (Jane Doe) for exactly that reason.
+It is **self-hosted**: it runs on your machine, your data stays in files you own, and it calls the Claude API with your own key. Bring your own career history — `data/examples/` ships stub content (Jane Doe) to copy across and edit, and your copies are gitignored.
 
 See `CONTEXT.md` for the domain vocabulary (Master Data, Entry, Client Engagement, Selection, Rewrite, Tailored CV, Job Listing, Application, ...) and `docs/adr/` for why the architecture looks like this.
 
@@ -56,12 +56,12 @@ browser extension while you read a posting on LinkedIn or Indeed.
 ```sh
 git clone https://github.com/gio-del/sumisura.git && cd sumisura
 cp .env.example .env            # set ANTHROPIC_API_KEY
-cp data/profile.example.yaml data/profile.yaml   # your contact details stay untracked
+cp -r data/examples/. data/     # stub Master Data to edit; your copies stay untracked
 docker compose up               # app on 127.0.0.1:5173, API on :8080
 claude plugin marketplace add . && claude plugin install sumisura@sumisura-local
 ```
 
-Then replace the stub Master Data in `data/` with your own, and run
+Then replace the copied stub Master Data in `data/` with your own, and run
 `/sumisura:tailor-cv` in Claude Code. You need Docker, an Anthropic API key,
 Claude Code, and the `typst` CLI.
 
@@ -72,7 +72,7 @@ tailoring, tracking, configuration, LAN mode, upgrading and troubleshooting.
 
 | Path | What's in it |
 |---|---|
-| `data/` | Your Master Data: `experience/*.md`, `projects/*.md`, `cover-letter-snippets/*.md` (tracked, ship as stubs) and `profile.yaml` — your contact details, **gitignored**, copied from `profile.example.yaml` (ADR-0037). |
+| `data/` | Your Master Data: `profile.yaml`, `experience/*.md`, `projects/*.md`, `cover-letter-snippets/*.md` — all **gitignored**, copied once from the tracked stubs in `data/examples/` (ADR-0038). |
 | `template/` | `cv.typ` and `cover-letter.typ` — pure presentation, each reads one assembled JSON file. |
 | `output/` | Gitignored. One directory per Generation: PDFs, the assembled data, and `selection.json`. Safe to delete. |
 | `backend/` | Go API over `data/`, plus `cmd/cvcheck` (the quality checks, offline) and `cmd/migrate-records`. |

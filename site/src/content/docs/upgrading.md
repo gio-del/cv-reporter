@@ -53,6 +53,22 @@ with nothing changed.
 
 ## Version-specific notes
 
+### Unreleased — Master Data became local-only
+
+All Master Data is now gitignored, not just `data/profile.yaml`:
+`data/experience/`, `data/projects/` and `data/cover-letter-snippets/` joined it,
+and the stubs moved to `data/examples/`
+([ADR-0038](https://github.com/gio-del/sumisura/blob/main/docs/adr/0038-all-master-data-is-local-only.md)).
+
+Your files are read from the same paths as before, so **nothing moves on your
+disk and nothing needs regenerating**. After pulling, git simply stops tracking
+them. Two things to know:
+
+- If your own Master Data was committed to a fork or a private remote, the
+  history is still there. Removing it takes a history rewrite, not this upgrade.
+- `data/` is now entirely yours to back up. A private repo or a synced folder
+  covers it.
+
 ### 0.1.0 — first public release
 
 Nothing to migrate. If you were running the project before it was renamed from
