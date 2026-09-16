@@ -15,12 +15,12 @@ func TestDeleteEntry_RemovesFileAndReturns204(t *testing.T) {
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
-	path := filepath.Join(dataDir, "experience", "quantyca-amplifon.md")
+	path := filepath.Join(dataDir, "experience", "example-client-a.md")
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected fixture file to exist before delete: %v", err)
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, server.URL+"/api/master-data/entries/experience/quantyca-amplifon", nil)
+	req, err := http.NewRequest(http.MethodDelete, server.URL+"/api/master-data/entries/experience/example-client-a", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -36,10 +36,10 @@ func TestUpdateEntry_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 	defer server.Close()
 
 	payload := map[string]any{
-		"employer": "Quantyca S.p.A.",
+		"employer": "Example Consulting S.p.A.",
 		"role":     "Senior Data Engineer",
-		"client":   "Amplifon",
-		"location": "Monza",
+		"client":   "Example Client A",
+		"location": "Example City",
 		"start":    "2024-10",
 		"end":      nil,
 		"flagship": true,
@@ -50,11 +50,11 @@ func TestUpdateEntry_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 		},
 	}
 
-	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/quantyca-amplifon", payload)
+	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/example-client-a", payload)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+		body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 		t.Fatalf("expected 200, got %d; file on disk:\n%s", resp.StatusCode, body)
 	}
 
@@ -66,7 +66,7 @@ func TestUpdateEntry_ValidPayload_WritesFileAndReturns200(t *testing.T) {
 		t.Errorf("expected response role Senior Data Engineer, got %v", entry["role"])
 	}
 
-	updated, err := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+	updated, err := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,29 +87,29 @@ func TestUpdateEntry_MalformedDate_Returns400AndFileUnchanged(t *testing.T) {
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
-	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	payload := map[string]any{
-		"employer": "Quantyca S.p.A.",
+		"employer": "Example Consulting S.p.A.",
 		"role":     "Data Engineer",
-		"client":   "Amplifon",
-		"location": "Monza",
+		"client":   "Example Client A",
+		"location": "Example City",
 		"start":    "not-a-date",
 		"tags":     []string{"AI Platform"},
 		"bullets":  []string{"Did stuff."},
 	}
 
-	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/quantyca-amplifon", payload)
+	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/example-client-a", payload)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 
-	body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+	body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 	if !bytes.Equal(body, original) {
 		t.Errorf("expected file to be untouched after invalid update, got:\n%s", body)
 	}
@@ -120,7 +120,7 @@ func TestUpdateEntry_MissingRequiredField_Returns400AndFileUnchanged(t *testing.
 	server := httptest.NewServer(api.NewRouter(api.RouterConfig{DataDir: dataDir}))
 	defer server.Close()
 
-	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+	original, err := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,21 +128,21 @@ func TestUpdateEntry_MissingRequiredField_Returns400AndFileUnchanged(t *testing.
 	payload := map[string]any{
 		"employer": "",
 		"role":     "Data Engineer",
-		"client":   "Amplifon",
-		"location": "Monza",
+		"client":   "Example Client A",
+		"location": "Example City",
 		"start":    "2024-10",
 		"tags":     []string{"AI Platform"},
 		"bullets":  []string{"Did stuff."},
 	}
 
-	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/quantyca-amplifon", payload)
+	resp := putJSON(t, server.URL+"/api/master-data/entries/experience/example-client-a", payload)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 
-	body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "quantyca-amplifon.md"))
+	body, _ := os.ReadFile(filepath.Join(dataDir, "experience", "example-client-a.md"))
 	if !bytes.Equal(body, original) {
 		t.Errorf("expected file to be untouched after invalid update, got:\n%s", body)
 	}

@@ -509,7 +509,7 @@ func TestRecordApplicationGeneration_PersistsEntryIDsFromRequest(t *testing.T) {
 	resp := postJSON(t, server.URL+"/api/applications/"+id+"/generations", map[string]any{
 		"slug":     "acme-corp",
 		"cvPath":   "output/acme-corp/cv.pdf",
-		"entryIds": []string{"experience/quantyca-amplifon", "projects/emall"},
+		"entryIds": []string{"experience/example-client-a", "projects/emall"},
 	})
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
@@ -526,7 +526,7 @@ func TestRecordApplicationGeneration_PersistsEntryIDsFromRequest(t *testing.T) {
 	}
 	record := generations[0].(map[string]any)
 	entryIDs, ok := record["entryIds"].([]any)
-	if !ok || len(entryIDs) != 2 || entryIDs[0] != "experience/quantyca-amplifon" || entryIDs[1] != "projects/emall" {
+	if !ok || len(entryIDs) != 2 || entryIDs[0] != "experience/example-client-a" || entryIDs[1] != "projects/emall" {
 		t.Fatalf("expected entryIds to persist as recorded, got %v", record["entryIds"])
 	}
 }
@@ -665,7 +665,7 @@ func TestRecordApplicationGeneration_WithGroundedness_PersistsIt(t *testing.T) {
 		"groundedness": map[string]any{
 			"bullets": []map[string]any{
 				{
-					"entryId":     "experience/quantyca-amplifon",
+					"entryId":     "experience/example-client-a",
 					"sourceIndex": 0,
 					"flags": []map[string]any{
 						{"sentence": "Fabricated claim.", "reason": "no-source-match"},
